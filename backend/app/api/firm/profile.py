@@ -4,6 +4,7 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy import select
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
@@ -41,7 +42,9 @@ async def update_profile(
 
 async def _get_org(db: AsyncSession, org_id: uuid.UUID) -> Organisation:
     result = await db.execute(
-        select(Organisation).where(Organisation.id == org_id)
+        select(Organisation)
+        .options(selectinload(Organisation.offices))
+        .where(Organisation.id == org_id)
     )
     org = result.scalar_one_or_none()
     if not org:
