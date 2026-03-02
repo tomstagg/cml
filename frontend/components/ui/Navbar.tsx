@@ -40,7 +40,7 @@ export function Navbar() {
 
           {/* Desktop CTA */}
           <div className="hidden md:flex items-center gap-3">
-            <Link href="/firm/login" className="btn-ghost text-sm">
+            <Link href="/login" className="btn-ghost text-sm">
               Firm Login
             </Link>
             <Link href="/chat" className="btn-primary text-sm px-4 py-2">
@@ -74,7 +74,7 @@ export function Navbar() {
               </Link>
             ))}
             <div className="pt-3 border-t border-gray-100 flex flex-col gap-2">
-              <Link href="/firm/login" className="btn-ghost w-full justify-center">
+              <Link href="/login" className="btn-ghost w-full justify-center">
                 Firm Login
               </Link>
               <Link href="/chat" className="btn-primary w-full justify-center">
