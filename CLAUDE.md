@@ -124,6 +124,24 @@ docker-compose exec backend python scripts/import_sra_csv.py \
 
 ---
 
+## Testing
+
+After making any changes to backend code, run the test suite from `backend/`:
+
+```bash
+cd backend
+uv run pytest -v
+```
+
+All 86 tests must pass before committing. If a test fails, fix the root cause — do not skip or delete the test.
+
+- Tests use a separate `test_cml_db` database created automatically on first run
+- Requires PostgreSQL running locally (`docker-compose up`)
+- Unit tests cover: auth service, chat service, price calculator
+- Integration tests cover: all public and firm API endpoints
+
+---
+
 ## Git workflow
 
 - **Active branch**: `dev`
