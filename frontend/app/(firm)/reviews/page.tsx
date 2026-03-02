@@ -28,10 +28,10 @@ export default function ReviewsPage() {
 
   useEffect(() => {
     const token = getStoredToken();
-    if (!token) { router.push("/firm/login"); return; }
+    if (!token) { router.push("/login"); return; }
     firmReviewsApi.list(token)
       .then((data) => setReviews(data as Review[]))
-      .catch(() => router.push("/firm/login"))
+      .catch(() => router.push("/login"))
       .finally(() => setLoading(false));
   }, []);
 

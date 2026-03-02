@@ -36,7 +36,7 @@ export default function EnrollPage({ params }: { params: { token: string } }) {
       }) as { access_token: string };
       setStoredToken(res.access_token);
       toast.success("Account created! Welcome to Choose My Lawyer.");
-      router.push("/firm/dashboard");
+      router.push("/dashboard");
     } catch (err: any) {
       toast.error(err.detail || "Registration failed. Please try again.");
     }

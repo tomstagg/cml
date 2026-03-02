@@ -29,10 +29,10 @@ export default function PricingPage() {
 
   useEffect(() => {
     const token = getStoredToken();
-    if (!token) { router.push("/firm/login"); return; }
+    if (!token) { router.push("/login"); return; }
     firmPricingApi.list(token)
       .then((data) => setCards(data as PriceCard[]))
-      .catch(() => router.push("/firm/login"))
+      .catch(() => router.push("/login"))
       .finally(() => setLoading(false));
   }, []);
 

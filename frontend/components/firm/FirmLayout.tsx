@@ -15,11 +15,11 @@ import { cn, clearStoredToken } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 
 const navItems = [
-  { href: "/firm/dashboard", label: "Dashboard", icon: BarChart2 },
-  { href: "/firm/profile", label: "Profile", icon: User },
-  { href: "/firm/pricing", label: "Pricing", icon: BookOpen },
-  { href: "/firm/reviews", label: "Reviews", icon: Star },
-  { href: "/firm/appointments", label: "Appointments", icon: Settings },
+  { href: "/dashboard", label: "Dashboard", icon: BarChart2 },
+  { href: "/profile", label: "Profile", icon: User },
+  { href: "/pricing", label: "Pricing", icon: BookOpen },
+  { href: "/reviews", label: "Reviews", icon: Star },
+  { href: "/appointments", label: "Appointments", icon: Settings },
 ];
 
 export function FirmLayout({ children }: { children: React.ReactNode }) {
@@ -27,7 +27,7 @@ export function FirmLayout({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   // Auth check pages (login, enroll) — no sidebar
-  const isAuthPage = pathname.startsWith("/firm/login") || pathname.startsWith("/firm/enroll");
+  const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/enroll");
   if (isAuthPage) {
     return (
       <div className="min-h-screen bg-gray-50">
@@ -44,7 +44,7 @@ export function FirmLayout({ children }: { children: React.ReactNode }) {
 
   function handleLogout() {
     clearStoredToken();
-    router.push("/firm/login");
+    router.push("/login");
   }
 
   return (
@@ -52,7 +52,7 @@ export function FirmLayout({ children }: { children: React.ReactNode }) {
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-4 border-b border-gray-200">
-          <Link href="/firm/dashboard" className="flex items-center gap-2 font-bold text-gray-900">
+          <Link href="/dashboard" className="flex items-center gap-2 font-bold text-gray-900">
             <Scale className="w-5 h-5 text-brand-600" />
             <span className="text-sm">CML Firm Portal</span>
           </Link>

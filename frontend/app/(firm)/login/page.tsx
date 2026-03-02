@@ -19,7 +19,7 @@ export default function FirmLoginPage() {
     try {
       const res = await firmAuthApi.login(data.email, data.password) as { access_token: string };
       setStoredToken(res.access_token);
-      router.push("/firm/dashboard");
+      router.push("/dashboard");
     } catch (err: any) {
       toast.error(err.detail || "Invalid email or password");
     }

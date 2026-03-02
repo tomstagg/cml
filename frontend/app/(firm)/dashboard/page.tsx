@@ -30,12 +30,12 @@ export default function DashboardPage() {
 
   useEffect(() => {
     const token = getStoredToken();
-    if (!token) { router.push("/firm/login"); return; }
+    if (!token) { router.push("/login"); return; }
 
     firmDashboardApi
       .getStats(token)
       .then((data) => setStats(data as Stats))
-      .catch(() => router.push("/firm/login"))
+      .catch(() => router.push("/login"))
       .finally(() => setLoading(false));
   }, []);
 

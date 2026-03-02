@@ -30,7 +30,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     const token = getStoredToken();
-    if (!token) { router.push("/firm/login"); return; }
+    if (!token) { router.push("/login"); return; }
     firmProfileApi.get(token)
       .then((data) => {
         const p = data as Profile;
@@ -39,7 +39,7 @@ export default function ProfilePage() {
         setPhone(p.phone ?? "");
         setEmail(p.email ?? "");
       })
-      .catch(() => router.push("/firm/login"))
+      .catch(() => router.push("/login"))
       .finally(() => setLoading(false));
   }, []);
 
