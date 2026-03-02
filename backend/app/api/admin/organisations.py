@@ -84,7 +84,7 @@ async def invite_enrollment(
     db.add(org)
     await db.flush()
 
-    enrollment_url = f"{settings.app_url}/firm/enroll/{org.enrollment_token}"
+    enrollment_url = f"{settings.app_url}/enroll/{org.enrollment_token}"
     await send_enrollment_invitation(org.email, org.name, enrollment_url)
 
     return {

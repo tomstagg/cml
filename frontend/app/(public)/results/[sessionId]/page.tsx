@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   description: "Compare probate solicitors ranked by price, reputation, and distance.",
 };
 
-export default function ResultsPage({ params }: { params: { sessionId: string } }) {
-  return <ResultsClient sessionId={params.sessionId} />;
+export default async function ResultsPage({ params }: { params: Promise<{ sessionId: string }> }) {
+  const { sessionId } = await params;
+  return <ResultsClient sessionId={sessionId} />;
 }

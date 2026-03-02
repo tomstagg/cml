@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { use } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, CheckCircle } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { firmAuthApi } from "@/lib/api";
@@ -16,7 +16,8 @@ type FormData = {
   accept_terms: boolean;
 };
 
-export default function EnrollPage({ params }: { params: { token: string } }) {
+export default function EnrollPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = use(params);
   const router = useRouter();
   const {
     register,
@@ -28,7 +29,7 @@ export default function EnrollPage({ params }: { params: { token: string } }) {
   async function onSubmit(data: FormData) {
     try {
       const res = await firmAuthApi.register({
-        enrollment_token: params.token,
+        enrollment_token: token,
         email: data.email,
         password: data.password,
         full_name: data.full_name,

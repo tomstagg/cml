@@ -6,6 +6,7 @@ export const metadata: Metadata = {
   description: "Share your experience with your solicitor.",
 };
 
-export default function ReviewPage({ params }: { params: { token: string } }) {
-  return <ReviewForm token={params.token} />;
+export default async function ReviewPage({ params }: { params: Promise<{ token: string }> }) {
+  const { token } = await params;
+  return <ReviewForm token={token} />;
 }
