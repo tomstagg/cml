@@ -77,7 +77,7 @@ export default function HomePage() {
               </Link>
               <Link
                 href="/how-it-works"
-                className="btn-secondary text-lg px-8 py-4 rounded-xl border-brand-700 text-brand-100 hover:bg-brand-800"
+                className="btn-secondary text-lg px-8 py-4 rounded-xl border-white text-brand-950 hover:bg-brand-50"
               >
                 How It Works
               </Link>
@@ -154,7 +154,7 @@ export default function HomePage() {
             Join Choose My Lawyer and reach clients actively looking for probate solicitors. Free to
             join during our launch period.
           </p>
-          <Link href="/for-firms" className="btn-secondary border-brand-700 text-brand-100 hover:bg-brand-800">
+          <Link href="/for-firms" className="btn-secondary border-white text-brand-950 hover:bg-brand-50">
             Learn More for Firms
             <ArrowRight className="w-4 h-4" />
           </Link>

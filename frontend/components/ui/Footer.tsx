@@ -1,15 +1,20 @@
 import Link from "next/link";
-import { Scale } from "lucide-react";
+import Image from "next/image";
 
 export function Footer() {
   return (
-    <footer className="bg-gray-950 text-gray-400 py-12">
+    <footer className="bg-brand-950 text-gray-400 py-12">
       <div className="section-container">
         <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
           <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center gap-2 font-bold text-white mb-3">
-              <Scale className="w-5 h-5 text-brand-400" />
-              <span>Choose My Lawyer</span>
+            <Link href="/" className="flex items-center mb-3">
+              <Image
+                src="/logo-dark.png"
+                alt="Choose My Lawyer"
+                width={160}
+                height={56}
+                className="h-8 w-auto"
+              />
             </Link>
             <p className="text-sm leading-relaxed">
               An independent legal comparison platform for England & Wales. Not regulated by the SRA.
@@ -40,9 +45,9 @@ export function Footer() {
             </ul>
           </div>
         </div>
-        <div className="border-t border-gray-800 pt-8 text-sm text-center">
+        <div className="border-t border-brand-900 pt-8 text-sm text-center">
           <p>© {new Date().getFullYear()} Choose My Lawyer. All rights reserved.</p>
-          <p className="mt-1 text-gray-600">
+          <p className="mt-1 text-brand-400">
             Choose My Lawyer is an independent comparison service and is not regulated by the Solicitors Regulation Authority.
           </p>
         </div>
