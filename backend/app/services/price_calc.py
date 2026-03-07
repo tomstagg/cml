@@ -80,18 +80,24 @@ def calculate_quote(pricing: dict, complexity: dict) -> dict | None:
 
     # --- VAT ---
     vat_applies = pricing.get("vat_applies_to_fees", True)
-    vat_amount = (fees_subtotal * VAT_RATE).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP) if vat_applies else Decimal("0")
+    vat_amount = (
+        (fees_subtotal * VAT_RATE).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
+        if vat_applies
+        else Decimal("0")
+    )
 
     # --- Disbursements (no VAT) ---
     disbursements = []
     disbursement_total = Decimal("0")
     for disb in pricing.get("disbursements", []):
         amount = Decimal(str(disb.get("amount", 0)))
-        disbursements.append({
-            "name": disb["name"],
-            "amount": float(amount),
-            "estimated": disb.get("estimated", False),
-        })
+        disbursements.append(
+            {
+                "name": disb["name"],
+                "amount": float(amount),
+                "estimated": disb.get("estimated", False),
+            }
+        )
         disbursement_total += amount
 
     total = fees_subtotal + vat_amount + disbursement_total

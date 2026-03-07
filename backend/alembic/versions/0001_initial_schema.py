@@ -8,7 +8,6 @@ Create Date: 2026-03-01
 
 from alembic import op
 import sqlalchemy as sa
-import geoalchemy2
 from sqlalchemy.dialects import postgresql
 
 revision: str = "0001"
@@ -18,9 +17,6 @@ depends_on = None
 
 
 def upgrade() -> None:
-    # Enable PostGIS
-    op.execute("CREATE EXTENSION IF NOT EXISTS postgis")
-
     # organisations
     op.create_table(
         "organisations",
@@ -39,8 +35,18 @@ def upgrade() -> None:
         sa.Column("google_review_count", sa.Integer(), nullable=True),
         sa.Column("aggregate_rating", sa.Float(), nullable=True),
         sa.Column("aggregate_review_count", sa.Integer(), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("sra_number"),
         sa.UniqueConstraint("enrollment_token"),
@@ -59,13 +65,15 @@ def upgrade() -> None:
         sa.Column("county", sa.String(100), nullable=True),
         sa.Column("postcode", sa.String(10), nullable=False),
         sa.Column("country", sa.String(50), nullable=False, server_default="England and Wales"),
-        sa.Column(
-            "location",
-            geoalchemy2.types.Geography(geometry_type="POINT", srid=4326),
-            nullable=True,
-        ),
+        sa.Column("lat", sa.Float(), nullable=True),
+        sa.Column("lng", sa.Float(), nullable=True),
         sa.Column("is_primary", sa.Boolean(), nullable=False, server_default="true"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["org_id"], ["organisations.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -78,11 +86,23 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("org_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("practice_area", sa.String(50), nullable=False, server_default="probate"),
-        sa.Column("pricing", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"),
+        sa.Column(
+            "pricing", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"
+        ),
         sa.Column("confidence", sa.Float(), nullable=False, server_default="1.0"),
         sa.Column("active", sa.Boolean(), nullable=False, server_default="true"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["org_id"], ["organisations.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
     )
@@ -95,20 +115,39 @@ def upgrade() -> None:
         "chat_sessions",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("practice_area", sa.String(50), nullable=False, server_default="probate"),
-        sa.Column("answers", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"),
-        sa.Column("message_history", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="[]"),
+        sa.Column(
+            "answers", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"
+        ),
+        sa.Column(
+            "message_history",
+            postgresql.JSONB(astext_type=sa.Text()),
+            nullable=False,
+            server_default="[]",
+        ),
         sa.Column("results_cache", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
         sa.Column("save_email", sa.String(255), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_index("ix_chat_sessions_expires_at", "chat_sessions", ["expires_at"])
 
     # Enum types for appointments
     op.execute("CREATE TYPE appointment_type AS ENUM ('appoint', 'callback')")
-    op.execute("CREATE TYPE appointment_status AS ENUM ('pending', 'confirmed', 'completed', 'cancelled')")
+    op.execute(
+        "CREATE TYPE appointment_status AS ENUM ('pending', 'confirmed', 'completed', 'cancelled')"
+    )
 
     # appointments
     op.create_table(
@@ -116,8 +155,24 @@ def upgrade() -> None:
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("session_id", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("org_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("type", postgresql.ENUM("appoint", "callback", name="appointment_type", create_type=False), nullable=False),
-        sa.Column("status", postgresql.ENUM("pending", "confirmed", "completed", "cancelled", name="appointment_status", create_type=False), nullable=False, server_default="pending"),
+        sa.Column(
+            "type",
+            postgresql.ENUM("appoint", "callback", name="appointment_type", create_type=False),
+            nullable=False,
+        ),
+        sa.Column(
+            "status",
+            postgresql.ENUM(
+                "pending",
+                "confirmed",
+                "completed",
+                "cancelled",
+                name="appointment_status",
+                create_type=False,
+            ),
+            nullable=False,
+            server_default="pending",
+        ),
         sa.Column("client_name", sa.String(255), nullable=False),
         sa.Column("client_email", sa.String(255), nullable=False),
         sa.Column("client_phone", sa.String(30), nullable=True),
@@ -126,8 +181,18 @@ def upgrade() -> None:
         sa.Column("quote_breakdown", sa.Text(), nullable=True),
         sa.Column("consent_contacted", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("consent_terms", sa.Boolean(), nullable=False, server_default="false"),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
-        sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
+        sa.Column(
+            "updated_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["session_id"], ["chat_sessions.id"], ondelete="SET NULL"),
         sa.ForeignKeyConstraint(["org_id"], ["organisations.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -144,7 +209,11 @@ def upgrade() -> None:
         "reviews",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("org_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("source", postgresql.ENUM("cml", "google", name="review_source", create_type=False), nullable=False),
+        sa.Column(
+            "source",
+            postgresql.ENUM("cml", "google", name="review_source", create_type=False),
+            nullable=False,
+        ),
         sa.Column("rating", sa.Numeric(2, 1), nullable=False),
         sa.Column("text", sa.Text(), nullable=True),
         sa.Column("reviewer_name", sa.String(255), nullable=True),
@@ -153,7 +222,12 @@ def upgrade() -> None:
         sa.Column("firm_response_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("reported", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("reported_at", sa.DateTime(timezone=True), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.Column("synced_at", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["org_id"], ["organisations.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
@@ -171,7 +245,12 @@ def upgrade() -> None:
         sa.Column("sent_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("used_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.ForeignKeyConstraint(["appointment_id"], ["appointments.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("token"),
@@ -187,9 +266,19 @@ def upgrade() -> None:
         sa.Column("org_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("email", sa.String(255), nullable=False),
         sa.Column("hashed_password", sa.String(255), nullable=False),
-        sa.Column("role", postgresql.ENUM("admin", "staff", name="firm_user_role", create_type=False), nullable=False, server_default="admin"),
+        sa.Column(
+            "role",
+            postgresql.ENUM("admin", "staff", name="firm_user_role", create_type=False),
+            nullable=False,
+            server_default="admin",
+        ),
         sa.Column("full_name", sa.String(255), nullable=True),
-        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.text("now()"), nullable=False),
+        sa.Column(
+            "created_at",
+            sa.DateTime(timezone=True),
+            server_default=sa.text("now()"),
+            nullable=False,
+        ),
         sa.Column("last_login", sa.DateTime(timezone=True), nullable=True),
         sa.ForeignKeyConstraint(["org_id"], ["organisations.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),

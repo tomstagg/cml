@@ -60,9 +60,7 @@ async def report_review(
 
 
 async def _get_review(db: AsyncSession, review_id: uuid.UUID, org_id: uuid.UUID) -> Review:
-    result = await db.execute(
-        select(Review).where(Review.id == review_id, Review.org_id == org_id)
-    )
+    result = await db.execute(select(Review).where(Review.id == review_id, Review.org_id == org_id))
     review = result.scalar_one_or_none()
     if not review:
         raise HTTPException(status_code=404, detail="Review not found")

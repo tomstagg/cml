@@ -66,4 +66,6 @@ class Appointment(Base):
     # Relationships
     session: Mapped["ChatSession"] = relationship(back_populates="appointments")
     organisation: Mapped["Organisation"] = relationship(back_populates="appointments")
-    review_invitation: Mapped["ReviewInvitation | None"] = relationship(back_populates="appointment")
+    review_invitation: Mapped["ReviewInvitation | None"] = relationship(
+        back_populates="appointment"
+    )

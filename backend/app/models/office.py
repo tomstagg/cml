@@ -1,8 +1,7 @@
 import uuid
 from datetime import datetime
 
-from geoalchemy2 import Geography
-from sqlalchemy import DateTime, ForeignKey, String, func
+from sqlalchemy import DateTime, Float, ForeignKey, String, func
 from sqlalchemy.dialects.postgresql import UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -23,8 +22,8 @@ class Office(Base):
     postcode: Mapped[str] = mapped_column(String(10), nullable=False)
     country: Mapped[str] = mapped_column(String(50), default="England and Wales", nullable=False)
 
-    # PostGIS geography point (SRID 4326, lon/lat)
-    location: Mapped[object | None] = mapped_column(Geography(geometry_type="POINT", srid=4326))
+    lat: Mapped[float | None] = mapped_column(Float, nullable=True)
+    lng: Mapped[float | None] = mapped_column(Float, nullable=True)
 
     is_primary: Mapped[bool] = mapped_column(default=True, nullable=False)
 

@@ -50,7 +50,9 @@ async def test_search_with_enrolled_firm_returns_result(
     assert firm["quote"]["total"] == pytest.approx(2073.0)
 
 
-async def test_search_second_call_uses_cache(client, completed_session, enrolled_org, test_price_card):
+async def test_search_second_call_uses_cache(
+    client, completed_session, enrolled_org, test_price_card
+):
     """Second search call on same session returns same results (from cache)."""
     r1 = await client.get(f"/api/public/search/{completed_session.id}")
     r2 = await client.get(f"/api/public/search/{completed_session.id}")

@@ -41,8 +41,14 @@ class Organisation(Base):
     )
 
     # Relationships
-    offices: Mapped[list["Office"]] = relationship(back_populates="organisation", cascade="all, delete-orphan")
-    price_cards: Mapped[list["PriceCard"]] = relationship(back_populates="organisation", cascade="all, delete-orphan")
-    firm_users: Mapped[list["FirmUser"]] = relationship(back_populates="organisation", cascade="all, delete-orphan")
+    offices: Mapped[list["Office"]] = relationship(
+        back_populates="organisation", cascade="all, delete-orphan"
+    )
+    price_cards: Mapped[list["PriceCard"]] = relationship(
+        back_populates="organisation", cascade="all, delete-orphan"
+    )
+    firm_users: Mapped[list["FirmUser"]] = relationship(
+        back_populates="organisation", cascade="all, delete-orphan"
+    )
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="organisation")
     reviews: Mapped[list["Review"]] = relationship(back_populates="organisation")

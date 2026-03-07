@@ -126,6 +126,13 @@ docker-compose exec backend python scripts/import_sra_csv.py \
 
 ## Testing
 
+After making any changes to backend Python code, run ruff format:
+
+```bash
+cd backend
+uv run ruff format .
+```
+
 After making any changes to backend code, run the test suite from `backend/`:
 
 ```bash

@@ -3,7 +3,7 @@
 import math
 from decimal import Decimal
 
-from sqlalchemy import select, func, and_
+from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.organisation import Organisation
@@ -50,7 +50,14 @@ async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
     # Query: enrolled orgs with active probate price cards + primary office
     stmt = (
         select(Organisation, PriceCard, Office)
-        .join(PriceCard, and_(PriceCard.org_id == Organisation.id, PriceCard.active == True, PriceCard.practice_area == "probate"))
+        .join(
+            PriceCard,
+            and_(
+                PriceCard.org_id == Organisation.id,
+                PriceCard.active == True,
+                PriceCard.practice_area == "probate",
+            ),
+        )
         .outerjoin(Office, and_(Office.org_id == Organisation.id, Office.is_primary == True))
         .where(Organisation.enrolled == True)
     )
@@ -68,22 +75,18 @@ async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
 
         # Distance
         distance_km = None
-        if consumer_coords and office and office.location is not None:
-            # Extract coordinates from WKBElement
-            try:
-                from geoalchemy2.shape import to_shape
-                point = to_shape(office.location)
-                distance_km = haversine_km(consumer_coords[0], consumer_coords[1], point.y, point.x)
-            except Exception:
-                pass
+        if consumer_coords and office and office.lat is not None and office.lng is not None:
+            distance_km = haversine_km(consumer_coords[0], consumer_coords[1], office.lat, office.lng)
 
-        candidates.append({
-            "org": org,
-            "price_card": price_card,
-            "office": office,
-            "quote": quote,
-            "distance_km": distance_km,
-        })
+        candidates.append(
+            {
+                "org": org,
+                "price_card": price_card,
+                "office": office,
+                "quote": quote,
+                "distance_km": distance_km,
+            }
+        )
 
     if not candidates:
         return []
@@ -101,10 +104,10 @@ async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
 
     # Ranking weights by preference
     weight_map = {
-        "price":      {"price": 0.80, "reputation": 0.10, "distance": 0.10},
+        "price": {"price": 0.80, "reputation": 0.10, "distance": 0.10},
         "reputation": {"price": 0.20, "reputation": 0.70, "distance": 0.10},
-        "distance":   {"price": 0.20, "reputation": 0.10, "distance": 0.70},
-        "balanced":   {"price": 0.60, "reputation": 0.25, "distance": 0.15},
+        "distance": {"price": 0.20, "reputation": 0.10, "distance": 0.70},
+        "balanced": {"price": 0.60, "reputation": 0.25, "distance": 0.15},
     }
     weights = weight_map.get(ranking_pref, weight_map["balanced"])
 
@@ -136,21 +139,23 @@ async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
     for rank, c in enumerate(candidates, start=1):
         org = c["org"]
         office = c["office"]
-        results.append({
-            "rank": rank,
-            "org_id": str(org.id),
-            "name": org.name,
-            "sra_number": org.sra_number,
-            "auth_status": org.auth_status,
-            "enrolled": org.enrolled,
-            "website_url": org.website_url,
-            "aggregate_rating": org.aggregate_rating,
-            "aggregate_review_count": org.aggregate_review_count,
-            "postcode": office.postcode if office else None,
-            "city": office.city if office else None,
-            "distance_km": round(c["distance_km"], 1) if c["distance_km"] is not None else None,
-            "quote": c["quote"],
-            "score": round(c["score"], 4),
-        })
+        results.append(
+            {
+                "rank": rank,
+                "org_id": str(org.id),
+                "name": org.name,
+                "sra_number": org.sra_number,
+                "auth_status": org.auth_status,
+                "enrolled": org.enrolled,
+                "website_url": org.website_url,
+                "aggregate_rating": org.aggregate_rating,
+                "aggregate_review_count": org.aggregate_review_count,
+                "postcode": office.postcode if office else None,
+                "city": office.city if office else None,
+                "distance_km": round(c["distance_km"], 1) if c["distance_km"] is not None else None,
+                "quote": c["quote"],
+                "score": round(c["score"], 4),
+            }
+        )
 
     return results
