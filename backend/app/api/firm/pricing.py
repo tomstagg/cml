@@ -22,9 +22,7 @@ async def list_price_cards(
     current_user: FirmUser = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(PriceCard).where(PriceCard.org_id == current_user.org_id)
-    )
+    result = await db.execute(select(PriceCard).where(PriceCard.org_id == current_user.org_id))
     return result.scalars().all()
 
 

@@ -124,22 +124,28 @@ async def submit_answer(
 
     # Append to message history
     history = list(session.message_history or [])
-    history.append({
-        "role": "user",
-        "content": str(answer_value) if isinstance(answer_value, str) else ", ".join(answer_value),
-        "question_id": body.question_id,
-        "timestamp": datetime.now(timezone.utc).isoformat(),
-    })
+    history.append(
+        {
+            "role": "user",
+            "content": str(answer_value)
+            if isinstance(answer_value, str)
+            else ", ".join(answer_value),
+            "question_id": body.question_id,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+    )
 
     # Determine next question
     next_q = get_next_question(body.question_id, answers)
     if next_q:
-        history.append({
-            "role": "system",
-            "content": next_q["text"],
-            "question_id": next_q["id"],
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
+        history.append(
+            {
+                "role": "system",
+                "content": next_q["text"],
+                "question_id": next_q["id"],
+                "timestamp": datetime.now(timezone.utc).isoformat(),
+            }
+        )
 
     session.answers = answers
     session.message_history = history

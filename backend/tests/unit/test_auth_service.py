@@ -19,6 +19,7 @@ from app.services.auth import (
 
 # ── Password hashing ──────────────────────────────────────────────────────────
 
+
 def test_hash_password_differs_from_plain():
     hashed = hash_password("secret123")
     assert hashed != "secret123"
@@ -44,6 +45,7 @@ def test_hash_password_same_input_different_hashes():
 
 # ── JWT creation ──────────────────────────────────────────────────────────────
 
+
 def test_create_access_token_returns_string():
     token = create_access_token("user-id-1", "org-id-1")
     assert isinstance(token, str)
@@ -63,6 +65,7 @@ def test_create_access_token_payload():
 
 
 # ── Token verification ────────────────────────────────────────────────────────
+
 
 def test_verify_token_valid():
     user_id = str(uuid.uuid4())

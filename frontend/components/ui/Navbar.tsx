@@ -1,8 +1,9 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { useState } from "react";
-import { Menu, Scale, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 
 const navLinks = [
   { href: "/probate", label: "Probate" },
@@ -16,13 +17,17 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
       <div className="section-container">
-        <div className="flex items-center justify-between h-16">
+        <div className="flex items-center justify-between h-24">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 font-bold text-xl text-gray-900">
-            <Scale className="w-6 h-6 text-brand-600" />
-            <span>
-              Choose My <span className="text-brand-600">Lawyer</span>
-            </span>
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/logo.png"
+              alt="Choose My Lawyer"
+              width={180}
+              height={76}
+              className="h-14 w-auto"
+              priority
+            />
           </Link>
 
           {/* Desktop nav */}
@@ -31,7 +36,7 @@ export function Navbar() {
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-gray-600 hover:text-gray-900 font-medium transition-colors"
+                className="text-gray-600 hover:text-brand-900 font-medium transition-colors"
               >
                 {link.label}
               </Link>

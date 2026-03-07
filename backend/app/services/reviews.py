@@ -122,8 +122,9 @@ async def recalculate_aggregate_rating(db: AsyncSession, org: Organisation) -> N
     """
     # CML reviews
     cml_result = await db.execute(
-        select(func.count(Review.id), func.sum(Review.rating))
-        .where(Review.org_id == org.id, Review.source == ReviewSource.cml, Review.reported == False)
+        select(func.count(Review.id), func.sum(Review.rating)).where(
+            Review.org_id == org.id, Review.source == ReviewSource.cml, Review.reported == False
+        )
     )
     cml_count, cml_sum = cml_result.one()
     cml_count = cml_count or 0
@@ -131,8 +132,9 @@ async def recalculate_aggregate_rating(db: AsyncSession, org: Organisation) -> N
 
     # Google reviews
     google_result = await db.execute(
-        select(func.count(Review.id), func.sum(Review.rating))
-        .where(Review.org_id == org.id, Review.source == ReviewSource.google)
+        select(func.count(Review.id), func.sum(Review.rating)).where(
+            Review.org_id == org.id, Review.source == ReviewSource.google
+        )
     )
     google_count, google_sum = google_result.one()
     google_count = google_count or 0

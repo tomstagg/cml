@@ -44,7 +44,7 @@ export default function ForFirmsPage() {
             probate solicitors. Join free during our launch period.
           </p>
           <p className="text-brand-300 mb-2">Interested? Contact us to register your firm.</p>
-          <Link href="/contact" className="btn-secondary border-brand-700 text-brand-100 hover:bg-brand-800">
+          <Link href="/contact" className="btn-secondary border-white text-brand-950 hover:bg-brand-50">
             Get In Touch
             <ArrowRight className="w-4 h-4" />
           </Link>

@@ -62,6 +62,7 @@ async def _review_invitation_job():
             sent = 0
             for appt in appointments:
                 import uuid
+
                 token = uuid.uuid4()
                 expires_at = datetime.now(timezone.utc) + timedelta(days=expiry_days)
 
@@ -76,6 +77,7 @@ async def _review_invitation_job():
 
                 # Load org for firm name
                 from app.models.organisation import Organisation
+
                 org_result = await db.execute(
                     select(Organisation).where(Organisation.id == appt.org_id)
                 )
@@ -86,6 +88,7 @@ async def _review_invitation_job():
                 await send_review_invitation(appt.client_email, firm_name, review_url)
 
                 from datetime import datetime as dt
+
                 invitation.sent_at = dt.now(timezone.utc)
                 sent += 1
 

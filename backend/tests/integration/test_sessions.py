@@ -64,10 +64,19 @@ async def test_walk_all_13_answers_completes_flow(client):
     session_id = create.json()["session_id"]
 
     question_order = [
-        "service_type", "estate_value", "has_will", "iht400", "uk_domiciled",
-        "uk_property_count", "bank_account_count", "investments_count",
-        "overseas_assets", "beneficiary_count", "location",
-        "location_preference", "ranking_preference",
+        "service_type",
+        "estate_value",
+        "has_will",
+        "iht400",
+        "uk_domiciled",
+        "uk_property_count",
+        "bank_account_count",
+        "investments_count",
+        "overseas_assets",
+        "beneficiary_count",
+        "location",
+        "location_preference",
+        "ranking_preference",
     ]
 
     last_response = None

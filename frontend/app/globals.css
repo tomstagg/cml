@@ -4,12 +4,13 @@
 
 @layer base {
   :root {
-    --brand-primary: #0d9488;
-    --brand-dark: #0f766e;
+    --brand-primary: #3450e8;
+    --brand-dark: #080c64;
   }
 
   html {
     scroll-behavior: smooth;
+    font-size: 112.5%; /* 18px base — scales all rem-based sizes up */
   }
 
   body {

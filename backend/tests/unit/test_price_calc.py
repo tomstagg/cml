@@ -49,6 +49,7 @@ PERCENTAGE_PRICING = {
 
 # ── Band model ───────────────────────────────────────────────────────────────
 
+
 def test_band_model_matches_correct_band():
     """Estate value 212,500 falls in the 0–325,000 band → fee = £1,500."""
     result = calculate_quote(BAND_PRICING, BASE_COMPLEXITY)
@@ -85,6 +86,7 @@ def test_band_model_no_matching_band_returns_none():
 
 # ── Fixed model ──────────────────────────────────────────────────────────────
 
+
 def test_fixed_model_returns_single_fee():
     result = calculate_quote(FIXED_PRICING, BASE_COMPLEXITY)
     assert result is not None
@@ -93,6 +95,7 @@ def test_fixed_model_returns_single_fee():
 
 
 # ── Percentage model ─────────────────────────────────────────────────────────
+
 
 def test_percentage_model_1_5_pct_of_300k():
     """1.5% of £300,000 = £4,500."""
@@ -104,6 +107,7 @@ def test_percentage_model_1_5_pct_of_300k():
 
 
 # ── Adjustments ──────────────────────────────────────────────────────────────
+
 
 def test_iht400_adjustment_applied_when_flag_true():
     pricing = {
@@ -143,6 +147,7 @@ def test_overseas_assets_adjustment_applied():
 
 # ── VAT ──────────────────────────────────────────────────────────────────────
 
+
 def test_vat_applied_to_fees_when_flag_true():
     """1500 * 20% = £300 VAT."""
     result = calculate_quote(BAND_PRICING, BASE_COMPLEXITY)
@@ -157,6 +162,7 @@ def test_no_vat_when_flag_false():
 
 
 # ── Disbursements ─────────────────────────────────────────────────────────────
+
 
 def test_disbursements_summed_separately():
     pricing = {
@@ -174,6 +180,7 @@ def test_disbursements_summed_separately():
 
 # ── Total ─────────────────────────────────────────────────────────────────────
 
+
 def test_total_equals_fees_plus_vat_plus_disbursements():
     pricing = {
         **BAND_PRICING,
@@ -187,6 +194,7 @@ def test_total_equals_fees_plus_vat_plus_disbursements():
 
 # ── Service type mismatch ─────────────────────────────────────────────────────
 
+
 def test_service_type_mismatch_returns_none():
     """A grant_only-only card should not match a full_administration session."""
     pricing = {**BAND_PRICING, "matter_types": ["grant_only"]}
@@ -196,6 +204,7 @@ def test_service_type_mismatch_returns_none():
 
 
 # ── Edge cases ────────────────────────────────────────────────────────────────
+
 
 def test_empty_pricing_returns_none():
     assert calculate_quote({}, BASE_COMPLEXITY) is None

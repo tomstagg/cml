@@ -36,7 +36,10 @@ async def get_results(session_id: uuid.UUID, db: AsyncSession = Depends(get_db))
         results_data = session.results_cache.get("results", [])
     else:
         results_data = await search_firms(db, session.answers)
-        session.results_cache = {"results": results_data, "cached_at": datetime.now(timezone.utc).isoformat()}
+        session.results_cache = {
+            "results": results_data,
+            "cached_at": datetime.now(timezone.utc).isoformat(),
+        }
         db.add(session)
 
     complexity = get_complexity_flags(session.answers)

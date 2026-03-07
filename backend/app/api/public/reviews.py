@@ -19,9 +19,7 @@ router = APIRouter(prefix="/reviews", tags=["reviews"])
 @router.get("/invitation/{token}")
 async def get_review_invitation(token: uuid.UUID, db: AsyncSession = Depends(get_db)):
     """Get review invitation details (firm name etc.) for the review form."""
-    inv_result = await db.execute(
-        select(ReviewInvitation).where(ReviewInvitation.token == token)
-    )
+    inv_result = await db.execute(select(ReviewInvitation).where(ReviewInvitation.token == token))
     invitation = inv_result.scalar_one_or_none()
     if not invitation:
         raise HTTPException(status_code=404, detail="Invitation not found")
@@ -32,6 +30,7 @@ async def get_review_invitation(token: uuid.UUID, db: AsyncSession = Depends(get
 
     # Load org via appointment
     from app.models.appointment import Appointment
+
     appt_result = await db.execute(
         select(Appointment).where(Appointment.id == invitation.appointment_id)
     )
@@ -39,9 +38,7 @@ async def get_review_invitation(token: uuid.UUID, db: AsyncSession = Depends(get
     if not appt:
         raise HTTPException(status_code=404, detail="Appointment not found")
 
-    org_result = await db.execute(
-        select(Organisation).where(Organisation.id == appt.org_id)
-    )
+    org_result = await db.execute(select(Organisation).where(Organisation.id == appt.org_id))
     org = org_result.scalar_one_or_none()
 
     return {
@@ -66,6 +63,7 @@ async def submit_review(body: ReviewSubmit, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=410, detail="This review link has expired")
 
     from app.models.appointment import Appointment
+
     appt_result = await db.execute(
         select(Appointment).where(Appointment.id == invitation.appointment_id)
     )

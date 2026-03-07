@@ -9,8 +9,16 @@ PROBATE_QUESTIONS: list[dict] = [
         "text": "What type of probate service do you need?",
         "type": "single_choice",
         "options": [
-            {"value": "grant_only", "label": "Grant of Probate only", "description": "You'll handle the estate administration yourself"},
-            {"value": "full_administration", "label": "Full estate administration", "description": "Solicitor handles everything from start to finish"},
+            {
+                "value": "grant_only",
+                "label": "Grant of Probate only",
+                "description": "You'll handle the estate administration yourself",
+            },
+            {
+                "value": "full_administration",
+                "label": "Full estate administration",
+                "description": "Solicitor handles everything from start to finish",
+            },
         ],
     },
     {
@@ -140,10 +148,26 @@ PROBATE_QUESTIONS: list[dict] = [
         "text": "What matters most to you when choosing a solicitor?",
         "type": "single_choice",
         "options": [
-            {"value": "price", "label": "Best price", "description": "Show me the most affordable options"},
-            {"value": "reputation", "label": "Best reviews", "description": "Show me the highest-rated firms"},
-            {"value": "distance", "label": "Closest to me", "description": "Show me firms nearest to my location"},
-            {"value": "balanced", "label": "Balanced recommendation", "description": "A mix of price, reputation and location"},
+            {
+                "value": "price",
+                "label": "Best price",
+                "description": "Show me the most affordable options",
+            },
+            {
+                "value": "reputation",
+                "label": "Best reviews",
+                "description": "Show me the highest-rated firms",
+            },
+            {
+                "value": "distance",
+                "label": "Closest to me",
+                "description": "Show me firms nearest to my location",
+            },
+            {
+                "value": "balanced",
+                "label": "Balanced recommendation",
+                "description": "A mix of price, reputation and location",
+            },
         ],
     },
 ]

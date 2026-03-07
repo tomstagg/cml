@@ -12,6 +12,7 @@ def _get_client():
         return None
     try:
         from sparkpost import SparkPost
+
         return SparkPost(settings.sparkpost_api_key)
     except ImportError:
         logger.warning("sparkpost package not installed")
@@ -74,7 +75,9 @@ async def send_appointment_notification_firm(
     preferred_time: str | None,
     quote_total: float | None,
 ) -> bool:
-    type_label = "New appointment request" if appointment_type == "appoint" else "New callback request"
+    type_label = (
+        "New appointment request" if appointment_type == "appoint" else "New callback request"
+    )
     subject = f"{type_label} from Choose My Lawyer"
     html = f"""
     <h2>{type_label}</h2>

@@ -94,7 +94,11 @@ async def import_csv(csv_path: str, region_filter: str | None, do_geocode: bool)
             # Region filter (by city or county)
             if region_filter:
                 county = resolve_col(row, "county") or ""
-                if region_filter.lower() not in city.lower() and region_filter.lower() not in county.lower() and region_filter.lower() not in postcode.lower():
+                if (
+                    region_filter.lower() not in city.lower()
+                    and region_filter.lower() not in county.lower()
+                    and region_filter.lower() not in postcode.lower()
+                ):
                     skipped += 1
                     continue
 
@@ -142,11 +146,6 @@ async def import_csv(csv_path: str, region_filter: str | None, do_geocode: bool)
                 if lat_lng:
                     print(f"  Geocoded {postcode} → {lat_lng}")
 
-            location = None
-            if lat_lng:
-                from geoalchemy2 import WKTElement
-                location = WKTElement(f"POINT({lat_lng[1]} {lat_lng[0]})", srid=4326)
-
             if not office:
                 office = Office(
                     org_id=org.id,
@@ -156,14 +155,16 @@ async def import_csv(csv_path: str, region_filter: str | None, do_geocode: bool)
                     county=resolve_col(row, "county"),
                     postcode=postcode,
                     is_primary=True,
-                    location=location,
+                    lat=lat_lng[0] if lat_lng else None,
+                    lng=lat_lng[1] if lat_lng else None,
                 )
                 db.add(office)
             else:
                 office.postcode = postcode
                 office.city = city
-                if location:
-                    office.location = location
+                if lat_lng:
+                    office.lat = lat_lng[0]
+                    office.lng = lat_lng[1]
                 db.add(office)
 
         await db.commit()

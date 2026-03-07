@@ -81,8 +81,8 @@ For local/smoke testing, insert directly:
 
 ```bash
 docker-compose exec db psql -U cml -d cml_db -c "
-INSERT INTO organisations (id, sra_number, name, auth_status, enrolled, enrollment_token_used)
-VALUES (gen_random_uuid(), 'SRA123456', 'Test Law Firm Ltd', 'authorised', false, false);
+INSERT INTO organisations (id, sra_number, name, auth_status, enrolled, enrollment_token_used, email)
+VALUES (gen_random_uuid(), 'SRA123458', 'Test Law Firm Ltd', 'authorised', false, false, 'tom@gmail.com');
 "
 ```
 
@@ -173,3 +173,9 @@ JWT is stored in localStorage and sent as `Authorization: Bearer <token>` on all
 ## access database
 
 docker-compose exec db psql -U cml -d cml_db
+
+
+## todo
+
+- setup github actions for build and push to railway
+- configure railway to 
