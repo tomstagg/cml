@@ -9,7 +9,7 @@ See `PLAN.md` for architecture decisions and phase status, and `docs/cml-technic
 ## Local development
 
 ```bash
-# Start all services (PostgreSQL+PostGIS, FastAPI, Next.js)
+# Start all services (PostgreSQL, FastAPI, Next.js)
 docker-compose up
 
 # Run DB migrations (first time or after schema changes)
@@ -75,7 +75,7 @@ docker-compose exec backend python scripts/import_sra_csv.py \
 
 DB result:
 - `organisations` row: `enrolled=false`, `enrollment_token=null`
-- `offices` row: primary office with postcode (+ PostGIS point if `--geocode`)
+- `offices` row: primary office with postcode (+ lat/lng if `--geocode`)
 
 For local/smoke testing, insert directly:
 

@@ -40,7 +40,7 @@ Source of truth for functional spec: `docs/cml-technical_scoping.pdf`
 |---|---|---|
 | Frontend | Next.js 15 (App Router), TypeScript, Tailwind CSS | SSR for SEO, fast to build, single codebase |
 | Backend | Python 3.12, FastAPI, SQLAlchemy (async), Alembic | Clean async API, Pydantic validation, auto docs |
-| Database | PostgreSQL 16 + PostGIS extension | Geolocation queries, JSONB for price cards |
+| Database | PostgreSQL 16 | JSONB for price cards, lat/lng floats for distance |
 | Background jobs | APScheduler (in-process with FastAPI) | Weekly Google Reviews sync; no Redis/Celery needed |
 | Email | Sparkpost | Transactional templates, bounce handling |
 | Reviews | Google Places API (weekly sync) | Firm reputation scores for ranking |
@@ -77,9 +77,9 @@ FastAPI Backend (REST API)
        └─ Weekly: Google Reviews sync → update reviews table
   │
   ▼
-PostgreSQL + PostGIS
+PostgreSQL
   ├─ organisations         (SRA firms — loaded via CSV upload script)
-  ├─ offices               (locations with geography point for distance)
+  ├─ offices               (locations with lat/lng floats for distance)
   ├─ price_cards           (manually entered by firms via dashboard)
   ├─ chat_sessions         (UUID, probate answers JSONB, expires 30 days)
   ├─ appointments          (appoint + callback records)
@@ -103,7 +103,7 @@ organisations
 
 offices
   id, org_id FK, address, postcode,
-  location GEOGRAPHY(POINT)   -- PostGIS for distance queries
+  lat FLOAT, lng FLOAT        -- for Haversine distance queries
 
 price_cards
   id, org_id FK, practice_area VARCHAR,
@@ -272,7 +272,7 @@ cml/
 │
 ├── docs/
 │   └── cml-technical_scoping.pdf
-├── docker-compose.yml            # Local dev: PostgreSQL/PostGIS, FastAPI, Next.js
+├── docker-compose.yml            # Local dev: PostgreSQL, FastAPI, Next.js
 ├── .env.example
 └── PLAN.md                       # This file
 ```
@@ -283,14 +283,14 @@ cml/
 
 ### Phase 0 — Setup ✅
 - [x] Monorepo init, git, `.env.example`
-- [x] `docker-compose.yml` for local dev (PostgreSQL+PostGIS, FastAPI, Next.js)
+- [x] `docker-compose.yml` for local dev (PostgreSQL, FastAPI, Next.js)
 - [x] FastAPI skeleton with health check endpoint
 - [x] Next.js 15 skeleton with Tailwind CSS
 - [x] Alembic configured, initial migration (all tables)
 
 ### Phase 1 — Data Foundation ✅
 - [x] SQLAlchemy models for all entities (Organisation, Office, PriceCard, ChatSession, Appointment, Review, ReviewInvitation, FirmUser)
-- [x] Alembic migration: create all tables with PostGIS
+- [x] Alembic migration: create all tables
 - [x] `scripts/import_sra_csv.py`: parse SRA CSV → insert organisations + offices
 
 ### Phase 2 — Firm Enrollment & Auth ✅

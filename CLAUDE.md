@@ -32,7 +32,7 @@ cml/
 ## Local development
 
 ```bash
-# Start everything (PostgreSQL+PostGIS, FastAPI, Next.js)
+# Start everything (PostgreSQL, FastAPI, Next.js)
 docker-compose up
 
 # Run DB migrations (first time or after schema changes)
@@ -50,7 +50,7 @@ Copy `.env.example` → `.env` and fill in API keys before starting.
 
 ## Backend
 
-**Stack**: FastAPI · SQLAlchemy (async) · Alembic · PostgreSQL + PostGIS · APScheduler
+**Stack**: FastAPI · SQLAlchemy (async) · Alembic · PostgreSQL · APScheduler
 
 ### Key files
 | File | Purpose |
