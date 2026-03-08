@@ -76,7 +76,9 @@ async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
         # Distance
         distance_km = None
         if consumer_coords and office and office.lat is not None and office.lng is not None:
-            distance_km = haversine_km(consumer_coords[0], consumer_coords[1], office.lat, office.lng)
+            distance_km = haversine_km(
+                consumer_coords[0], consumer_coords[1], office.lat, office.lng
+            )
 
         candidates.append(
             {
