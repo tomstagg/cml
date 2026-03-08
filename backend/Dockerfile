@@ -1,7 +1,6 @@
 FROM python:3.12-slim
 
 ENV PYTHONUNBUFFERED=1
-ENV UV_SYSTEM_PYTHON=1
 
 WORKDIR /app
 
@@ -12,11 +11,14 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Install dependencies only (layer cached until pyproject.toml/uv.lock change)
 COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-install-project
+RUN uv export --frozen --no-dev -o /tmp/requirements.txt \
+    && uv pip install --system --no-cache -r /tmp/requirements.txt
 
+# Install project itself (needs source present)
 COPY . .
-RUN uv sync --frozen
+RUN uv pip install --system --no-cache --no-deps .
 
 RUN chmod +x start.sh
 
