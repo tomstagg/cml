@@ -54,7 +54,7 @@ Install dev dependencies if not already done:
 
 ```bash
 cd backend
-uv sync --extra dev
+uv sync --extra testing
 ```
 
 
