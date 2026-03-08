@@ -12,7 +12,7 @@ which python || echo "python not found in PATH"
 python --version
 
 echo "--- Running migrations ---"
-alembic upgrade head
+python -c "from alembic.config import main; main()" upgrade head
 
 echo "--- Starting uvicorn ---"
-exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"
+exec python -c "import uvicorn; uvicorn.run('app.main:app', host='0.0.0.0', port=int('${PORT:-8000}'))"
