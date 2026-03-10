@@ -11,11 +11,16 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
+# Install dependencies only (layer cached until pyproject.toml/uv.lock change)
 COPY pyproject.toml uv.lock ./
-RUN uv sync --system --frozen --no-install-project
+RUN uv export --frozen --no-dev -o /tmp/requirements.txt \
+    && uv pip install --system --no-cache -r /tmp/requirements.txt
 
+# Install project itself (needs source present)
 COPY . .
-RUN uv sync --system --frozen
+RUN uv pip install --system --no-cache --no-deps .
+
+RUN chmod +x start.sh
 
 EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./start.sh"]
