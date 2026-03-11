@@ -36,7 +36,7 @@ async def send_email(
             recipients=[to],
             from_email=f"{settings.sparkpost_from_name} <{settings.sparkpost_from_email}>",
             subject=subject,
-            html=subject,
+            html=html,
             text=text or "",
         )
         return resp.get("total_accepted_recipients", 0) > 0
