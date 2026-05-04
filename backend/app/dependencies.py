@@ -1,7 +1,8 @@
-from fastapi import Depends, HTTPException, Request, status
+from fastapi import Depends, Header, HTTPException, Request, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.services.auth import verify_token
 
@@ -36,6 +37,14 @@ async def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     return user
+
+
+async def verify_admin_api_key(
+    x_admin_key: str | None = Header(None, alias="X-Admin-Key"),
+):
+    """Require a valid X-Admin-Key header on admin endpoints."""
+    if not settings.admin_api_key or x_admin_key != settings.admin_api_key:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid admin key")
 
 
 async def get_current_admin(current_user=Depends(get_current_user)):

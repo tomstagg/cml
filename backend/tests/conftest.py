@@ -33,7 +33,9 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 # Absolute path to backend/ — used for alembic cwd (works locally and in Docker)
 BACKEND_DIR = Path(__file__).parent.parent
 
-# ── 1. Override DATABASE_URL BEFORE any app module is imported ──────────────
+# ── 1. Override env vars BEFORE any app module is imported ──────────────────
+os.environ.setdefault("ADMIN_API_KEY", "test-admin-key")
+
 _main_url = os.environ.get(
     "DATABASE_URL",
     # Fallback uses localhost — Docker always sets DATABASE_URL explicitly,
@@ -253,6 +255,13 @@ def auth_token(test_user, enrolled_org):
 async def auth_client(client, auth_token):
     """Client pre-configured with a valid Bearer token."""
     client.headers["Authorization"] = f"Bearer {auth_token}"
+    yield client
+
+
+@pytest_asyncio.fixture
+async def admin_client(client):
+    """Client pre-configured with the admin API key header."""
+    client.headers["X-Admin-Key"] = "test-admin-key"
     yield client
 
 
