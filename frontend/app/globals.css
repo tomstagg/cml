@@ -6,20 +6,30 @@
   :root {
     --brand-primary: #3450e8;
     --brand-dark: #080c64;
+    /* Canonical brand palette */
+    --brand-teal: #0AE5F6;
+    --brand-navy: #080C64;
+    --brand-mint: #69E4B5;
+    --brand-purple: #9747FF;
   }
 
   html {
     scroll-behavior: smooth;
-    font-size: 112.5%; /* 18px base — scales all rem-based sizes up */
+    font-size: 112.5%; /* 18px base — kept for legacy components; new headings use explicit sizes */
   }
 
   body {
     @apply text-gray-900 bg-white antialiased;
   }
 
-  h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight;
-  }
+  /* Default heading scale — mobile sizes that step up at md.
+     Component overrides remain possible via explicit text-h*-md utilities. */
+  h1 { @apply text-h1 md:text-h1-md; }
+  h2 { @apply text-h2 md:text-h2-md; }
+  h3 { @apply text-h3 md:text-h3-md; }
+  h4 { @apply text-h4 md:text-h4-md; }
+  h5 { @apply text-h5 md:text-h5-md; }
+  h6 { @apply text-h6; }
 }
 
 @layer components {
