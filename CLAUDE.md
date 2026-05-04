@@ -6,12 +6,14 @@ Guidance for Claude Code when working in this repository.
 
 ## Project overview
 
-Choose My Lawyer is a UK legal comparison platform for England & Wales.
-Consumers go through a guided probate chat flow and get a ranked list of solicitors with calculated quotes. Firms enroll, enter pricing, and receive appointments via the platform.
+Choose My Lawyer is a UK legal comparison platform.
+Consumers go through a guided conversational intake and get a ranked list of solicitors with calculated quotes. Firms enrol, manage pricing via a portal, and receive callback requests / instructions ("Proceed") via the platform.
 
-**MVP scope**: Probate only · England & Wales · Firms manually enrolled + priced.
+**MVP scope (pilot)**: Residential conveyancing only · West Midlands Combined Authority (WMCA) · Firms manually enrolled + priced · Go-live **1 June 2026** · ~90-day PPC-driven pilot.
 
-Full functional spec: `docs/cml-technical_scoping.pdf`
+Goal of the MVP is commercial validation, not feature completeness — prioritise speed, clarity, and measurability.
+
+Full requirements: `docs/requirements.md` (incl. Annex One — ranking methodology)
 Architecture plan: `PLAN.md`
 
 ---
@@ -110,11 +112,19 @@ docker-compose exec backend python scripts/import_sra_csv.py \
 - Forms via `react-hook-form`
 - API calls always go through `lib/api.ts` — never raw fetch calls in components
 
+### Brand palette (per requirements)
+| Name | HEX |
+|---|---|
+| Teal | `#0AE5F6` |
+| Navy | `#080C64` |
+| Mint | `#69E4B5` |
+| Purple | `#9747FF` |
+
+The MVP must replicate the Figma prototype journey and screens as closely as reasonably possible, using the corporate logos and colours above.
+
 ### Tailwind design system
 | Token | Usage |
 |---|---|
-| `brand-600` (#0d9488) | Primary CTA buttons, active states |
-| `brand-50` | Light backgrounds, chips |
 | `.btn-primary` | Primary action buttons |
 | `.btn-secondary` | Secondary/outline buttons |
 | `.btn-ghost` | Subtle icon buttons |
@@ -177,43 +187,114 @@ See `.env.example` for all keys. Key ones:
 
 ## Ranking algorithm
 
-```python
-score = (
-    price_score    * 0.60 +   # lower total cost = higher score
-    reputation_score * 0.25 + # weighted avg (CML reviews 2x, Google 1x)
-    distance_score  * 0.15    # closer = higher score
-)
-```
+Deterministic, rules-based, no runtime AI or subjective judgment. Identical inputs must always produce identical outputs. Full detail in **Annex One** of `docs/requirements.md`.
 
-Weights shift based on `ranking_preference` answer in the chat (price/reputation/distance/balanced).
+### Balanced scorecard (default, score out of 100)
+| Factor | Weight |
+|---|---|
+| Reputation | 25% |
+| Price | 25% |
+| Complaints History (Legal Ombudsman) | 15% |
+| Regulatory History (SRA / SDT) | 15% |
+| Distance to nearest office (optional) | 10% |
+| Number of offices | 10% |
+
+### Prioritised scorecard
+User may pick **one** priority factor → that factor weighted **40**; remaining factors share 60 proportionally to their balanced-scorecard order. If the user excludes Distance, weights of remaining factors are proportionally rescaled to sum to 100.
+
+### Critical sequencing rule
+1. Rank **all in-scope firms** (signed up or not) across the full market using the chosen scorecard.
+2. Then extract the **top 5 contactable** (signed-up) firms from that ranking. Never rank signed-up firms separately — this preserves the "whole of market" / independent positioning.
+
+### Factor mechanics (high level)
+- **Reputation**: `Adjusted Rating = rating × (1 + k × ln(reviews + 1))`, `k = 0.025`. Then min-max normalised across the results set (50 if all equal).
+- **Price**: `Total Effective Price = legal fees (+ confidence uplift c=0.075 if estimated) + included disbursements (+ d=0.02 if estimated) + applicable VAT`. Then min-max normalised (lower price → higher score).
+- **Complaints History (LeO)**: Absolute, base 100. Per-decision deduction = `(severity_score × remedy_amount_score) + 4` (penalty if complaint handling unreasonable). SRA-regulated firms only ("Firm SRA" / "ABS Firm SRA"). Aggregated additively across decisions.
+- **Regulatory History (SRA + SDT)**: Absolute, base 100. Predefined deductions per outcome (Rebuke −5 → Band D −60; SDT fines −10 → −60). **An SRA Intervention removes the firm from results entirely.** No floor — score may go negative.
+- **Distance**: Optional. Geodesic distance from user postcode to nearest recorded office. Min-max normalised (closer → higher).
+- **Number of offices**: Banded absolute score (1 → 70, 2–3 → 78, 4–6 → 85, 7–10 → 90, 11–20 → 95, 21+ → 100).
+
+### Tie-break order
+Reputation → Complaints → Regulatory → Price → Distance → Offices → alphabetical.
+
+### Implementation notes
+- All factor scores must retain **full numerical precision** internally; only the final overall score is rounded to an integer for display.
+- All ingestion / cleansing / normalisation of LeO and SRA data must complete **prior to runtime**. The runtime ranker only consumes pre-processed structured inputs.
+- Full results set (below the top 5) must be **sortable by individual factor**; sort is display-only and does not change underlying ranking.
 
 ---
 
-## Price card schema
+## Pricing model
 
-Probate price cards are stored as JSONB. When editing the pricing logic, the canonical schema is in `app/schemas/firm.py` (`PriceCardData`) and the calculator is in `app/services/price_calc.py`.
+Price cards are stored as JSONB. Canonical schema in `app/schemas/firm.py` (`PriceCardData`); calculator in `app/services/price_calc.py`.
 
+### Sources of price data
+- **Quoted Price** — provided directly by the firm via the portal (high confidence).
+- **Estimated Price** — interpreted by CML from the firm's published transparency statement and **manually normalised** into the standardised database before go-live. No probabilistic / AI pricing at runtime.
+
+### Total Effective Price
+```
+P_effective = P_legal_effective + (P_legal_effective × VAT) + P_included_disbursements
+```
+Where:
+- `P_legal_effective = P_quoted` for quoted prices, or `P_estimated × (1 + c)` for estimated prices, with `c = 0.075`.
+- Included disbursements are stored exclusive of VAT with a per-item VAT flag; the aggregate is supplied with VAT already applied as appropriate.
+- A confidence factor `d = 0.02` is applied where included disbursements are estimated/system-derived.
+- **Excluded disbursements** (conditional / not determinable at intake) do not enter the ranking price and must be flagged to the user with a link to the CML explainer page.
+
+### Conveyancing price card (illustrative — confirm against `PriceCardData` before edits)
 ```json
 {
-  "practice_area": "probate",
-  "matter_types": ["grant_only", "full_administration"],
-  "pricing_model": "band",
-  "bands": [{"estate_value_min": 0, "estate_value_max": 325000, "fee": 1500}],
-  "adjustments": [{"name": "IHT400", "amount": 500, "condition": "iht400"}],
-  "disbursements": [{"name": "Probate Registry fee", "amount": 273, "estimated": false}],
-  "vat_applies_to_fees": true
+  "practice_area": "conveyancing",
+  "matter_types": ["purchase", "sale", "remortgage"],
+  "legal_fees": [{"property_value_min": 0, "property_value_max": 250000, "fee": 950}],
+  "adjustments": [{"name": "Leasehold supplement", "amount": 250, "condition": "leasehold"}],
+  "included_disbursements": [{"name": "Land Registry fee", "amount": 150, "vat_applies": false, "estimated": false}],
+  "vat_applies_to_fees": true,
+  "price_type": "quoted"
 }
 ```
 
 ---
 
+## User actions, notifications & billing (pilot)
+
+### Consumer actions on results
+- **Proceed** — instructs a single firm. Confirmatory form captures name + email. Auto-email sent to the firm **in the user's name** (not in CML's name), copy to user. Lead recorded with timestamp.
+- **Request a callback** — up to **5 firms**. Confirmatory form captures name, email, phone, and availability over next two working days. Same email-in-user's-name rule.
+
+### Email notification cycle
+- Lead emails on Proceed / Callback (firm + user copy).
+- Callback follow-up to user **end of same working day** as scheduled callback (binary "did the firm contact you?").
+- Proceed follow-up to user **5 working days** after action.
+- Conflict-check failure: firm notifies CML → user emailed immediately with link back to results.
+- Feedback request to user **2 months** after Proceed for review capture.
+
+### Billing
+Manual for the pilot. Chargeable events (Proceed / Callback) recorded and exported for periodic invoicing after a delay window (allowing firms time to make contact). Automated billing deferred to full launch.
+
+---
+
+## Analytics & marketing tracking
+
+- **Meta Pixel** is mandatory across all pages and must fire on: page view, search completion, results page view, Proceed, Callback request. Events must support conversion tracking, retargeting audiences, and campaign optimisation.
+- Funnel + drop-off + conversion analytics required (third-party tooling acceptable; no custom dashboard needed for MVP).
+- All event captures must include timestamp, session ID, and relevant inputs.
+- Data must be exportable (e.g. CSV) so the founder can analyse independently.
+
+---
+
 ## Deferred (do not implement unless asked)
 
-- Conveyancing practice area
-- Additional UK regions
-- AI price extraction
+- Practice areas other than residential conveyancing (incl. probate)
+- Geographies outside the West Midlands Combined Authority
+- National rollout features
+- Advanced UX/UI refinement beyond the Figma prototype
+- AI / probabilistic pricing at runtime
+- Case-management system integrations
+- Automated firm onboarding flows
+- Payment handling (Stripe / Xero / PSP)
 - Facebook / Trustpilot review aggregation
 - Admin moderation UI
 - Voice input
-- Stripe / Xero billing
 - Welsh language

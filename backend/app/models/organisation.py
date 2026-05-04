@@ -24,6 +24,9 @@ class Organisation(Base):
     enrollment_token: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), unique=True)
     enrollment_token_used: Mapped[bool] = mapped_column(Boolean, default=False)
 
+    # SRA Intervention removes a firm from results entirely (Annex One §8.13).
+    intervened: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+
     # Google Places
     google_place_id: Mapped[str | None] = mapped_column(String(255))
     google_rating: Mapped[float | None] = mapped_column()
@@ -52,3 +55,9 @@ class Organisation(Base):
     )
     appointments: Mapped[list["Appointment"]] = relationship(back_populates="organisation")
     reviews: Mapped[list["Review"]] = relationship(back_populates="organisation")
+    complaints_decisions: Mapped[list["ComplaintsDecision"]] = relationship(
+        back_populates="organisation", cascade="all, delete-orphan"
+    )
+    regulatory_decisions: Mapped[list["RegulatoryDecision"]] = relationship(
+        back_populates="organisation", cascade="all, delete-orphan"
+    )

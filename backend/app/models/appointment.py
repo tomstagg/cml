@@ -23,6 +23,12 @@ class AppointmentStatus(str, enum.Enum):
     cancelled = "cancelled"
 
 
+class ConflictCheckOutcome(str, enum.Enum):
+    pending = "pending"
+    clear = "clear"
+    conflict = "conflict"
+
+
 class Appointment(Base):
     __tablename__ = "appointments"
 
@@ -55,6 +61,16 @@ class Appointment(Base):
     # GDPR consent captured
     consent_contacted: Mapped[bool] = mapped_column(default=False, nullable=False)
     consent_terms: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+    # End-of-day callback follow-up answer (binary: did the firm contact you?).
+    firm_contact_made: Mapped[bool | None] = mapped_column(default=None, nullable=True)
+
+    # Firm-side conflict-check result; remains pending until an admin marks it.
+    conflict_check_outcome: Mapped[ConflictCheckOutcome] = mapped_column(
+        Enum(ConflictCheckOutcome, name="conflict_check_outcome"),
+        nullable=False,
+        default=ConflictCheckOutcome.pending,
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False

@@ -52,6 +52,10 @@ def _build_session_response(session: ChatSession, current_question: dict | None)
         current_question=_format_question(current_question),
         message_history=session.message_history or [],
         answers=session.answers or {},
+        scorecard_preference=session.scorecard_preference.value
+        if session.scorecard_preference
+        else "balanced",
+        include_distance=bool(session.include_distance),
         is_complete=is_flow_complete(session.answers or {}),
         expires_at=session.expires_at,
     )

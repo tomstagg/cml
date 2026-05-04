@@ -15,7 +15,9 @@ class PriceCard(Base):
     org_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("organisations.id", ondelete="CASCADE"), nullable=False
     )
-    practice_area: Mapped[str] = mapped_column(String(50), nullable=False, default="probate")
+    practice_area: Mapped[str] = mapped_column(
+        String(50), nullable=False, default="residential_conveyancing"
+    )
 
     # JSONB pricing data — see PriceCardData schema for structure
     pricing: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)

@@ -88,9 +88,13 @@ app.dependency_overrides[get_db] = _test_get_db
 # ── Constants ────────────────────────────────────────────────────────────────
 TRUNCATE_SQL = text(
     "TRUNCATE TABLE appointments, review_invitations, reviews, "
-    "price_cards, firm_users, offices, chat_sessions, organisations CASCADE"
+    "price_cards, firm_users, offices, chat_sessions, organisations, "
+    "complaints_decisions, regulatory_decisions, analytics_events CASCADE"
 )
 
+# Legacy probate fixtures — still consumed by chat/price/search service tests
+# until Phases B/C/D rewrite those services. Stored directly via SQLAlchemy so
+# they don't pass through the new conveyancing-only Pydantic schemas.
 ALL_13_ANSWERS = {
     "service_type": "full_administration",
     "estate_value": "100k_325k",
@@ -118,6 +122,58 @@ SAMPLE_PRICE_CARD_PRICING = {
     ],
     "adjustments": [{"name": "IHT400 supplement", "amount": 500, "condition": "iht400"}],
     "disbursements": [{"name": "Probate Registry fee", "amount": 273, "estimated": False}],
+    "vat_applies_to_fees": True,
+}
+
+# Canonical conveyancing fixtures — match the new PriceCardData Pydantic schema
+# so they validate cleanly when posted through firm-pricing endpoints.
+CONVEYANCING_ANSWERS = {
+    "purchase_price": 275_000,
+    "tenure": "leasehold",
+    "property_postcode": "B1 1AA",
+    "mortgage": True,
+    "new_build": False,
+    "help_to_buy_isa": True,
+    "shared_ownership": False,
+    "scorecard_preference": "balanced",
+    "include_distance": True,
+    "distance_postcode": "B1 1AA",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "email": "jane@example.com",
+    "phone": "07700900123",
+}
+
+SAMPLE_CONVEYANCING_PRICE_CARD = {
+    "practice_area": "residential_conveyancing",
+    "matter_types": ["purchase", "sale", "purchase_and_sale", "remortgage"],
+    "pricing_model": "band",
+    "bands": [
+        {"purchase_price_min": 0, "purchase_price_max": 250_000, "fee": 950},
+        {"purchase_price_min": 250_000, "purchase_price_max": 500_000, "fee": 1_250},
+        {"purchase_price_min": 500_000, "purchase_price_max": None, "fee": 1_750},
+    ],
+    "adjustments": [
+        {"name": "Leasehold supplement", "amount": 250, "condition": "tenure==leasehold"},
+        {"name": "New build supplement", "amount": 200, "condition": "new_build==true"},
+        {"name": "Help to Buy ISA admin", "amount": 75, "condition": "help_to_buy_isa==true"},
+        {
+            "name": "Shared ownership supplement",
+            "amount": 250,
+            "condition": "shared_ownership==true",
+        },
+        {"name": "Mortgage handling", "amount": 150, "condition": "mortgage==true"},
+    ],
+    "included_disbursements": [
+        {"name": "Local authority search", "amount": 180, "vat_applies": True},
+        {"name": "Drainage & water search", "amount": 65, "vat_applies": True},
+        {"name": "Bankruptcy search", "amount": 6, "vat_applies": False},
+        {"name": "Land Registry registration fee", "amount": 150, "vat_applies": False},
+    ],
+    "excluded_disbursements_note": (
+        "Stamp Duty Land Tax, leasehold notice fees, ground rent apportionment, "
+        "indemnity policies — see CML disbursement classification page."
+    ),
     "vat_applies_to_fees": True,
 }
 
