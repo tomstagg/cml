@@ -133,24 +133,28 @@ async def org_with_email(db_session):
     return org
 
 
-async def test_invite_enrollment_sends_token(client, org_with_email):
-    response = await client.post(f"/api/admin/organisations/{org_with_email.id}/invite-enrollment")
+async def test_invite_enrollment_sends_token(admin_client, org_with_email):
+    response = await admin_client.post(
+        f"/api/admin/organisations/{org_with_email.id}/invite-enrollment"
+    )
     assert response.status_code == 200
     data = response.json()
     assert "enrollment_token" in data
     assert data["enrollment_token"]
 
 
-async def test_invite_enrollment_no_email_returns_400(client, test_org):
-    response = await client.post(f"/api/admin/organisations/{test_org.id}/invite-enrollment")
+async def test_invite_enrollment_no_email_returns_400(admin_client, test_org):
+    response = await admin_client.post(f"/api/admin/organisations/{test_org.id}/invite-enrollment")
     assert response.status_code == 400
 
 
-async def test_invite_enrollment_already_enrolled_returns_409(client, enrolled_org):
-    response = await client.post(f"/api/admin/organisations/{enrolled_org.id}/invite-enrollment")
+async def test_invite_enrollment_already_enrolled_returns_409(admin_client, enrolled_org):
+    response = await admin_client.post(
+        f"/api/admin/organisations/{enrolled_org.id}/invite-enrollment"
+    )
     assert response.status_code == 409
 
 
-async def test_invite_enrollment_unknown_org_returns_404(client):
-    response = await client.post(f"/api/admin/organisations/{uuid.uuid4()}/invite-enrollment")
+async def test_invite_enrollment_unknown_org_returns_404(admin_client):
+    response = await admin_client.post(f"/api/admin/organisations/{uuid.uuid4()}/invite-enrollment")
     assert response.status_code == 404

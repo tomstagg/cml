@@ -22,6 +22,7 @@ class Settings(BaseSettings):
     secret_key: str = "dev-secret-key-change-in-production"
     jwt_algorithm: str = "HS256"
     jwt_expiry_hours: int = 24
+    admin_api_key: str = ""
 
     # Email
     sparkpost_api_key: str = ""

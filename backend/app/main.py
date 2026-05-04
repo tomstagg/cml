@@ -11,6 +11,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 from app.config import settings
+from app.dependencies import verify_admin_api_key
 from app.tasks.review_sync import start_scheduler, stop_scheduler
 
 # API routers
@@ -88,5 +89,11 @@ app.include_router(pricing.router, prefix="/api/firm")
 app.include_router(dashboard.router, prefix="/api/firm")
 app.include_router(firm_reviews.router, prefix="/api/firm")
 
-# Mount admin API
-app.include_router(organisations.router, prefix="/api/admin")
+# Mount admin API (requires X-Admin-Key header on all routes)
+from fastapi import Depends  # noqa: E402
+
+app.include_router(
+    organisations.router,
+    prefix="/api/admin",
+    dependencies=[Depends(verify_admin_api_key)],
+)
