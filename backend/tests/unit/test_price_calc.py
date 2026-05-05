@@ -1,214 +1,234 @@
-"""Unit tests for app/services/price_calc.py — no DB required."""
+"""Unit tests for app.services.price_calc.calculate_total_effective_price.
+
+Covers Annex One §10 (Quoted-only Total Effective Price) for residential
+conveyancing: purchase-price band lookup, conditional adjustments,
+fees-VAT, and per-disbursement VAT.
+"""
 
 import pytest
 
-from app.services.price_calc import calculate_quote
+from app.services.price_calc import calculate_total_effective_price
 
-BASE_COMPLEXITY = {
-    "service_type": "full_administration",
-    "estate_value": 212500,
-    "has_iht400": False,
-    "has_overseas_assets": False,
-    "has_complex_investments": False,
+# Standard conveyancing answers (after `get_intake_flags` normalisation):
+# £275k purchase, freehold, no mortgage / new-build / HtB / shared-ownership.
+BASE_ANSWERS = {
+    "purchase_price": 275_000,
+    "tenure": "freehold",
+    "mortgage": False,
+    "new_build": False,
+    "help_to_buy_isa": False,
+    "shared_ownership": False,
 }
 
-BAND_PRICING = {
-    "practice_area": "probate",
-    "matter_types": ["grant_only", "full_administration"],
+BAND_CARD = {
+    "practice_area": "residential_conveyancing",
+    "matter_types": ["purchase", "sale", "purchase_and_sale", "remortgage"],
     "pricing_model": "band",
     "bands": [
-        {"estate_value_min": 0, "estate_value_max": 325000, "fee": 1500},
-        {"estate_value_min": 325000, "estate_value_max": 650000, "fee": 2500},
-        {"estate_value_min": 650000, "estate_value_max": None, "fee": 3500},
+        {"purchase_price_min": 0, "purchase_price_max": 250_000, "fee": 950},
+        {"purchase_price_min": 250_000, "purchase_price_max": 500_000, "fee": 1_250},
+        {"purchase_price_min": 500_000, "purchase_price_max": None, "fee": 1_750},
     ],
     "adjustments": [],
-    "disbursements": [],
+    "included_disbursements": [],
     "vat_applies_to_fees": True,
 }
 
-FIXED_PRICING = {
-    "practice_area": "probate",
-    "matter_types": ["full_administration"],
-    "pricing_model": "fixed",
-    "bands": [{"estate_value_min": 0, "estate_value_max": None, "fee": 2000}],
-    "adjustments": [],
-    "disbursements": [],
-    "vat_applies_to_fees": True,
-}
 
-PERCENTAGE_PRICING = {
-    "practice_area": "probate",
-    "matter_types": ["full_administration"],
-    "pricing_model": "percentage",
-    "percentage_rate": 1.5,
-    "adjustments": [],
-    "disbursements": [],
-    "vat_applies_to_fees": False,
-}
+# ── Band lookup ──────────────────────────────────────────────────────────────
 
 
-# ── Band model ───────────────────────────────────────────────────────────────
-
-
-def test_band_model_matches_correct_band():
-    """Estate value 212,500 falls in the 0–325,000 band → fee = £1,500."""
-    result = calculate_quote(BAND_PRICING, BASE_COMPLEXITY)
+def test_band_matched_for_low_value_purchase():
+    """£200k → first band, fee £950."""
+    answers = {**BASE_ANSWERS, "purchase_price": 200_000}
+    result = calculate_total_effective_price(BAND_CARD, answers)
     assert result is not None
-    assert result["base_fee"] == 1500.0
+    assert result["base_fee"] == 950.0
 
 
-def test_band_model_upper_band():
-    """Estate value 500,000 falls in 325k–650k band → fee = £2,500."""
-    complexity = {**BASE_COMPLEXITY, "estate_value": 500000}
-    result = calculate_quote(BAND_PRICING, complexity)
+def test_band_matched_for_mid_value_purchase():
+    """£275k → middle band, fee £1,250."""
+    result = calculate_total_effective_price(BAND_CARD, BASE_ANSWERS)
     assert result is not None
-    assert result["base_fee"] == 2500.0
+    assert result["base_fee"] == 1_250.0
 
 
-def test_band_model_open_upper_band():
-    """Estate value 800,000 falls in the open-ended band → fee = £3,500."""
-    complexity = {**BASE_COMPLEXITY, "estate_value": 800000}
-    result = calculate_quote(BAND_PRICING, complexity)
+def test_band_matched_for_high_value_open_band():
+    """£800k → open-ended band, fee £1,750."""
+    answers = {**BASE_ANSWERS, "purchase_price": 800_000}
+    result = calculate_total_effective_price(BAND_CARD, answers)
     assert result is not None
-    assert result["base_fee"] == 3500.0
+    assert result["base_fee"] == 1_750.0
 
 
-def test_band_model_no_matching_band_returns_none():
-    """A pricing dict with no bands matching the estate value → None."""
-    pricing = {
-        **BAND_PRICING,
-        "bands": [{"estate_value_min": 500000, "estate_value_max": 650000, "fee": 2500}],
+def test_no_matching_band_returns_none():
+    card = {
+        **BAND_CARD,
+        "bands": [{"purchase_price_min": 500_000, "purchase_price_max": 1_000_000, "fee": 2_000}],
     }
-    complexity = {**BASE_COMPLEXITY, "estate_value": 100000}
-    result = calculate_quote(pricing, complexity)
-    assert result is None
+    answers = {**BASE_ANSWERS, "purchase_price": 100_000}
+    assert calculate_total_effective_price(card, answers) is None
 
 
-# ── Fixed model ──────────────────────────────────────────────────────────────
+# ── Conditional adjustments ──────────────────────────────────────────────────
 
 
-def test_fixed_model_returns_single_fee():
-    result = calculate_quote(FIXED_PRICING, BASE_COMPLEXITY)
-    assert result is not None
-    assert result["base_fee"] == 2000.0
-    assert result["pricing_model"] == "fixed"
-
-
-# ── Percentage model ─────────────────────────────────────────────────────────
-
-
-def test_percentage_model_1_5_pct_of_300k():
-    """1.5% of £300,000 = £4,500."""
-    complexity = {**BASE_COMPLEXITY, "estate_value": 300000}
-    result = calculate_quote(PERCENTAGE_PRICING, complexity)
-    assert result is not None
-    assert result["base_fee"] == pytest.approx(4500.0)
-    assert result["pricing_model"] == "percentage"
-
-
-# ── Adjustments ──────────────────────────────────────────────────────────────
-
-
-def test_iht400_adjustment_applied_when_flag_true():
-    pricing = {
-        **BAND_PRICING,
-        "adjustments": [{"name": "IHT400", "amount": 500, "condition": "iht400"}],
+def test_leasehold_adjustment_applied_when_tenure_leasehold():
+    card = {
+        **BAND_CARD,
+        "adjustments": [
+            {"name": "Leasehold supplement", "amount": 250, "condition": "tenure==leasehold"},
+        ],
     }
-    complexity = {**BASE_COMPLEXITY, "has_iht400": True}
-    result = calculate_quote(pricing, complexity)
+    answers = {**BASE_ANSWERS, "tenure": "leasehold"}
+    result = calculate_total_effective_price(card, answers)
     assert result is not None
-    adj_names = [a["name"] for a in result["adjustments"]]
-    assert "IHT400" in adj_names
-    assert result["fees_subtotal"] == pytest.approx(2000.0)  # 1500 + 500
+    assert result["adjustments"] == [{"name": "Leasehold supplement", "amount": 250.0}]
+    assert result["fees_subtotal"] == pytest.approx(1_500.0)
 
 
-def test_iht400_adjustment_skipped_when_flag_false():
-    pricing = {
-        **BAND_PRICING,
-        "adjustments": [{"name": "IHT400", "amount": 500, "condition": "iht400"}],
+def test_leasehold_adjustment_skipped_when_tenure_freehold():
+    card = {
+        **BAND_CARD,
+        "adjustments": [
+            {"name": "Leasehold supplement", "amount": 250, "condition": "tenure==leasehold"},
+        ],
     }
-    result = calculate_quote(pricing, BASE_COMPLEXITY)
+    result = calculate_total_effective_price(card, BASE_ANSWERS)
     assert result is not None
     assert result["adjustments"] == []
-    assert result["fees_subtotal"] == pytest.approx(1500.0)
+    assert result["fees_subtotal"] == pytest.approx(1_250.0)
 
 
-def test_overseas_assets_adjustment_applied():
-    pricing = {
-        **BAND_PRICING,
-        "adjustments": [{"name": "Overseas assets", "amount": 750, "condition": "overseas_assets"}],
+def test_multiple_boolean_adjustments_combine():
+    """Mortgage + new-build + HtB ISA + shared-ownership → all four supplements applied."""
+    card = {
+        **BAND_CARD,
+        "adjustments": [
+            {"name": "Mortgage handling", "amount": 150, "condition": "mortgage==true"},
+            {"name": "New build supplement", "amount": 200, "condition": "new_build==true"},
+            {"name": "Help to Buy ISA admin", "amount": 75, "condition": "help_to_buy_isa==true"},
+            {
+                "name": "Shared ownership supplement",
+                "amount": 250,
+                "condition": "shared_ownership==true",
+            },
+        ],
     }
-    complexity = {**BASE_COMPLEXITY, "has_overseas_assets": True}
-    result = calculate_quote(pricing, complexity)
+    answers = {
+        **BASE_ANSWERS,
+        "mortgage": True,
+        "new_build": True,
+        "help_to_buy_isa": True,
+        "shared_ownership": True,
+    }
+    result = calculate_total_effective_price(card, answers)
     assert result is not None
-    assert len(result["adjustments"]) == 1
-    assert result["adjustments"][0]["amount"] == 750.0
+    assert {a["name"] for a in result["adjustments"]} == {
+        "Mortgage handling",
+        "New build supplement",
+        "Help to Buy ISA admin",
+        "Shared ownership supplement",
+    }
+    # 1250 + 150 + 200 + 75 + 250 = 1925
+    assert result["fees_subtotal"] == pytest.approx(1_925.0)
 
 
-# ── VAT ──────────────────────────────────────────────────────────────────────
-
-
-def test_vat_applied_to_fees_when_flag_true():
-    """1500 * 20% = £300 VAT."""
-    result = calculate_quote(BAND_PRICING, BASE_COMPLEXITY)
+def test_adjustment_with_no_condition_always_applies():
+    card = {
+        **BAND_CARD,
+        "adjustments": [{"name": "Compliance fee", "amount": 50}],
+    }
+    result = calculate_total_effective_price(card, BASE_ANSWERS)
     assert result is not None
-    assert result["vat"] == pytest.approx(300.0)
+    assert result["adjustments"] == [{"name": "Compliance fee", "amount": 50.0}]
+
+
+def test_unknown_condition_format_skipped():
+    """A malformed condition is treated as not applying — defensive default."""
+    card = {
+        **BAND_CARD,
+        "adjustments": [{"name": "Bad adj", "amount": 999, "condition": "??"}],
+    }
+    result = calculate_total_effective_price(card, BASE_ANSWERS)
+    assert result is not None
+    assert result["adjustments"] == []
+
+
+# ── VAT on legal fees ────────────────────────────────────────────────────────
+
+
+def test_vat_applied_to_fees_subtotal():
+    """£1,250 × 20% = £250 VAT."""
+    result = calculate_total_effective_price(BAND_CARD, BASE_ANSWERS)
+    assert result is not None
+    assert result["vat"] == pytest.approx(250.0)
 
 
 def test_no_vat_when_flag_false():
-    result = calculate_quote(PERCENTAGE_PRICING, {**BASE_COMPLEXITY, "estate_value": 300000})
+    card = {**BAND_CARD, "vat_applies_to_fees": False}
+    result = calculate_total_effective_price(card, BASE_ANSWERS)
     assert result is not None
     assert result["vat"] == 0.0
 
 
-# ── Disbursements ─────────────────────────────────────────────────────────────
+# ── Disbursements (per-row VAT) ──────────────────────────────────────────────
 
 
-def test_disbursements_summed_separately():
-    pricing = {
-        **BAND_PRICING,
-        "disbursements": [
-            {"name": "Probate Registry fee", "amount": 273, "estimated": False},
-            {"name": "Death certificates (est.)", "amount": 50, "estimated": True},
+def test_disbursement_with_vat_applied_per_row():
+    card = {
+        **BAND_CARD,
+        "included_disbursements": [
+            {"name": "Local authority search", "amount": 180, "vat_applies": True},
+            {"name": "Bankruptcy search", "amount": 6, "vat_applies": False},
         ],
     }
-    result = calculate_quote(pricing, BASE_COMPLEXITY)
+    result = calculate_total_effective_price(card, BASE_ANSWERS)
     assert result is not None
-    assert result["disbursements_total"] == pytest.approx(323.0)
-    assert len(result["disbursements"]) == 2
+    # 180 × 1.20 = 216; 6 net; total = 222
+    assert result["disbursements"][0]["amount"] == pytest.approx(216.0)
+    assert result["disbursements"][1]["amount"] == pytest.approx(6.0)
+    assert result["disbursements_total"] == pytest.approx(222.0)
 
 
-# ── Total ─────────────────────────────────────────────────────────────────────
+# ── End-to-end total ─────────────────────────────────────────────────────────
 
 
-def test_total_equals_fees_plus_vat_plus_disbursements():
-    pricing = {
-        **BAND_PRICING,
-        "disbursements": [{"name": "Court fee", "amount": 273, "estimated": False}],
+def test_total_effective_price_full_example():
+    """Leasehold + new-build + mortgage at £275k with two disbursements.
+
+    Fees: 1250 base + 250 leasehold + 200 new-build + 150 mortgage = 1850.
+    VAT on fees: 1850 × 0.20 = 370.
+    Disbursements: (180 × 1.20) + 6 = 216 + 6 = 222.
+    Total: 1850 + 370 + 222 = 2442.
+    """
+    card = {
+        **BAND_CARD,
+        "adjustments": [
+            {"name": "Leasehold supplement", "amount": 250, "condition": "tenure==leasehold"},
+            {"name": "New build supplement", "amount": 200, "condition": "new_build==true"},
+            {"name": "Mortgage handling", "amount": 150, "condition": "mortgage==true"},
+        ],
+        "included_disbursements": [
+            {"name": "Local authority search", "amount": 180, "vat_applies": True},
+            {"name": "Bankruptcy search", "amount": 6, "vat_applies": False},
+        ],
     }
-    result = calculate_quote(pricing, BASE_COMPLEXITY)
+    answers = {**BASE_ANSWERS, "tenure": "leasehold", "new_build": True, "mortgage": True}
+    result = calculate_total_effective_price(card, answers)
     assert result is not None
-    # fee=1500, vat=300, disb=273 → total=2073
-    assert result["total"] == pytest.approx(2073.0)
+    assert result["fees_subtotal"] == pytest.approx(1_850.0)
+    assert result["vat"] == pytest.approx(370.0)
+    assert result["disbursements_total"] == pytest.approx(222.0)
+    assert result["total"] == pytest.approx(2_442.0)
 
 
-# ── Service type mismatch ─────────────────────────────────────────────────────
+# ── Edge cases ───────────────────────────────────────────────────────────────
 
 
-def test_service_type_mismatch_returns_none():
-    """A grant_only-only card should not match a full_administration session."""
-    pricing = {**BAND_PRICING, "matter_types": ["grant_only"]}
-    complexity = {**BASE_COMPLEXITY, "service_type": "full_administration"}
-    result = calculate_quote(pricing, complexity)
-    assert result is None
+def test_empty_card_returns_none():
+    assert calculate_total_effective_price({}, BASE_ANSWERS) is None
 
 
-# ── Edge cases ────────────────────────────────────────────────────────────────
-
-
-def test_empty_pricing_returns_none():
-    assert calculate_quote({}, BASE_COMPLEXITY) is None
-
-
-def test_none_pricing_returns_none():
-    assert calculate_quote(None, BASE_COMPLEXITY) is None
+def test_none_card_returns_none():
+    assert calculate_total_effective_price(None, BASE_ANSWERS) is None

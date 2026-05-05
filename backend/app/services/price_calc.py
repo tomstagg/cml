@@ -1,106 +1,126 @@
-"""Price calculator: probate answers → itemised quote from a price card."""
+"""Conveyancing price calculator.
+
+Implements Annex One §10 Total Effective Price for the Quoted Prices path:
+
+    P_legal,effective = P_quoted                       (no `c` confidence uplift this pilot)
+    P_effective       = P_legal,effective × (1 + VAT)
+                      + Σ included_disbursements (each line's VAT applied per-row flag)
+
+The calculator consumes a price-card JSONB (see `app.schemas.firm.PriceCardData`)
+and the normalised conveyancing answers produced by
+`app.services.chat.get_intake_flags`.
+"""
 
 from decimal import ROUND_HALF_UP, Decimal
 
 VAT_RATE = Decimal("0.20")
+PENNY = Decimal("0.01")
 
 
-def calculate_quote(pricing: dict, complexity: dict) -> dict | None:
+def _q(value: Decimal) -> Decimal:
+    return value.quantize(PENNY, rounding=ROUND_HALF_UP)
+
+
+def _condition_applies(condition: str | None, answers: dict) -> bool:
+    """Evaluate a price-card adjustment condition against conveyancing answers.
+
+    Supported expressions (case-insensitive on the RHS):
+        tenure==leasehold | tenure==freehold
+        mortgage==true    | mortgage==false
+        new_build==true   | shared_ownership==true | help_to_buy_isa==true
+    A None / empty condition always applies.
     """
-    Given a price card's pricing JSONB and complexity flags from chat answers,
-    return an itemised quote dict or None if no matching band found.
+    if not condition:
+        return True
 
-    pricing schema:
-    {
-      "practice_area": "probate",
-      "matter_types": ["grant_only", "full_administration"],
-      "pricing_model": "fixed|band|percentage",
-      "bands": [{"estate_value_min": 0, "estate_value_max": 325000, "fee": 1500, "currency": "GBP"}],
-      "adjustments": [{"name": "...", "amount": 500}],
-      "disbursements": [{"name": "...", "amount": 273, "estimated": false}],
-      "vat_applies_to_fees": true
-    }
+    if "==" not in condition:
+        return False
+
+    field, expected = (part.strip() for part in condition.split("==", 1))
+    expected = expected.lower()
+    actual = answers.get(field)
+
+    if isinstance(actual, bool):
+        return ("true" if actual else "false") == expected
+    return str(actual).lower() == expected
+
+
+def calculate_total_effective_price(price_card: dict, answers: dict) -> dict | None:
+    """Return an itemised quote dict, or None if no band matches.
+
+    Output shape:
+        {
+          "base_fee": float,
+          "adjustments": [{"name": str, "amount": float}, ...],
+          "fees_subtotal": float,
+          "vat": float,                      # VAT on legal fees only
+          "disbursements": [{"name": str, "amount": float, "vat_applies": bool}, ...],
+          "disbursements_total": float,      # sum of disbursement amounts incl. each row's VAT
+          "total": float,                    # P_effective
+          "currency": "GBP",
+          "pricing_model": "fixed" | "band",
+        }
     """
-    if not pricing:
+    if not price_card:
         return None
 
-    matter_types = pricing.get("matter_types", ["full_administration"])
-    service_type = complexity.get("service_type", "full_administration")
-    if service_type not in matter_types:
+    purchase_price = Decimal(str(answers.get("purchase_price", 0) or 0))
+    pricing_model = price_card.get("pricing_model", "band")
+
+    # ── Base fee from purchase-price band ──────────────────────────────────
+    matched_fee: Decimal | None = None
+    for band in price_card.get("bands", []):
+        min_val = Decimal(str(band.get("purchase_price_min", 0)))
+        max_val = band.get("purchase_price_max")
+        if max_val is None:
+            if purchase_price >= min_val:
+                matched_fee = Decimal(str(band.get("fee", 0)))
+                break
+        else:
+            if min_val <= purchase_price <= Decimal(str(max_val)):
+                matched_fee = Decimal(str(band.get("fee", 0)))
+                break
+
+    if matched_fee is None:
         return None
+    base_fee = matched_fee
 
-    estate_value = Decimal(str(complexity.get("estate_value", 212500)))
-    pricing_model = pricing.get("pricing_model", "band")
-
-    # --- Base fee ---
-    base_fee = Decimal("0")
-    if pricing_model in ("fixed", "band"):
-        bands = pricing.get("bands", [])
-        matched_band = None
-        for band in bands:
-            min_val = Decimal(str(band.get("estate_value_min", 0)))
-            max_val = band.get("estate_value_max")
-            if max_val is None:
-                if estate_value >= min_val:
-                    matched_band = band
-                    break
-            else:
-                if min_val <= estate_value <= Decimal(str(max_val)):
-                    matched_band = band
-                    break
-
-        if matched_band is None:
-            return None
-        base_fee = Decimal(str(matched_band.get("fee", 0)))
-
-    elif pricing_model == "percentage":
-        pct = Decimal(str(pricing.get("percentage_rate", 1.5))) / 100
-        base_fee = (estate_value * pct).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-
-    # --- Adjustments ---
-    adjustments = []
+    # ── Conditional adjustments ────────────────────────────────────────────
+    adjustments: list[dict] = []
     adjustment_total = Decimal("0")
-
-    for adj in pricing.get("adjustments", []):
-        applies = True
-        condition = adj.get("condition")
-        if condition == "iht400" and not complexity.get("has_iht400"):
-            applies = False
-        if condition == "overseas_assets" and not complexity.get("has_overseas_assets"):
-            applies = False
-        if condition == "complex_investments" and not complexity.get("has_complex_investments"):
-            applies = False
-
-        if applies:
-            amount = Decimal(str(adj.get("amount", 0)))
-            adjustments.append({"name": adj["name"], "amount": float(amount)})
-            adjustment_total += amount
+    for adj in price_card.get("adjustments", []):
+        if not _condition_applies(adj.get("condition"), answers):
+            continue
+        amount = Decimal(str(adj.get("amount", 0)))
+        adjustments.append({"name": adj["name"], "amount": float(amount)})
+        adjustment_total += amount
 
     fees_subtotal = base_fee + adjustment_total
 
-    # --- VAT ---
-    vat_applies = pricing.get("vat_applies_to_fees", True)
+    # ── VAT on legal fees ──────────────────────────────────────────────────
     vat_amount = (
-        (fees_subtotal * VAT_RATE).quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)
-        if vat_applies
+        _q(fees_subtotal * VAT_RATE)
+        if price_card.get("vat_applies_to_fees", True)
         else Decimal("0")
     )
 
-    # --- Disbursements (no VAT) ---
-    disbursements = []
-    disbursement_total = Decimal("0")
-    for disb in pricing.get("disbursements", []):
-        amount = Decimal(str(disb.get("amount", 0)))
+    # ── Included disbursements (each row carries its own VAT flag) ─────────
+    disbursements: list[dict] = []
+    disbursements_total = Decimal("0")
+    for disb in price_card.get("included_disbursements", []):
+        net = Decimal(str(disb.get("amount", 0)))
+        vat_applies = bool(disb.get("vat_applies", False))
+        gross = _q(net * (Decimal("1") + VAT_RATE)) if vat_applies else net
         disbursements.append(
             {
                 "name": disb["name"],
-                "amount": float(amount),
-                "estimated": disb.get("estimated", False),
+                "amount": float(gross),
+                "vat_applies": vat_applies,
             }
         )
-        disbursement_total += amount
+        disbursements_total += gross
 
-    total = fees_subtotal + vat_amount + disbursement_total
+    total = fees_subtotal + vat_amount + disbursements_total
 
     return {
         "base_fee": float(base_fee),
@@ -108,8 +128,8 @@ def calculate_quote(pricing: dict, complexity: dict) -> dict | None:
         "fees_subtotal": float(fees_subtotal),
         "vat": float(vat_amount),
         "disbursements": disbursements,
-        "disbursements_total": float(disbursement_total),
-        "total": float(total.quantize(Decimal("0.01"), rounding=ROUND_HALF_UP)),
+        "disbursements_total": float(_q(disbursements_total)),
+        "total": float(_q(total)),
         "currency": "GBP",
         "pricing_model": pricing_model,
     }

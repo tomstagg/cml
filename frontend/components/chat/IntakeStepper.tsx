@@ -15,6 +15,7 @@ type Props = {
   questions: Question[];
   currentQuestionId: string | null;
   answers: Record<string, string | string[]>;
+  onEditStep?: (questionId: string) => void;
 };
 
 const FALLBACK_LABELS: Record<string, string> = {
@@ -67,7 +68,7 @@ function formatAnswer(questionId: string, raw: string | string[] | undefined): s
   return ANSWER_LABELS[questionId]?.[value] ?? value;
 }
 
-export function IntakeStepper({ questions, currentQuestionId, answers }: Props) {
+export function IntakeStepper({ questions, currentQuestionId, answers, onEditStep }: Props) {
   const sections = questions.reduce<Record<string, Question[]>>((acc, q) => {
     const key = q.section ?? "Your enquiry";
     if (!acc[key]) acc[key] = [];
@@ -93,15 +94,10 @@ export function IntakeStepper({ questions, currentQuestionId, answers }: Props) 
                 const isActive = q.id === currentQuestionId;
                 const label = FALLBACK_LABELS[q.id] ?? q.id;
                 const answerSummary = isAnswered ? formatAnswer(q.id, answers[q.id]) : "";
+                const editable = isAnswered && Boolean(onEditStep);
 
-                return (
-                  <li
-                    key={q.id}
-                    className={cn(
-                      "flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors",
-                      isActive && "bg-brand-50",
-                    )}
-                  >
+                const content = (
+                  <>
                     <span
                       className={cn(
                         "flex-shrink-0 mt-0.5 w-5 h-5 rounded-full border-2 flex items-center justify-center text-[10px] font-semibold",
@@ -129,7 +125,34 @@ export function IntakeStepper({ questions, currentQuestionId, answers }: Props) 
                           <span className="truncate">{answerSummary}</span>
                         </p>
                       )}
+                      {editable && (
+                        <p className="text-[10px] text-brand-600 font-medium uppercase tracking-wide mt-0.5">
+                          Edit
+                        </p>
+                      )}
                     </div>
+                  </>
+                );
+
+                const baseClasses = cn(
+                  "flex items-start gap-2 rounded-lg px-2 py-1.5 transition-colors w-full text-left",
+                  isActive && "bg-brand-50",
+                  editable && "hover:bg-gray-50 cursor-pointer focus:outline-none focus:ring-2 focus:ring-brand-500",
+                );
+
+                return (
+                  <li key={q.id}>
+                    {editable && onEditStep ? (
+                      <button
+                        type="button"
+                        onClick={() => onEditStep(q.id)}
+                        className={baseClasses}
+                      >
+                        {content}
+                      </button>
+                    ) : (
+                      <div className={baseClasses}>{content}</div>
+                    )}
                   </li>
                 );
               })}
