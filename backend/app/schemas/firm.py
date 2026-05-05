@@ -60,38 +60,50 @@ class OrganisationResponse(BaseModel):
     model_config = {"from_attributes": True}
 
 
+# ── Conveyancing price card ───────────────────────────────────────────────────
 class PriceCardBand(BaseModel):
-    estate_value_min: float = 0
-    estate_value_max: float | None = None
+    """Fee band keyed off purchase price (Annex One §10 / requirements §5.2)."""
+
+    purchase_price_min: float = 0
+    purchase_price_max: float | None = None
     fee: float
     currency: str = "GBP"
 
 
 class PriceCardAdjustment(BaseModel):
+    """Conditional supplement applied when an answer evaluates truthy.
+
+    Supported `condition` strings (matched in price_calc):
+      tenure==leasehold | new_build==true | help_to_buy_isa==true |
+      shared_ownership==true | mortgage==true
+    """
+
     name: str
     amount: float
     condition: str | None = None
 
 
 class PriceCardDisbursement(BaseModel):
+    """Included disbursement, stored exclusive of VAT with a per-row VAT flag."""
+
     name: str
     amount: float
-    estimated: bool = False
+    vat_applies: bool = False
 
 
 class PriceCardData(BaseModel):
-    practice_area: str = "probate"
-    matter_types: list[str] = ["grant_only", "full_administration"]
-    pricing_model: str = Field(..., pattern="^(fixed|band|percentage)$")
+    practice_area: str = "residential_conveyancing"
+    matter_types: list[str] = ["purchase", "sale", "purchase_and_sale", "remortgage"]
+    pricing_model: str = Field("band", pattern="^(fixed|band)$")
     bands: list[PriceCardBand] = []
     adjustments: list[PriceCardAdjustment] = []
-    disbursements: list[PriceCardDisbursement] = []
+    included_disbursements: list[PriceCardDisbursement] = []
+    excluded_disbursements_note: str | None = None
     vat_applies_to_fees: bool = True
-    percentage_rate: float | None = None
 
 
 class PriceCardCreate(BaseModel):
-    practice_area: str = "probate"
+    practice_area: str = "residential_conveyancing"
     pricing: PriceCardData
 
 

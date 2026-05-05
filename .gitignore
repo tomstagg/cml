@@ -20,6 +20,10 @@ venv/
 frontend/.next/
 frontend/out/
 frontend/node_modules/
+*.tsbuildinfo
+
+# Claude Code
+.claude/
 
 # Alembic
 backend/alembic/__pycache__/

@@ -5,20 +5,26 @@ import { ArrowRight } from "lucide-react";
 
 type Props = {
   placeholder?: string;
+  hint?: string;
   onSubmit: (value: string) => void;
   disabled?: boolean;
 };
 
 const POSTCODE_REGEX = /^[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}$/i;
 
-export function PostcodeInput({ placeholder = "e.g. SW1A 1AA", onSubmit, disabled }: Props) {
+export function PropertyPostcode({
+  placeholder = "e.g. B1 1AA",
+  hint = "We use this to confirm the property is within our pilot area.",
+  onSubmit,
+  disabled,
+}: Props) {
   const [value, setValue] = useState("");
   const [error, setError] = useState("");
 
   function handleSubmit() {
     const trimmed = value.trim().toUpperCase();
     if (!POSTCODE_REGEX.test(trimmed)) {
-      setError("Please enter a valid UK postcode");
+      setError("Please enter a valid UK postcode.");
       return;
     }
     setError("");
@@ -51,9 +57,7 @@ export function PostcodeInput({ placeholder = "e.g. SW1A 1AA", onSubmit, disable
         </button>
       </div>
       {error && <p className="text-red-500 text-sm">{error}</p>}
-      <p className="text-xs text-gray-500">
-        Your postcode is used only to find nearby solicitors.
-      </p>
+      {hint && <p className="text-xs text-gray-500">{hint}</p>}
     </div>
   );
 }

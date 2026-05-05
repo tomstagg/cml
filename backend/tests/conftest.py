@@ -88,25 +88,34 @@ app.dependency_overrides[get_db] = _test_get_db
 # ── Constants ────────────────────────────────────────────────────────────────
 TRUNCATE_SQL = text(
     "TRUNCATE TABLE appointments, review_invitations, reviews, "
-    "price_cards, firm_users, offices, chat_sessions, organisations CASCADE"
+    "price_cards, firm_users, offices, chat_sessions, organisations, "
+    "complaints_decisions, regulatory_decisions, analytics_events CASCADE"
 )
 
-ALL_13_ANSWERS = {
-    "service_type": "full_administration",
-    "estate_value": "100k_325k",
-    "has_will": "yes",
-    "iht400": "no",
-    "uk_domiciled": "yes",
-    "uk_property_count": "1",
-    "bank_account_count": "1_3",
-    "investments_count": "simple",
-    "overseas_assets": "no",
-    "beneficiary_count": "1_2",
-    "location": "SW1A 1AA",
-    "location_preference": "local",
-    "ranking_preference": "balanced",
+# Canonical conveyancing intake answers — the value for each step is exactly
+# what the chat API would receive over the wire (strings).
+CONVEYANCING_ANSWERS = {
+    "purchase_price": "275000",
+    "tenure": "leasehold",
+    "property_postcode": "B1 1AA",
+    "mortgage": "yes",
+    "new_build": "no",
+    "help_to_buy_isa": "yes",
+    "shared_ownership": "no",
+    "scorecard_preference": "balanced",
+    "include_distance": "yes",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "email": "jane@example.com",
+    "phone": "07700900123",
 }
 
+# Alias kept so legacy tests/fixtures that still reference ALL_13_ANSWERS work.
+ALL_13_ANSWERS = CONVEYANCING_ANSWERS
+
+# Legacy probate price-card data — still consumed by the price-calc and search
+# tests until Phases C/D rewrite those services. Stored directly via SQLAlchemy
+# so it never passes through the new conveyancing-only Pydantic schemas.
 SAMPLE_PRICE_CARD_PRICING = {
     "practice_area": "probate",
     "matter_types": ["grant_only", "full_administration"],
@@ -118,6 +127,39 @@ SAMPLE_PRICE_CARD_PRICING = {
     ],
     "adjustments": [{"name": "IHT400 supplement", "amount": 500, "condition": "iht400"}],
     "disbursements": [{"name": "Probate Registry fee", "amount": 273, "estimated": False}],
+    "vat_applies_to_fees": True,
+}
+
+SAMPLE_CONVEYANCING_PRICE_CARD = {
+    "practice_area": "residential_conveyancing",
+    "matter_types": ["purchase", "sale", "purchase_and_sale", "remortgage"],
+    "pricing_model": "band",
+    "bands": [
+        {"purchase_price_min": 0, "purchase_price_max": 250_000, "fee": 950},
+        {"purchase_price_min": 250_000, "purchase_price_max": 500_000, "fee": 1_250},
+        {"purchase_price_min": 500_000, "purchase_price_max": None, "fee": 1_750},
+    ],
+    "adjustments": [
+        {"name": "Leasehold supplement", "amount": 250, "condition": "tenure==leasehold"},
+        {"name": "New build supplement", "amount": 200, "condition": "new_build==true"},
+        {"name": "Help to Buy ISA admin", "amount": 75, "condition": "help_to_buy_isa==true"},
+        {
+            "name": "Shared ownership supplement",
+            "amount": 250,
+            "condition": "shared_ownership==true",
+        },
+        {"name": "Mortgage handling", "amount": 150, "condition": "mortgage==true"},
+    ],
+    "included_disbursements": [
+        {"name": "Local authority search", "amount": 180, "vat_applies": True},
+        {"name": "Drainage & water search", "amount": 65, "vat_applies": True},
+        {"name": "Bankruptcy search", "amount": 6, "vat_applies": False},
+        {"name": "Land Registry registration fee", "amount": 150, "vat_applies": False},
+    ],
+    "excluded_disbursements_note": (
+        "Stamp Duty Land Tax, leasehold notice fees, ground rent apportionment, "
+        "indemnity policies — see CML disbursement classification page."
+    ),
     "vat_applies_to_fees": True,
 }
 

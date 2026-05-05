@@ -16,12 +16,13 @@ from app.schemas.chat import (
     SessionResponse,
     SessionSaveRequest,
 )
+from app.models.chat_session import ScorecardPreference
 from app.services.chat import (
-    PROBATE_QUESTIONS,
     QUESTION_INDEX,
     get_first_question,
     get_next_question,
     is_flow_complete,
+    validate_answer,
 )
 from app.services.email import send_session_save_email
 from app.config import settings
@@ -29,6 +30,28 @@ from app.config import settings
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
 SESSION_EXPIRY_DAYS = 30
+
+
+@router.get("/schema")
+async def get_intake_schema():
+    """Return the full conveyancing intake schema so the stepper can render
+    every step (answered, active, pending) before the user has reached it.
+    """
+    from app.services.chat import CONVEYANCING_QUESTIONS
+
+    return {
+        "practice_area": "residential_conveyancing",
+        "questions": [
+            {
+                "id": q["id"],
+                "step": q["step"],
+                "section": q.get("section"),
+                "text": q["text"],
+                "type": q["type"],
+            }
+            for q in CONVEYANCING_QUESTIONS
+        ],
+    }
 
 
 def _format_question(q: dict | None) -> QuestionResponse | None:
@@ -52,6 +75,10 @@ def _build_session_response(session: ChatSession, current_question: dict | None)
         current_question=_format_question(current_question),
         message_history=session.message_history or [],
         answers=session.answers or {},
+        scorecard_preference=session.scorecard_preference.value
+        if session.scorecard_preference
+        else "balanced",
+        include_distance=bool(session.include_distance),
         is_complete=is_flow_complete(session.answers or {}),
         expires_at=session.expires_at,
     )
@@ -113,14 +140,29 @@ async def submit_answer(
     if is_flow_complete(session.answers or {}):
         raise HTTPException(status_code=400, detail="Session is already complete")
 
-    # Validate question exists
+    # Validate question exists + answer format (numeric purchase price, valid
+    # postcode / email / phone — requirements §5.1.3).
     if body.question_id not in QUESTION_INDEX:
         raise HTTPException(status_code=400, detail=f"Unknown question: {body.question_id}")
+
+    ok, error = validate_answer(body.question_id, body.answer)
+    if not ok:
+        raise HTTPException(status_code=400, detail=error)
 
     # Record answer
     answers = dict(session.answers or {})
     answer_value = body.answer if isinstance(body.answer, str) else body.answer
     answers[body.question_id] = answer_value
+
+    # Mirror scorecard answers into typed columns so search / ranker can
+    # consume them without re-parsing the JSONB.
+    if body.question_id == "scorecard_preference" and isinstance(answer_value, str):
+        try:
+            session.scorecard_preference = ScorecardPreference(answer_value)
+        except ValueError:
+            session.scorecard_preference = ScorecardPreference.balanced
+    elif body.question_id == "include_distance" and isinstance(answer_value, str):
+        session.include_distance = answer_value.lower() in {"yes", "true", "1"}
 
     # Append to message history
     history = list(session.message_history or [])

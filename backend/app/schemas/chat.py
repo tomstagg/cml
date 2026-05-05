@@ -1,11 +1,23 @@
 import uuid
 from datetime import datetime
+from typing import Literal
 
 from pydantic import BaseModel, Field
 
 
+ScorecardPreferenceLiteral = Literal[
+    "balanced",
+    "reputation",
+    "price",
+    "complaints",
+    "regulatory",
+    "distance",
+    "offices",
+]
+
+
 class SessionCreate(BaseModel):
-    practice_area: str = "probate"
+    practice_area: str = "residential_conveyancing"
 
 
 class AnswerSubmit(BaseModel):
@@ -43,9 +55,16 @@ class SessionResponse(BaseModel):
     current_question: QuestionResponse | None
     message_history: list[dict]
     answers: dict
+    scorecard_preference: ScorecardPreferenceLiteral = "balanced"
+    include_distance: bool = False
     is_complete: bool
     expires_at: datetime
 
 
 class SessionSaveRequest(BaseModel):
     email: str = Field(..., min_length=5, max_length=255)
+
+
+class ScorecardPreferenceUpdate(BaseModel):
+    scorecard_preference: ScorecardPreferenceLiteral
+    include_distance: bool = False
