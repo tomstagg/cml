@@ -12,7 +12,7 @@ from app.models.firm_user import FirmUser
 from app.models.price_card import PriceCard
 from app.schemas.firm import PriceCardCreate, PriceCardResponse
 from app.services.price_calc import calculate_quote
-from app.services.chat import get_complexity_flags
+from app.services.chat import get_intake_flags
 
 router = APIRouter(prefix="/pricing", tags=["firm-pricing"])
 
@@ -99,16 +99,18 @@ async def preview_price_card(
     """Preview a calculated quote for the price card with sample inputs."""
     card = await _get_card(db, card_id, current_user.org_id)
 
+    # Sample conveyancing inputs — the calculator itself is replaced in Phase C.
     sample_answers = {
-        "service_type": "full_administration",
-        "estate_value": "100k_325k",
-        "iht400": "no",
-        "overseas_assets": "no",
-        "investments_count": "simple",
-        "uk_property_count": "1",
+        "purchase_price": "275000",
+        "tenure": "leasehold",
+        "property_postcode": "B1 1AA",
+        "mortgage": "yes",
+        "new_build": "no",
+        "help_to_buy_isa": "no",
+        "shared_ownership": "no",
     }
-    complexity = get_complexity_flags(sample_answers)
-    quote = calculate_quote(card.pricing, complexity)
+    flags = get_intake_flags(sample_answers)
+    quote = calculate_quote(card.pricing, flags)
 
     return {
         "card_id": card_id,

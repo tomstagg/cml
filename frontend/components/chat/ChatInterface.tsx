@@ -7,9 +7,10 @@ import { toast } from "sonner";
 import { sessionsApi } from "@/lib/api";
 import { MessageBubble } from "./MessageBubble";
 import { OptionChips } from "./OptionChips";
-import { PostcodeInput } from "./PostcodeInput";
+import { PropertyPostcode } from "./PropertyPostcode";
+import { TextInput } from "./TextInput";
 import { ProgressBar } from "./ProgressBar";
-import { AnswerSidebar } from "./AnswerSidebar";
+import { IntakeStepper } from "./IntakeStepper";
 import { SaveModal } from "./SaveModal";
 
 const TOTAL_STEPS = 13;
@@ -24,6 +25,7 @@ type Message = {
 type Question = {
   id: string;
   step: number;
+  section?: string;
   text: string;
   type: string;
   options?: { value: string; label: string; description?: string }[];
@@ -37,8 +39,15 @@ type Session = {
   current_question: Question | null;
   message_history: Message[];
   answers: Record<string, string | string[]>;
+  scorecard_preference?: string;
+  include_distance?: boolean;
   is_complete: boolean;
   expires_at: string;
+};
+
+type SchemaResponse = {
+  practice_area: string;
+  questions: Question[];
 };
 
 export function ChatInterface() {
@@ -47,6 +56,7 @@ export function ChatInterface() {
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const [session, setSession] = useState<Session | null>(null);
+  const [schema, setSchema] = useState<Question[] | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
@@ -60,17 +70,31 @@ export function ChatInterface() {
   }, [session?.message_history, scrollToBottom]);
 
   useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const data = (await sessionsApi.schema()) as SchemaResponse;
+        if (!cancelled) setSchema(data.questions);
+      } catch {
+        // Stepper falls back to step-only display if the schema fails to load.
+      }
+    })();
+
     const existingSessionId = searchParams.get("session");
     if (existingSessionId) {
       resumeSession(existingSessionId);
     } else {
       startSession();
     }
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   async function startSession() {
     try {
-      const data = await sessionsApi.create("probate");
+      const data = await sessionsApi.create("residential_conveyancing");
       setSession(data as Session);
     } catch {
       toast.error("Failed to start session. Please refresh and try again.");
@@ -87,7 +111,6 @@ export function ChatInterface() {
         router.push(`/results/${sessionId}`);
       }
     } catch {
-      // Session not found or expired — start fresh
       await startSession();
     } finally {
       setLoading(false);
@@ -108,13 +131,13 @@ export function ChatInterface() {
       setSession(updated);
 
       if (updated.is_complete) {
-        // Small delay for UX, then navigate to results
         setTimeout(() => {
           router.push(`/results/${session.session_id}`);
         }, 800);
       }
-    } catch {
-      toast.error("Something went wrong. Please try again.");
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Something went wrong.";
+      toast.error(message);
     } finally {
       setSubmitting(false);
     }
@@ -135,15 +158,17 @@ export function ChatInterface() {
 
   const currentStep = session.current_question?.step ?? TOTAL_STEPS;
   const progress = session.is_complete ? 100 : ((currentStep - 1) / TOTAL_STEPS) * 100;
+  const stepperQuestions = schema ?? [];
 
   return (
     <div className="flex h-[calc(100vh-64px)]">
-      {/* Sidebar — answered questions summary */}
-      <AnswerSidebar answers={session.answers} />
+      <IntakeStepper
+        questions={stepperQuestions}
+        currentQuestionId={session.current_question?.id ?? null}
+        answers={session.answers}
+      />
 
-      {/* Main chat area */}
       <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full">
-        {/* Progress */}
         <div className="px-4 pt-4 pb-2">
           <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
             <span>
@@ -162,7 +187,6 @@ export function ChatInterface() {
           <ProgressBar value={progress} />
         </div>
 
-        {/* Messages */}
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {session.message_history.map((msg, idx) => (
             <MessageBubble key={idx} message={msg} />
@@ -178,7 +202,6 @@ export function ChatInterface() {
           <div ref={messagesEndRef} />
         </div>
 
-        {/* Input area */}
         {!session.is_complete && session.current_question && (
           <div className="border-t border-gray-200 bg-white px-4 py-4">
             {session.current_question.type === "single_choice" && (
@@ -189,8 +212,21 @@ export function ChatInterface() {
               />
             )}
             {session.current_question.type === "postcode" && (
-              <PostcodeInput
+              <PropertyPostcode
                 placeholder={session.current_question.placeholder}
+                hint={session.current_question.hint}
+                onSubmit={(value) => handleAnswer(value)}
+                disabled={submitting}
+              />
+            )}
+            {(session.current_question.type === "currency" ||
+              session.current_question.type === "text" ||
+              session.current_question.type === "email" ||
+              session.current_question.type === "tel") && (
+              <TextInput
+                type={session.current_question.type}
+                placeholder={session.current_question.placeholder}
+                hint={session.current_question.hint}
                 onSubmit={(value) => handleAnswer(value)}
                 disabled={submitting}
               />
@@ -199,7 +235,6 @@ export function ChatInterface() {
         )}
       </div>
 
-      {/* Save modal */}
       {saveModalOpen && session && (
         <SaveModal
           sessionId={session.session_id}

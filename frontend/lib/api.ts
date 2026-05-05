@@ -47,8 +47,10 @@ export class ApiError extends Error {
 
 // --- Public: Chat sessions ---
 export const sessionsApi = {
-  create: (practiceArea = "probate") =>
+  create: (practiceArea = "residential_conveyancing") =>
     request("/api/public/sessions", { method: "POST", body: { practice_area: practiceArea } }),
+
+  schema: () => request("/api/public/sessions/schema"),
 
   get: (sessionId: string) => request(`/api/public/sessions/${sessionId}`),
 

@@ -92,25 +92,30 @@ TRUNCATE_SQL = text(
     "complaints_decisions, regulatory_decisions, analytics_events CASCADE"
 )
 
-# Legacy probate fixtures — still consumed by chat/price/search service tests
-# until Phases B/C/D rewrite those services. Stored directly via SQLAlchemy so
-# they don't pass through the new conveyancing-only Pydantic schemas.
-ALL_13_ANSWERS = {
-    "service_type": "full_administration",
-    "estate_value": "100k_325k",
-    "has_will": "yes",
-    "iht400": "no",
-    "uk_domiciled": "yes",
-    "uk_property_count": "1",
-    "bank_account_count": "1_3",
-    "investments_count": "simple",
-    "overseas_assets": "no",
-    "beneficiary_count": "1_2",
-    "location": "SW1A 1AA",
-    "location_preference": "local",
-    "ranking_preference": "balanced",
+# Canonical conveyancing intake answers — the value for each step is exactly
+# what the chat API would receive over the wire (strings).
+CONVEYANCING_ANSWERS = {
+    "purchase_price": "275000",
+    "tenure": "leasehold",
+    "property_postcode": "B1 1AA",
+    "mortgage": "yes",
+    "new_build": "no",
+    "help_to_buy_isa": "yes",
+    "shared_ownership": "no",
+    "scorecard_preference": "balanced",
+    "include_distance": "yes",
+    "first_name": "Jane",
+    "last_name": "Smith",
+    "email": "jane@example.com",
+    "phone": "07700900123",
 }
 
+# Alias kept so legacy tests/fixtures that still reference ALL_13_ANSWERS work.
+ALL_13_ANSWERS = CONVEYANCING_ANSWERS
+
+# Legacy probate price-card data — still consumed by the price-calc and search
+# tests until Phases C/D rewrite those services. Stored directly via SQLAlchemy
+# so it never passes through the new conveyancing-only Pydantic schemas.
 SAMPLE_PRICE_CARD_PRICING = {
     "practice_area": "probate",
     "matter_types": ["grant_only", "full_administration"],
@@ -123,25 +128,6 @@ SAMPLE_PRICE_CARD_PRICING = {
     "adjustments": [{"name": "IHT400 supplement", "amount": 500, "condition": "iht400"}],
     "disbursements": [{"name": "Probate Registry fee", "amount": 273, "estimated": False}],
     "vat_applies_to_fees": True,
-}
-
-# Canonical conveyancing fixtures — match the new PriceCardData Pydantic schema
-# so they validate cleanly when posted through firm-pricing endpoints.
-CONVEYANCING_ANSWERS = {
-    "purchase_price": 275_000,
-    "tenure": "leasehold",
-    "property_postcode": "B1 1AA",
-    "mortgage": True,
-    "new_build": False,
-    "help_to_buy_isa": True,
-    "shared_ownership": False,
-    "scorecard_preference": "balanced",
-    "include_distance": True,
-    "distance_postcode": "B1 1AA",
-    "first_name": "Jane",
-    "last_name": "Smith",
-    "email": "jane@example.com",
-    "phone": "07700900123",
 }
 
 SAMPLE_CONVEYANCING_PRICE_CARD = {

@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.organisation import Organisation
 from app.models.office import Office
 from app.models.price_card import PriceCard
-from app.services.chat import get_complexity_flags
+from app.services.chat import get_intake_flags
 from app.services.price_calc import calculate_quote
 from app.services.geocoding import geocode_postcode
 
@@ -32,15 +32,13 @@ def normalise(value: float, min_val: float, max_val: float) -> float:
 
 
 async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
+    """Legacy probate search — replaced wholesale by the 6-factor ranker in
+    Phase D. Kept only so the API surface keeps responding while the new
+    ranker is built.
     """
-    Query enrolled firms with active probate price cards,
-    compute quotes, and rank by weighted score.
-
-    Returns a list of firm result dicts, ordered by rank.
-    """
-    complexity = get_complexity_flags(answers)
-    postcode = complexity.get("postcode", "")
-    ranking_pref = complexity.get("ranking_preference", "balanced")
+    complexity = get_intake_flags(answers)
+    postcode = complexity.get("property_postcode", "")
+    ranking_pref = complexity.get("scorecard_preference", "balanced")
 
     # Fetch consumer lat/lng
     consumer_coords = None

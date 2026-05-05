@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.chat_session import ChatSession
 from app.schemas.search import SearchResponse
-from app.services.chat import get_complexity_flags, is_flow_complete
+from app.services.chat import get_intake_flags, is_flow_complete
 from app.services.search import search_firms
 
 router = APIRouter(prefix="/search", tags=["search"])
@@ -42,11 +42,15 @@ async def get_results(session_id: uuid.UUID, db: AsyncSession = Depends(get_db))
         }
         db.add(session)
 
-    complexity = get_complexity_flags(session.answers)
+    flags = get_intake_flags(session.answers or {})
 
     return SearchResponse(
         session_id=session_id,
         results=results_data,
         total=len(results_data),
-        postcode=complexity.get("postcode"),
+        postcode=flags.get("property_postcode") or None,
+        scorecard_preference=session.scorecard_preference.value
+        if session.scorecard_preference
+        else "balanced",
+        include_distance=bool(session.include_distance),
     )
