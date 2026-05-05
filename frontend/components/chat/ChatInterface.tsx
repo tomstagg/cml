@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Loader2, Save } from "lucide-react";
+import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { sessionsApi } from "@/lib/api";
 import { MessageBubble } from "./MessageBubble";
@@ -60,6 +60,9 @@ export function ChatInterface() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [saveModalOpen, setSaveModalOpen] = useState(false);
+  const [editingQuestion, setEditingQuestion] = useState<Question | null>(null);
+
+  const isReviseMode = searchParams.get("revise") === "1";
 
   const scrollToBottom = useCallback(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -107,7 +110,9 @@ export function ChatInterface() {
     try {
       const data = await sessionsApi.get(sessionId);
       setSession(data as Session);
-      if ((data as Session).is_complete) {
+      // ?revise=1 means the user clicked "Revise answers" on results — don't
+      // bounce them straight back even though the session is complete.
+      if ((data as Session).is_complete && !isReviseMode) {
         router.push(`/results/${sessionId}`);
       }
     } catch {
@@ -118,7 +123,30 @@ export function ChatInterface() {
   }
 
   async function handleAnswer(answer: string | string[]) {
-    if (!session?.current_question || submitting) return;
+    if (submitting) return;
+
+    // Editing a previously-answered step — patch it without advancing the flow.
+    if (editingQuestion) {
+      setSubmitting(true);
+      try {
+        const data = await sessionsApi.updateAnswer(
+          session!.session_id,
+          editingQuestion.id,
+          answer as string,
+        );
+        setSession(data as Session);
+        setEditingQuestion(null);
+        toast.success("Answer updated");
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Something went wrong.";
+        toast.error(message);
+      } finally {
+        setSubmitting(false);
+      }
+      return;
+    }
+
+    if (!session?.current_question) return;
 
     setSubmitting(true);
     try {
@@ -143,6 +171,12 @@ export function ChatInterface() {
     }
   }
 
+  function handleEditStep(questionId: string) {
+    const question = schema?.find((q) => q.id === questionId);
+    if (!question) return;
+    setEditingQuestion(question);
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
@@ -159,30 +193,46 @@ export function ChatInterface() {
   const currentStep = session.current_question?.step ?? TOTAL_STEPS;
   const progress = session.is_complete ? 100 : ((currentStep - 1) / TOTAL_STEPS) * 100;
   const stepperQuestions = schema ?? [];
+  const activeQuestion = editingQuestion ?? session.current_question;
+  const showInput = activeQuestion && (!session.is_complete || editingQuestion);
 
   return (
     <div className="flex h-[calc(100vh-64px)]">
       <IntakeStepper
         questions={stepperQuestions}
-        currentQuestionId={session.current_question?.id ?? null}
+        currentQuestionId={activeQuestion?.id ?? null}
         answers={session.answers}
+        onEditStep={isReviseMode || session.is_complete ? handleEditStep : undefined}
       />
 
       <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full">
         <div className="px-4 pt-4 pb-2">
           <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
             <span>
-              {session.is_complete
-                ? "All done!"
-                : `Question ${currentStep} of ${TOTAL_STEPS}`}
+              {editingQuestion
+                ? `Editing: ${editingQuestion.text}`
+                : session.is_complete
+                  ? "All done!"
+                  : `Question ${currentStep} of ${TOTAL_STEPS}`}
             </span>
-            <button
-              onClick={() => setSaveModalOpen(true)}
-              className="btn-ghost text-xs gap-1"
-              type="button"
-            >
-              <Save className="w-3.5 h-3.5" /> Save for later
-            </button>
+            <div className="flex items-center gap-2">
+              {(isReviseMode || session.is_complete) && (
+                <button
+                  onClick={() => router.push(`/results/${session.session_id}`)}
+                  className="btn-ghost text-xs gap-1"
+                  type="button"
+                >
+                  <ArrowLeft className="w-3.5 h-3.5" /> Back to results
+                </button>
+              )}
+              <button
+                onClick={() => setSaveModalOpen(true)}
+                className="btn-ghost text-xs gap-1"
+                type="button"
+              >
+                <Save className="w-3.5 h-3.5" /> Save for later
+              </button>
+            </div>
           </div>
           <ProgressBar value={progress} />
         </div>
@@ -191,6 +241,22 @@ export function ChatInterface() {
           {session.message_history.map((msg, idx) => (
             <MessageBubble key={idx} message={msg} />
           ))}
+
+          {editingQuestion && (
+            <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
+              <p className="font-medium">{editingQuestion.text}</p>
+              {editingQuestion.hint && (
+                <p className="text-xs text-brand-700 mt-1">{editingQuestion.hint}</p>
+              )}
+              <button
+                onClick={() => setEditingQuestion(null)}
+                className="text-xs text-brand-700 underline mt-1"
+                type="button"
+              >
+                Cancel edit
+              </button>
+            </div>
+          )}
 
           {submitting && (
             <div className="flex items-center gap-2 text-gray-400 text-sm pl-2">
@@ -202,31 +268,31 @@ export function ChatInterface() {
           <div ref={messagesEndRef} />
         </div>
 
-        {!session.is_complete && session.current_question && (
+        {showInput && activeQuestion && (
           <div className="border-t border-gray-200 bg-white px-4 py-4">
-            {session.current_question.type === "single_choice" && (
+            {activeQuestion.type === "single_choice" && (
               <OptionChips
-                options={session.current_question.options ?? []}
+                options={activeQuestion.options ?? []}
                 onSelect={(value) => handleAnswer(value)}
                 disabled={submitting}
               />
             )}
-            {session.current_question.type === "postcode" && (
+            {activeQuestion.type === "postcode" && (
               <PropertyPostcode
-                placeholder={session.current_question.placeholder}
-                hint={session.current_question.hint}
+                placeholder={activeQuestion.placeholder}
+                hint={activeQuestion.hint}
                 onSubmit={(value) => handleAnswer(value)}
                 disabled={submitting}
               />
             )}
-            {(session.current_question.type === "currency" ||
-              session.current_question.type === "text" ||
-              session.current_question.type === "email" ||
-              session.current_question.type === "tel") && (
+            {(activeQuestion.type === "currency" ||
+              activeQuestion.type === "text" ||
+              activeQuestion.type === "email" ||
+              activeQuestion.type === "tel") && (
               <TextInput
-                type={session.current_question.type}
-                placeholder={session.current_question.placeholder}
-                hint={session.current_question.hint}
+                type={activeQuestion.type as "currency" | "text" | "email" | "tel"}
+                placeholder={activeQuestion.placeholder}
+                hint={activeQuestion.hint}
                 onSubmit={(value) => handleAnswer(value)}
                 disabled={submitting}
               />

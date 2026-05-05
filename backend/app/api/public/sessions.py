@@ -21,6 +21,7 @@ from app.services.chat import (
     QUESTION_INDEX,
     get_first_question,
     get_next_question,
+    get_question,
     is_flow_complete,
     validate_answer,
 )
@@ -35,7 +36,8 @@ SESSION_EXPIRY_DAYS = 30
 @router.get("/schema")
 async def get_intake_schema():
     """Return the full conveyancing intake schema so the stepper can render
-    every step (answered, active, pending) before the user has reached it.
+    every step (answered, active, pending) before the user has reached it,
+    and so revise-mode can render any step's input without round-tripping.
     """
     from app.services.chat import CONVEYANCING_QUESTIONS
 
@@ -48,6 +50,9 @@ async def get_intake_schema():
                 "section": q.get("section"),
                 "text": q["text"],
                 "type": q["type"],
+                "options": q.get("options"),
+                "placeholder": q.get("placeholder"),
+                "hint": q.get("hint"),
             }
             for q in CONVEYANCING_QUESTIONS
         ],
@@ -195,6 +200,49 @@ async def submit_answer(
     db.add(session)
 
     return _build_session_response(session, next_q)
+
+
+@router.patch("/{session_id}/answer", response_model=SessionResponse)
+async def patch_answer(
+    session_id: uuid.UUID,
+    body: AnswerSubmit,
+    db: AsyncSession = Depends(get_db),
+):
+    """Overwrite a single answer in any session (including completed ones).
+
+    Used by revise-mode in the chat UI so the user can edit individual steps
+    without restarting the flow. The cached results are invalidated so the
+    next /search call recomputes against the updated answers.
+    """
+    session = await _get_valid_session(db, session_id)
+
+    if body.question_id not in QUESTION_INDEX:
+        raise HTTPException(status_code=400, detail=f"Unknown question: {body.question_id}")
+
+    ok, error = validate_answer(body.question_id, body.answer)
+    if not ok:
+        raise HTTPException(status_code=400, detail=error)
+
+    answers = dict(session.answers or {})
+    answer_value = body.answer if isinstance(body.answer, str) else body.answer
+    answers[body.question_id] = answer_value
+
+    if body.question_id == "scorecard_preference" and isinstance(answer_value, str):
+        try:
+            session.scorecard_preference = ScorecardPreference(answer_value)
+        except ValueError:
+            session.scorecard_preference = ScorecardPreference.balanced
+    elif body.question_id == "include_distance" and isinstance(answer_value, str):
+        session.include_distance = answer_value.lower() in {"yes", "true", "1"}
+
+    session.answers = answers
+    session.results_cache = None  # any prior ranking is now stale
+    db.add(session)
+
+    # Surface the patched question as `current_question` so the UI can show
+    # the user what they just edited, while is_complete still reflects whether
+    # the whole flow is done.
+    return _build_session_response(session, get_question(body.question_id))
 
 
 @router.post("/{session_id}/save")

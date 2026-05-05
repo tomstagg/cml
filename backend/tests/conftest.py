@@ -113,23 +113,6 @@ CONVEYANCING_ANSWERS = {
 # Alias kept so legacy tests/fixtures that still reference ALL_13_ANSWERS work.
 ALL_13_ANSWERS = CONVEYANCING_ANSWERS
 
-# Legacy probate price-card data — still consumed by the price-calc and search
-# tests until Phases C/D rewrite those services. Stored directly via SQLAlchemy
-# so it never passes through the new conveyancing-only Pydantic schemas.
-SAMPLE_PRICE_CARD_PRICING = {
-    "practice_area": "probate",
-    "matter_types": ["grant_only", "full_administration"],
-    "pricing_model": "band",
-    "bands": [
-        {"estate_value_min": 0, "estate_value_max": 325000, "fee": 1500},
-        {"estate_value_min": 325000, "estate_value_max": 650000, "fee": 2500},
-        {"estate_value_min": 650000, "estate_value_max": None, "fee": 3500},
-    ],
-    "adjustments": [{"name": "IHT400 supplement", "amount": 500, "condition": "iht400"}],
-    "disbursements": [{"name": "Probate Registry fee", "amount": 273, "estimated": False}],
-    "vat_applies_to_fees": True,
-}
-
 SAMPLE_CONVEYANCING_PRICE_CARD = {
     "practice_area": "residential_conveyancing",
     "matter_types": ["purchase", "sale", "purchase_and_sale", "remortgage"],
@@ -310,11 +293,11 @@ async def admin_client(client):
 # ── Price card fixture ────────────────────────────────────────────────────────
 @pytest_asyncio.fixture
 async def test_price_card(db_session, enrolled_org):
-    """Active probate price card for enrolled_org."""
+    """Active conveyancing price card for enrolled_org."""
     card = PriceCard(
         org_id=enrolled_org.id,
-        practice_area="probate",
-        pricing=SAMPLE_PRICE_CARD_PRICING,
+        practice_area="residential_conveyancing",
+        pricing=SAMPLE_CONVEYANCING_PRICE_CARD,
         active=True,
     )
     db_session.add(card)
@@ -329,7 +312,7 @@ async def completed_session(db_session):
     """ChatSession with all 13 answers completed."""
     session = ChatSession(
         id=uuid.uuid4(),
-        practice_area="probate",
+        practice_area="residential_conveyancing",
         answers=ALL_13_ANSWERS,
         message_history=[],
         expires_at=datetime.now(timezone.utc) + timedelta(days=30),

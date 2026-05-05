@@ -60,6 +60,12 @@ export const sessionsApi = {
       body: { question_id: questionId, answer },
     }),
 
+  updateAnswer: (sessionId: string, questionId: string, answer: string | string[]) =>
+    request(`/api/public/sessions/${sessionId}/answer`, {
+      method: "PATCH",
+      body: { question_id: questionId, answer },
+    }),
+
   save: (sessionId: string, email: string) =>
     request(`/api/public/sessions/${sessionId}/save`, {
       method: "POST",

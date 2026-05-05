@@ -13,7 +13,7 @@ type PriceCard = {
   practice_area: string;
   pricing: {
     pricing_model: string;
-    bands: { estate_value_min: number; estate_value_max: number | null; fee: number }[];
+    bands: { purchase_price_min: number; purchase_price_max: number | null; fee: number }[];
     matter_types: string[];
     vat_applies_to_fees: boolean;
   };
@@ -58,7 +58,7 @@ export default function PricingPage() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Pricing</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage your probate price cards.</p>
+          <p className="text-gray-500 text-sm mt-1">Manage your conveyancing price cards.</p>
         </div>
         <button onClick={() => setShowForm(true)} className="btn-primary">
           <Plus className="w-4 h-4" /> Add Price Card
@@ -80,7 +80,7 @@ export default function PricingPage() {
 
       {cards.length === 0 ? (
         <div className="card p-12 text-center text-gray-400">
-          <p>No price cards yet. Add your probate pricing to appear in search results.</p>
+          <p>No price cards yet. Add your conveyancing pricing to appear in search results.</p>
         </div>
       ) : (
         <div className="space-y-4">
@@ -120,7 +120,7 @@ export default function PricingPage() {
                   <table className="w-full text-sm">
                     <thead>
                       <tr className="text-xs text-gray-400">
-                        <th className="text-left font-medium pb-1">Estate value band</th>
+                        <th className="text-left font-medium pb-1">Purchase price band</th>
                         <th className="text-right font-medium pb-1">Legal fee</th>
                       </tr>
                     </thead>
@@ -128,8 +128,10 @@ export default function PricingPage() {
                       {card.pricing.bands.map((band, i) => (
                         <tr key={i}>
                           <td className="py-1.5 text-gray-600">
-                            {formatCurrency(band.estate_value_min)} –{" "}
-                            {band.estate_value_max ? formatCurrency(band.estate_value_max) : "above"}
+                            {formatCurrency(band.purchase_price_min)} –{" "}
+                            {band.purchase_price_max
+                              ? formatCurrency(band.purchase_price_max)
+                              : "above"}
                           </td>
                           <td className="py-1.5 text-right font-medium text-gray-900">
                             {formatCurrency(band.fee)}

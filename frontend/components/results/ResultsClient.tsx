@@ -106,7 +106,7 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
       <div className="flex items-center justify-between mb-6">
         <div>
           <button
-            onClick={() => router.push(`/chat?session=${sessionId}`)}
+            onClick={() => router.push(`/chat?session=${sessionId}&revise=1`)}
             className="btn-ghost text-sm mb-2"
           >
             <ArrowLeft className="w-4 h-4" /> Revise answers

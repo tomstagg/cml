@@ -10,7 +10,7 @@ from app.models.organisation import Organisation
 from app.models.office import Office
 from app.models.price_card import PriceCard
 from app.services.chat import get_intake_flags
-from app.services.price_calc import calculate_quote
+from app.services.price_calc import calculate_total_effective_price
 from app.services.geocoding import geocode_postcode
 
 
@@ -45,7 +45,7 @@ async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
     if postcode:
         consumer_coords = await geocode_postcode(postcode)
 
-    # Query: enrolled orgs with active probate price cards + primary office
+    # Query: enrolled orgs with active conveyancing price cards + primary office
     stmt = (
         select(Organisation, PriceCard, Office)
         .join(
@@ -53,7 +53,7 @@ async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
             and_(
                 PriceCard.org_id == Organisation.id,
                 PriceCard.active == True,
-                PriceCard.practice_area == "probate",
+                PriceCard.practice_area == "residential_conveyancing",
             ),
         )
         .outerjoin(Office, and_(Office.org_id == Organisation.id, Office.is_primary == True))
@@ -67,7 +67,7 @@ async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
 
     candidates = []
     for org, price_card, office in rows:
-        quote = calculate_quote(price_card.pricing, complexity)
+        quote = calculate_total_effective_price(price_card.pricing, complexity)
         if quote is None:
             continue
 
