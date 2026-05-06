@@ -80,9 +80,6 @@ async def test_delete_price_card_deactivates_it(auth_client):
     assert get_response.json()["active"] is False
 
 
-@pytest.mark.skip(
-    reason="Preview uses the legacy probate calculator; rewritten to conveyancing in Phase C"
-)
 async def test_preview_price_card_returns_quote(auth_client):
     create = await auth_client.post("/api/firm/pricing", json=_create_body())
     card_id = create.json()["id"]

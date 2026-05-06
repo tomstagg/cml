@@ -1,21 +1,41 @@
-"""Firm search and ranking service."""
+"""Six-factor conveyancing search — Annex One §3.5 sequencing.
+
+Ranks every in-scope firm across the full WMCA market using the selected
+scorecard, then extracts the top-5 contactable (enrolled) firms from that
+ranking. Per §3.5 this ordering is critical to preserve CML's "whole of
+market" / "fully independent" positioning: enrolled firms are never
+ranked separately.
+
+Eligibility (§8.13): firms with an SRA Intervention are removed from the
+results entirely. Pilot scope (Quoted Prices only): firms without an
+active conveyancing price card cannot be priced and are excluded. Once
+the Estimated Price path lands post-pilot this restriction goes away.
+"""
 
 import math
-from decimal import Decimal
 
-from sqlalchemy import select, and_
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.models.organisation import Organisation
-from app.models.office import Office
-from app.models.price_card import PriceCard
 from app.services.chat import get_intake_flags
-from app.services.price_calc import calculate_total_effective_price
 from app.services.geocoding import geocode_postcode
+from app.services.price_calc import calculate_total_effective_price
+from app.services.ranking import (
+    adjusted_reputation_value,
+    normalise_price,
+    normalise_reputation,
+    score_complaints,
+    score_distance,
+    score_offices,
+    score_regulatory,
+)
+from app.services.scorecard import FactorScores, RankableFirm, apply
 
 
 def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
-    """Calculate distance in km between two lat/lon points."""
+    """Geodesic distance between two lat/lon points in km — Annex One §8.3.4."""
     R = 6371
     phi1, phi2 = math.radians(lat1), math.radians(lat2)
     dphi = math.radians(lat2 - lat1)
@@ -24,122 +44,122 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-def normalise(value: float, min_val: float, max_val: float) -> float:
-    """Normalise a value to 0–1 range."""
-    if max_val == min_val:
-        return 0.5
-    return max(0.0, min(1.0, (value - min_val) / (max_val - min_val)))
+async def search_firms(db: AsyncSession, answers: dict) -> dict:
+    """Return ``{"results": full_market, "top_five_contactable": top5}``.
 
-
-async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
-    """Legacy probate search — replaced wholesale by the 6-factor ranker in
-    Phase D. Kept only so the API surface keeps responding while the new
-    ranker is built.
+    Both lists carry rich result rows (rank, factor scores, quote
+    breakdown, etc.) so the API layer can hand them straight to the
+    client without further transformation.
     """
-    complexity = get_intake_flags(answers)
-    postcode = complexity.get("property_postcode", "")
-    ranking_pref = complexity.get("scorecard_preference", "balanced")
+    flags = get_intake_flags(answers)
+    postcode = flags.get("property_postcode") or ""
+    preference = flags.get("scorecard_preference", "balanced")
+    include_distance = bool(flags.get("include_distance", False))
 
-    # Fetch consumer lat/lng
     consumer_coords = None
-    if postcode:
+    if include_distance and postcode:
         consumer_coords = await geocode_postcode(postcode)
 
-    # Query: enrolled orgs with active conveyancing price cards + primary office
+    # Load every non-intervened firm with all the data the ranker needs in
+    # one query — eager-loaded so the loop below is pure Python.
     stmt = (
-        select(Organisation, PriceCard, Office)
-        .join(
-            PriceCard,
-            and_(
-                PriceCard.org_id == Organisation.id,
-                PriceCard.active == True,
-                PriceCard.practice_area == "residential_conveyancing",
-            ),
+        select(Organisation)
+        .where(Organisation.intervened == False)  # noqa: E712 — SQLA expression
+        .options(
+            selectinload(Organisation.offices),
+            selectinload(Organisation.price_cards),
+            selectinload(Organisation.complaints_decisions),
+            selectinload(Organisation.regulatory_decisions),
         )
-        .outerjoin(Office, and_(Office.org_id == Organisation.id, Office.is_primary == True))
-        .where(Organisation.enrolled == True)
     )
-    result = await db.execute(stmt)
-    rows = result.all()
-
-    if not rows:
-        return []
+    orgs = (await db.execute(stmt)).scalars().all()
 
     candidates = []
-    for org, price_card, office in rows:
-        quote = calculate_total_effective_price(price_card.pricing, complexity)
+    for org in orgs:
+        active_card = next(
+            (
+                c
+                for c in org.price_cards
+                if c.active and c.practice_area == "residential_conveyancing"
+            ),
+            None,
+        )
+        if active_card is None:
+            continue
+        quote = calculate_total_effective_price(active_card.pricing, flags)
         if quote is None:
             continue
 
-        # Distance
-        distance_km = None
-        if consumer_coords and office and office.lat is not None and office.lng is not None:
-            distance_km = haversine_km(
-                consumer_coords[0], consumer_coords[1], office.lat, office.lng
-            )
+        primary_office = next((o for o in org.offices if o.is_primary), None) or (
+            org.offices[0] if org.offices else None
+        )
+
+        firm_distance: float | None = None
+        if include_distance and consumer_coords:
+            distances = [
+                haversine_km(consumer_coords[0], consumer_coords[1], o.lat, o.lng)
+                for o in org.offices
+                if o.lat is not None and o.lng is not None
+            ]
+            if distances:
+                firm_distance = min(distances)
 
         candidates.append(
             {
                 "org": org,
-                "price_card": price_card,
-                "office": office,
+                "office": primary_office,
+                "card": active_card,
                 "quote": quote,
-                "distance_km": distance_km,
+                "distance_km": firm_distance,
+                "office_count": max(len(org.offices), 1),
             }
         )
 
     if not candidates:
-        return []
+        return {"results": [], "top_five_contactable": []}
 
-    # Compute score components
-    prices = [c["quote"]["total"] for c in candidates]
-    min_price, max_price = min(prices), max(prices)
+    cand_by_id = {str(c["org"].id): c for c in candidates}
 
-    distances = [c["distance_km"] for c in candidates if c["distance_km"] is not None]
-    min_dist = min(distances) if distances else 0
-    max_dist = max(distances) if distances else 1
-
-    ratings = [c["org"].aggregate_rating or 0 for c in candidates]
-    min_rating, max_rating = min(ratings), max(ratings)
-
-    # Ranking weights by preference
-    weight_map = {
-        "price": {"price": 0.80, "reputation": 0.10, "distance": 0.10},
-        "reputation": {"price": 0.20, "reputation": 0.70, "distance": 0.10},
-        "distance": {"price": 0.20, "reputation": 0.10, "distance": 0.70},
-        "balanced": {"price": 0.60, "reputation": 0.25, "distance": 0.15},
+    # Relative factors — normalised across the full results set.
+    arvs = {
+        oid: adjusted_reputation_value(c["org"].aggregate_rating, c["org"].aggregate_review_count)
+        for oid, c in cand_by_id.items()
     }
-    weights = weight_map.get(ranking_pref, weight_map["balanced"])
+    rep_scores = normalise_reputation(arvs)
+    price_scores = normalise_price({oid: c["quote"]["total"] for oid, c in cand_by_id.items()})
 
-    for c in candidates:
-        total = c["quote"]["total"]
-        # Lower price → higher score (invert normalisation)
-        price_score = 1.0 - normalise(total, min_price, max_price)
+    if include_distance:
+        distance_inputs = {
+            oid: c["distance_km"] for oid, c in cand_by_id.items() if c["distance_km"] is not None
+        }
+        distance_scores = score_distance(distance_inputs)
+    else:
+        distance_scores = {}
 
-        # Higher rating → higher score
-        rating = c["org"].aggregate_rating or 0
-        reputation_score = normalise(rating, min_rating, max_rating)
-
-        # Closer → higher score
-        dist = c["distance_km"]
-        if dist is not None:
-            distance_score = 1.0 - normalise(dist, min_dist, max_dist)
-        else:
-            distance_score = 0.5  # neutral if unknown
-
-        c["score"] = (
-            price_score * weights["price"]
-            + reputation_score * weights["reputation"]
-            + distance_score * weights["distance"]
+    # Build rankable firms with absolute + normalised factor scores.
+    rankable = []
+    for oid, c in cand_by_id.items():
+        scores = FactorScores(
+            reputation=rep_scores.get(oid, 50.0),
+            price=price_scores.get(oid, 50.0),
+            complaints=score_complaints(c["org"].complaints_decisions),
+            regulatory=score_regulatory(c["org"].regulatory_decisions),
+            # When distance is excluded the weight is 0 so the value is
+            # arithmetically inert — 50 keeps it neutral if the weight
+            # is ever non-zero by accident.
+            distance=distance_scores.get(oid, 50.0),
+            offices=score_offices(c["office_count"]),
         )
+        rankable.append(RankableFirm(org_id=oid, name=c["org"].name, scores=scores))
 
-    candidates.sort(key=lambda c: c["score"], reverse=True)
+    ranked = apply(rankable, preference, include_distance)
 
-    results = []
-    for rank, c in enumerate(candidates, start=1):
+    full_results: list[dict] = []
+    for rank, (firm, overall) in enumerate(ranked, start=1):
+        c = cand_by_id[firm.org_id]
         org = c["org"]
         office = c["office"]
-        results.append(
+        full_results.append(
             {
                 "rank": rank,
                 "org_id": str(org.id),
@@ -152,10 +172,24 @@ async def search_firms(db: AsyncSession, answers: dict) -> list[dict]:
                 "aggregate_review_count": org.aggregate_review_count,
                 "postcode": office.postcode if office else None,
                 "city": office.city if office else None,
-                "distance_km": round(c["distance_km"], 1) if c["distance_km"] is not None else None,
+                "distance_km": (
+                    round(c["distance_km"], 1) if c["distance_km"] is not None else None
+                ),
                 "quote": c["quote"],
-                "score": round(c["score"], 4),
+                "factor_scores": {
+                    "reputation": firm.scores.reputation,
+                    "price": firm.scores.price,
+                    "complaints": firm.scores.complaints,
+                    "regulatory": firm.scores.regulatory,
+                    "distance": firm.scores.distance if include_distance else None,
+                    "offices": firm.scores.offices,
+                },
+                # Display only the final overall score is rounded — §5.7.4
+                # mandates internal precision.
+                "score": round(overall),
             }
         )
 
-    return results
+    top_five_contactable = [r for r in full_results if r["enrolled"]][:5]
+
+    return {"results": full_results, "top_five_contactable": top_five_contactable}

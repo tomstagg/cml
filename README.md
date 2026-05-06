@@ -1,8 +1,8 @@
 # Choose My Lawyer
 
-UK legal comparison platform for probate — England & Wales MVP. Consumers answer a 13-step guided chat and receive ranked solicitor quotes. Firms enroll, configure pricing, and receive appointments via the platform. Admin manages enrollment and Google review sync.
+UK legal comparison platform. The **MVP pilot** is scoped to **residential conveyancing** in the **West Midlands Combined Authority** (go-live 1 June 2026, ~90-day PPC-driven pilot). Consumers answer a 13-step guided chat and receive a ranked list of solicitors with calculated Total Effective Prices. Firms enrol, configure pricing, and receive Proceed / Callback requests via the platform. Admin manages enrolment and Google review sync.
 
-See `PLAN.md` for architecture decisions and phase status, and `docs/cml-technical_scoping.pdf` for the full functional spec.
+See `PLAN.md` for architecture decisions and phase status, and `docs/requirements.md` (incl. **Annex One** — ranking methodology) for the full functional spec.
 
 ---
 
@@ -41,27 +41,46 @@ Browser ──► Next.js 15 (App Router)  ──► FastAPI (async)  ──► 
 
 - `GET/POST /api/public/*` — unauthenticated (chat, search, appointments, reviews)
 - `POST/GET/PATCH /api/firm/*` — JWT Bearer (firm dashboard, pricing, reviews)
-- `GET/POST /api/admin/*` — internal only (enroll firms, sync Google Places)
+- `GET/POST /api/admin/*` — internal only; every route requires the `X-Admin-Key` header (env var `ADMIN_API_KEY`)
 
 **Services**:
 
 | Service | Purpose |
 |---|---|
 | `auth.py` | bcrypt hashing, JWT sign/verify (24hr expiry) |
-| `chat.py` | 13-question probate flow engine, complexity flag extraction |
-| `price_calc.py` | Quote calculation from JSONB pricing + complexity flags |
-| `search.py` | Firm ranking — haversine distance, weighted score |
+| `chat.py` | 13-question conveyancing intake engine + intake flag normalisation |
+| `price_calc.py` | Total Effective Price calculation from JSONB pricing + intake flags |
+| `ranking.py` | Pure factor scorers (Annex One §5–9): reputation, price, complaints, regulatory, distance, offices |
+| `scorecard.py` | Weight tables (balanced + 6 prioritised) and tie-broken `apply()` (Annex One §11, §16) |
+| `search.py` | Full-market 6-factor ranking + top-5 contactable extraction (Annex One §3.5) |
 | `geocoding.py` | Fetchify.io postcode → lat/lng |
 | `email.py` | Sparkpost transactional emails (mocked if no key) |
 | `reviews.py` | Google Places sync, aggregate rating calculation |
 
-**Ranking algorithm** (weights shift per `ranking_preference` answer):
+**Ranking algorithm** — deterministic six-factor scorecard (Annex One §5–11). Each factor is scored 0–100 at full numerical precision; the overall score is a weighted sum and only the displayed integer is rounded.
 
-```
-score = price_score * 0.60 + reputation_score * 0.25 + distance_score * 0.15
-```
+| Factor | Source data | Score basis | Balanced weight |
+|---|---|---|---|
+| Reputation | `aggregate_rating`, `aggregate_review_count` | `ARV = rating × (1 + 0.025 × ln(reviews + 1))`, min–max normalised across results set | 25% |
+| Price | active conveyancing `price_card` → Total Effective Price | `(P_max − P) / (P_max − P_min) × 100` (lower price → higher score) | 25% |
+| Complaints | `complaints_decisions` (LeO) | `100 − Σ ((severity_score × remedy_amount_score) + handling_penalty)` | 15% |
+| Regulatory | `regulatory_decisions` (SRA + SDT) | `100 − Σ deductions` per §7.3 / §7.5 tables (no floor — can go negative) | 15% |
+| Distance | `offices.lat/lng` vs property postcode | min–max normalised (closer → higher); user can opt out | 10% |
+| Offices | `count(offices)` | banded: 1→70, 2–3→78, 4–6→85, 7–10→90, 11–20→95, 21+→100 | 10% |
 
-CML reviews are weighted 2× vs Google reviews in the aggregate rating.
+**Prioritised scorecard** — the user can pick one priority factor on the chat preference step. That factor's weight becomes 40; the other five share 60 in their balanced-scorecard ratios (e.g. Reputation Priority: rep 40, price 20, complaints 12, regulatory 12, distance 8, offices 8). The seven weight sets are pinned verbatim from Annex One §16.6 in `scorecard.py::SCORECARDS`.
+
+**Distance excluded (§8.2)** — if the user opts out of distance, its weight goes to 0 and the remaining factors are proportionately rescaled so the sum stays at 100.
+
+**Sequencing rule (§3.5)** — the *entire* in-scope WMCA market is ranked first using the chosen scorecard. The top-5 contactable firms are then extracted from that ordering by filtering on `enrolled=true`. Enrolled firms are never ranked separately — this preserves the "whole of market / fully independent" positioning.
+
+**Eligibility filter (§8.13)** — firms with `organisations.intervened=true` (an SRA Intervention) are removed from results entirely before ranking.
+
+**Tie-break order (§11)** — higher reputation → higher complaints → higher regulatory → higher price → higher distance score (closer office) → higher offices score → alphabetical by firm name.
+
+**Ingestion** — all LeO and SRA decision data is normalised at ingest into structured deduction values (`scripts/import_leo_csv.py`, `scripts/import_sra_decisions_csv.py`) so the runtime ranker only consumes pre-processed numbers.
+
+CML reviews are weighted 2× vs Google reviews in the aggregate rating consumed by the reputation factor.
 
 ---
 
@@ -73,7 +92,7 @@ CML reviews are weighted 2× vs Google reviews in the aggregate rating.
 
 | Group | Routes | Description |
 |---|---|---|
-| `(marketing)` | `/`, `/probate`, `/how-it-works`, `/for-firms`, `/contact`, `/privacy`, `/terms` | Public marketing with Navbar + Footer |
+| `(marketing)` | `/`, `/how-it-works`, `/for-firms`, `/contact`, `/privacy`, `/terms` (legacy `/probate` page slated for replacement by `/conveyancing` in Phase H) | Public marketing with Navbar + Footer |
 | `(public)` | `/chat`, `/results/[sessionId]`, `/review/[token]` | Consumer chat flow |
 | `(firm)` | `/login`, `/enroll/[token]`, `/dashboard`, `/profile`, `/pricing`, `/reviews` | Authenticated firm portal |
 
@@ -97,15 +116,17 @@ CML reviews are weighted 2× vs Google reviews in the aggregate rating.
 - `toast.success()` / `toast.error()` via Sonner
 - Forms via react-hook-form + Zod
 
-**Tailwind tokens**:
+**Tailwind tokens** — canonical palette per `docs/requirements.md` §4.1, defined in `frontend/tailwind.config.ts`:
 
-| Token | Usage |
-|---|---|
-| `brand-600` (#0d9488) | Primary CTAs, active states |
-| `.btn-primary` | Primary action button |
-| `.btn-secondary` | Outline button |
-| `.card` | White rounded card with border |
-| `.input` | Text input fields |
+| Token | Value | Usage |
+|---|---|---|
+| `teal` | `#0AE5F6` | Brand accent, gradient highlights |
+| `navy` | `#080C64` | Headlines, footer, primary surfaces |
+| `mint` | `#69E4B5` | Secondary accents, success states |
+| `purple` | `#9747FF` | Gradient pairs with navy/teal |
+| `brand-*` | indigo scale (`#3450e8` at 600) | Legacy primary — being phased out in Phase H |
+| `.btn-primary`, `.btn-secondary`, `.btn-ghost` | — | Action button variants |
+| `.card`, `.input`, `.label` | — | Form / surface primitives |
 
 ---
 
@@ -117,48 +138,76 @@ CML reviews are weighted 2× vs Google reviews in the aggregate rating.
 
 ```
 organisations
-  ├─ offices (one-to-many, is_primary flag)
+  ├─ offices (one-to-many, is_primary flag, lat/lng for distance)
   ├─ firm_users (one-to-many, roles: admin/staff)
   ├─ price_cards (one-to-many, JSONB pricing, active flag)
+  ├─ complaints_decisions (one-to-many, LeO — Annex One §6)
+  ├─ regulatory_decisions (one-to-many, SRA + SDT — Annex One §7)
   ├─ appointments (via FK)
   └─ reviews (via FK, source: cml/google)
 
 chat_sessions
   └─ appointments (one-to-many, FK nullable)
        └─ review_invitations (one-to-one)
+
+analytics_events  (standalone — funnel + Meta Pixel mirror, Phase I)
 ```
 
 **Key table fields**:
 
-`organisations` — `sra_number`, `name`, `auth_status`, `enrolled`, `enrollment_token`, `google_place_id`, `aggregate_rating`, `aggregate_review_count`
+`organisations` — `sra_number`, `name`, `auth_status`, `enrolled`, `enrollment_token`, `intervened` (binary eligibility — §8.13), `google_place_id`, `aggregate_rating`, `aggregate_review_count`
 
 `offices` — `org_id`, `postcode`, `lat`, `lng`, `is_primary`
 
 `firm_users` — `org_id`, `email`, `hashed_password`, `role` (admin/staff), `last_login`
 
-`price_cards` — `org_id`, `practice_area`, `pricing` (JSONB), `active`
+`price_cards` — `org_id`, `practice_area` (`residential_conveyancing`), `pricing` (JSONB), `active`
 
-`chat_sessions` — `answers` (JSONB), `message_history` (JSONB), `results_cache` (JSONB), `expires_at` (30 days)
+`chat_sessions` — `answers` (JSONB), `message_history` (JSONB), `results_cache` (JSONB), `scorecard_preference` (enum: `balanced`/`reputation`/`price`/`complaints`/`regulatory`/`distance`/`offices`), `include_distance` (bool), `expires_at` (30 days)
 
-`appointments` — `type` (appoint/callback), `status` (pending/confirmed/completed/cancelled), `client_name`, `client_email`, `quoted_price`, `quote_breakdown`, consent fields
+`appointments` — `type` (appoint/callback), `status` (pending/confirmed/completed/cancelled), `client_name`, `client_email`, `quoted_price`, `quote_breakdown`, `firm_contact_made` (nullable bool — set by end-of-day callback follow-up), `conflict_check_outcome` (enum: `pending`/`clear`/`conflict`), consent fields
+
+`complaints_decisions` — `org_id`, `decision_id` (LeO ID), `decision_date`, `remedy_type`, `severity_band`, `severity_score`, `remedy_amount`, `remedy_amount_score`, `complaint_handling_penalty`, `source_url`. Pre-computed at ingest from §6 tables.
+
+`regulatory_decisions` — `org_id`, `source` (`sra`/`sdt`), `decision_id`, `decision_date`, `decision_type` (rebuke/fine_band_a..d/control_order/disqualification/strike_off/intervention), `deduction`, `sdt_fine_amount`, `source_url`. Pre-computed at ingest from §7.3 / §7.5 tables.
+
+`analytics_events` — `session_id`, `event_type`, `metadata` (JSONB), `created_at`. Mirrors Meta Pixel events for independent CSV export.
 
 `reviews` — `source` (cml/google), `rating`, `text`, `external_id`, `firm_response`, `reported`
 
 `review_invitations` — `appointment_id`, `token`, `sent_at`, `used_at`, `expires_at`
 
-**Price card JSONB schema**:
+**Price card JSONB schema** (residential conveyancing, Quoted Prices only this pilot — Annex One §10):
 
 ```json
 {
-  "practice_area": "probate",
-  "matter_types": ["grant_only", "full_administration"],
-  "pricing_model": "fixed|band|percentage",
-  "bands": [{"estate_value_min": 0, "estate_value_max": 325000, "fee": 1500}],
-  "adjustments": [{"name": "IHT400", "amount": 500, "condition": "iht400"}],
-  "disbursements": [{"name": "Probate Registry fee", "amount": 273, "estimated": false}],
+  "practice_area": "residential_conveyancing",
+  "matter_types": ["purchase", "sale", "purchase_and_sale", "remortgage"],
+  "pricing_model": "band",
+  "bands": [
+    {"purchase_price_min": 0, "purchase_price_max": 250000, "fee": 950},
+    {"purchase_price_min": 250000, "purchase_price_max": 500000, "fee": 1250},
+    {"purchase_price_min": 500000, "purchase_price_max": null, "fee": 1750}
+  ],
+  "adjustments": [
+    {"name": "Leasehold supplement",       "amount": 250, "condition": "tenure==leasehold"},
+    {"name": "New build supplement",       "amount": 200, "condition": "new_build==true"},
+    {"name": "Help to Buy ISA admin",      "amount":  75, "condition": "help_to_buy_isa==true"},
+    {"name": "Shared ownership supplement","amount": 250, "condition": "shared_ownership==true"},
+    {"name": "Mortgage handling",          "amount": 150, "condition": "mortgage==true"}
+  ],
+  "included_disbursements": [
+    {"name": "Local authority search",         "amount": 180, "vat_applies": true},
+    {"name": "Drainage & water search",        "amount":  65, "vat_applies": true},
+    {"name": "Bankruptcy search",              "amount":   6, "vat_applies": false},
+    {"name": "Land Registry registration fee", "amount": 150, "vat_applies": false}
+  ],
+  "excluded_disbursements_note": "Stamp Duty Land Tax, leasehold notice fees, …",
   "vat_applies_to_fees": true
 }
 ```
+
+**Total Effective Price** = base fee (band lookup by `purchase_price`) + matching adjustments + VAT on legal fees + Σ included disbursements (with each item's VAT applied per `vat_applies`). The Estimated Price path and confidence factors `c`/`d` are deferred post-pilot.
 
 **Migrations**: Single Alembic file `alembic/versions/0001_initial_schema.py` covers all tables.
 
@@ -225,16 +274,27 @@ Four steps from SRA data import to a logged-in firm user.
 
 ### Step 1 — Import SRA data (one-off)
 
-Organisations enter the system via CSV import. No API involved.
+Organisations enter the system via CSV import. No API involved. For the WMCA pilot, run with the West Midlands postcode-prefix filter:
 
 ```bash
 docker-compose exec backend python scripts/import_sra_csv.py \
-  --csv /path/to/sra_firms.csv --region "London" --geocode
+  --csv /path/to/sra_firms.csv --region "West Midlands" --geocode
 ```
 
 DB result:
 - `organisations` row: `enrolled=false`, `enrollment_token=null`
 - `offices` row: primary office with postcode (+ lat/lng if `--geocode`)
+
+The same import pattern is also used for the two pre-runtime data feeds the ranker depends on (Annex One §6–7 mandates that all interpretation, cleansing and scoring of LeO / SRA data is completed *before* runtime):
+
+```bash
+# Legal Ombudsman complaints decisions → complaints_decisions
+docker-compose exec backend python scripts/import_leo_csv.py --csv /path/to/leo_decisions.csv
+
+# SRA + SDT regulatory decisions → regulatory_decisions (interventions flip
+# organisations.intervened=true and are not added as scored rows)
+docker-compose exec backend python scripts/import_sra_decisions_csv.py --csv /path/to/decisions.csv
+```
 
 For local/smoke testing, insert directly:
 
@@ -251,9 +311,10 @@ VALUES (gen_random_uuid(), 'SRA123458', 'Test Law Firm Ltd', 'authorised', false
 
 ```
 POST /api/admin/organisations/{org_id}/invite-enrollment
+Headers: X-Admin-Key: <ADMIN_API_KEY>
 ```
 
-Requirements: org must have `enrolled=false` and an `email` field set.
+Requirements: org must have `enrolled=false` and an `email` field set. All `/api/admin/*` routes require the `X-Admin-Key` header — it must match the `ADMIN_API_KEY` env var on the backend.
 
 DB changes:
 - `organisations.enrollment_token` → new UUID

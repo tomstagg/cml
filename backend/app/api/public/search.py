@@ -34,10 +34,14 @@ async def get_results(session_id: uuid.UUID, db: AsyncSession = Depends(get_db))
     # Use cache if available
     if session.results_cache:
         results_data = session.results_cache.get("results", [])
+        top_five = session.results_cache.get("top_five_contactable", [])
     else:
-        results_data = await search_firms(db, session.answers)
+        payload = await search_firms(db, session.answers)
+        results_data = payload["results"]
+        top_five = payload["top_five_contactable"]
         session.results_cache = {
             "results": results_data,
+            "top_five_contactable": top_five,
             "cached_at": datetime.now(timezone.utc).isoformat(),
         }
         db.add(session)
@@ -47,6 +51,7 @@ async def get_results(session_id: uuid.UUID, db: AsyncSession = Depends(get_db))
     return SearchResponse(
         session_id=session_id,
         results=results_data,
+        top_five_contactable=top_five,
         total=len(results_data),
         postcode=flags.get("property_postcode") or None,
         scorecard_preference=session.scorecard_preference.value
