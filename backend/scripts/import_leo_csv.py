@@ -174,12 +174,6 @@ def _highest_severity_band(remedy_type_field: str) -> int:
 def _parse_date(raw: str) -> date | None:
     if not raw:
         return None
-    for fmt in ("%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"):
-        try:
-            return date.fromisoformat(raw) if fmt == "%Y-%m-%d" else None
-        except ValueError:
-            pass
-    # Fallback to dateutil-style permissive parse.
     try:
         return date.fromisoformat(raw[:10])
     except ValueError:

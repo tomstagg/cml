@@ -21,16 +21,6 @@ from collections.abc import Iterable
 # Reputation confidence weighting — Annex One §5.7.1.
 REPUTATION_K = 0.025
 
-# Office count → banded score — Annex One §9.4.
-_OFFICE_BANDS: list[tuple[int, int | None, float]] = [
-    (1, 1, 70.0),
-    (2, 3, 78.0),
-    (4, 6, 85.0),
-    (7, 10, 90.0),
-    (11, 20, 95.0),
-    (21, None, 100.0),
-]
-
 # Complaint handling penalty when LeO judged the firm's own handling
 # unreasonable — Annex One §6.14.
 COMPLAINT_HANDLING_PENALTY = 4.0
@@ -140,15 +130,17 @@ def score_distance(distances: dict[str, float]) -> dict[str, float]:
 
 def score_offices(office_count: int) -> float:
     """Banded score — Annex One §9.4: 1→70, 2–3→78, 4–6→85, 7–10→90,
-    11–20→95, 21+→100. Zero offices is treated as a single office (firms
-    are SRA-regulated and must have a registered address).
+    11–20→95, 21+→100. Zero / missing offices fall to the 1-office band
+    (firms are SRA-regulated and must have a registered address).
     """
-    if office_count < 1:
-        return 70.0
-    for lo, hi, score in _OFFICE_BANDS:
-        if hi is None:
-            if office_count >= lo:
-                return score
-        elif lo <= office_count <= hi:
-            return score
+    if office_count >= 21:
+        return 100.0
+    if office_count >= 11:
+        return 95.0
+    if office_count >= 7:
+        return 90.0
+    if office_count >= 4:
+        return 85.0
+    if office_count >= 2:
+        return 78.0
     return 70.0
