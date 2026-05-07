@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Trash2, Eye } from "lucide-react";
+import { Loader2, Plus, Trash2 } from "lucide-react";
 import { firmPricingApi } from "@/lib/api";
 import { getStoredToken, formatCurrency } from "@/lib/utils";
 import { useRouter } from "next/navigation";
@@ -47,20 +47,20 @@ export default function PricingPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-8 h-8 text-navy animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="p-8">
+    <div>
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Pricing</h1>
+          <h1 className="text-2xl font-bold text-navy">Fees & Service Offering</h1>
           <p className="text-gray-500 text-sm mt-1">Manage your conveyancing price cards.</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-primary">
+        <button onClick={() => setShowForm(true)} className="btn-gradient">
           <Plus className="w-4 h-4" /> Add Price Card
         </button>
       </div>
@@ -89,8 +89,8 @@ export default function PricingPage() {
               <div className="flex items-center justify-between">
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-gray-900 capitalize">{card.practice_area}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${card.active ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
+                    <span className="font-semibold text-navy capitalize">{card.practice_area}</span>
+                    <span className={`text-xs px-2 py-0.5 rounded-full ${card.active ? "bg-mint/30 text-navy" : "bg-gray-100 text-gray-500"}`}>
                       {card.active ? "Active" : "Inactive"}
                     </span>
                   </div>
@@ -133,7 +133,7 @@ export default function PricingPage() {
                               ? formatCurrency(band.purchase_price_max)
                               : "above"}
                           </td>
-                          <td className="py-1.5 text-right font-medium text-gray-900">
+                          <td className="py-1.5 text-right font-medium text-navy">
                             {formatCurrency(band.fee)}
                           </td>
                         </tr>

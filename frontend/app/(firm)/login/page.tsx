@@ -1,8 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Scale } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { firmAuthApi } from "@/lib/api";
@@ -29,8 +28,7 @@ export default function FirmLoginPage() {
     <div className="flex items-center justify-center min-h-[calc(100vh-64px)] p-4">
       <div className="w-full max-w-sm">
         <div className="text-center mb-8">
-          <Scale className="w-10 h-10 text-brand-600 mx-auto mb-3" />
-          <h1 className="text-2xl font-bold text-gray-900">Firm Login</h1>
+          <h1 className="text-2xl font-bold text-navy">Firm Login</h1>
           <p className="text-gray-500 mt-1">Access your Choose My Lawyer dashboard</p>
         </div>
 
@@ -56,7 +54,7 @@ export default function FirmLoginPage() {
               />
               {errors.password && <p className="text-red-500 text-xs mt-1">{errors.password.message}</p>}
             </div>
-            <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
+            <button type="submit" disabled={isSubmitting} className="btn-gradient w-full">
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Sign In"}
             </button>
           </form>
@@ -64,7 +62,7 @@ export default function FirmLoginPage() {
 
         <p className="text-center text-sm text-gray-500 mt-4">
           Don't have an account?{" "}
-          <Link href="/for-firms" className="text-brand-600 hover:underline">
+          <Link href="/for-firms" className="text-purple hover:underline">
             Learn how to enroll
           </Link>
         </p>

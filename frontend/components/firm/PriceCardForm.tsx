@@ -122,7 +122,7 @@ export function PriceCardForm({
               onClick={() => toggleMatterType(type.value)}
               className={`px-3 py-1.5 rounded-lg border text-sm font-medium transition-colors ${
                 matterTypes.includes(type.value)
-                  ? "bg-brand-600 text-white border-brand-600"
+                  ? "bg-navy text-white border-navy"
                   : "bg-white text-gray-600 border-gray-300"
               }`}
             >
@@ -357,7 +357,7 @@ export function PriceCardForm({
 
       {/* Actions */}
       <div className="flex gap-3 pt-2 border-t border-gray-100">
-        <button onClick={handleSave} disabled={saving} className="btn-primary">
+        <button onClick={handleSave} disabled={saving} className="btn-gradient">
           {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : "Save Price Card"}
         </button>
         <button onClick={onCancel} className="btn-secondary">

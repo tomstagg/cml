@@ -49,7 +49,7 @@ export default function EnrollPage({ params }: { params: Promise<{ token: string
     <div className="flex items-center justify-center min-h-[calc(100vh-64px)] p-4">
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-gray-900">Create Your Firm Account</h1>
+          <h1 className="text-2xl font-bold text-navy">Create Your Firm Account</h1>
           <p className="text-gray-500 mt-1">
             Join Choose My Lawyer and start receiving client enquiries.
           </p>
@@ -116,11 +116,11 @@ export default function EnrollPage({ params }: { params: Promise<{ token: string
               />
               <span className="text-sm text-gray-600">
                 I accept the{" "}
-                <a href="/terms" target="_blank" className="text-brand-600 hover:underline">
+                <a href="/terms" target="_blank" className="text-purple hover:underline">
                   Terms of Service
                 </a>{" "}
                 and{" "}
-                <a href="/privacy" target="_blank" className="text-brand-600 hover:underline">
+                <a href="/privacy" target="_blank" className="text-purple hover:underline">
                   Privacy Policy
                 </a>{" "}
                 *
@@ -130,7 +130,7 @@ export default function EnrollPage({ params }: { params: Promise<{ token: string
               <p className="text-red-500 text-xs">{errors.accept_terms.message}</p>
             )}
 
-            <button type="submit" disabled={isSubmitting} className="btn-primary w-full">
+            <button type="submit" disabled={isSubmitting} className="btn-gradient w-full">
               {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : "Create Account"}
             </button>
           </form>

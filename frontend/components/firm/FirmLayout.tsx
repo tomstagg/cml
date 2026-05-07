@@ -2,43 +2,46 @@
 
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
-import {
-  BarChart2,
-  BookOpen,
-  LogOut,
-  Settings,
-  Star,
-  User,
-} from "lucide-react";
-import { cn, clearStoredToken } from "@/lib/utils";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
+import { firmProfileApi } from "@/lib/api";
+import { cn, clearStoredToken, getStoredToken } from "@/lib/utils";
 
 const navItems = [
-  { href: "/dashboard", label: "Dashboard", icon: BarChart2 },
-  { href: "/profile", label: "Profile", icon: User },
-  { href: "/pricing", label: "Pricing", icon: BookOpen },
-  { href: "/reviews", label: "Reviews", icon: Star },
-  { href: "/appointments", label: "Appointments", icon: Settings },
+  { href: "/dashboard", label: "Dashboard" },
+  { href: "/profile", label: "Firm Details" },
+  { href: "/pricing", label: "Fees & Service Offering" },
+  { href: "/reviews", label: "Reviews" },
 ];
 
 export function FirmLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const router = useRouter();
+  const [firmName, setFirmName] = useState<string | null>(null);
 
-  // Auth check pages (login, enroll) — no sidebar
   const isAuthPage = pathname.startsWith("/login") || pathname.startsWith("/enroll");
+
+  useEffect(() => {
+    if (isAuthPage) return;
+    const token = getStoredToken();
+    if (!token) return;
+    firmProfileApi
+      .get(token)
+      .then((data) => setFirmName((data as { name: string }).name))
+      .catch(() => {});
+  }, [isAuthPage]);
+
   if (isAuthPage) {
     return (
-      <div className="min-h-screen bg-gray-50">
-        <div className="flex items-center justify-center p-4 h-16 bg-white border-b border-gray-200">
+      <div className="min-h-screen bg-white">
+        <div className="flex items-center justify-center h-20 border-b border-gray-100">
           <Link href="/">
             <Image
               src="/logo.png"
               alt="Choose My Lawyer"
               width={160}
               height={68}
-              className="h-8 w-auto"
+              className="h-10 w-auto"
             />
           </Link>
         </div>
@@ -53,56 +56,55 @@ export function FirmLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex h-screen bg-gray-50">
-      {/* Sidebar */}
-      <aside className="w-64 bg-brand-950 flex flex-col">
-        <div className="p-4 border-b border-brand-900">
+    <div className="min-h-screen bg-white">
+      <header className="border-b border-gray-100">
+        <div className="section-container flex items-center h-20">
           <Link href="/dashboard" className="flex items-center">
             <Image
-              src="/logo-dark.png"
+              src="/logo.png"
               alt="Choose My Lawyer"
-              width={140}
-              height={49}
-              className="h-7 w-auto"
+              width={160}
+              height={68}
+              className="h-10 w-auto"
+              priority
             />
           </Link>
-          <p className="text-brand-300 text-xs mt-2 font-medium">Firm Portal</p>
         </div>
+      </header>
 
-        <nav className="flex-1 p-4 space-y-1">
-          {navItems.map((item) => {
-            const active = pathname.startsWith(item.href);
-            return (
-              <Link
-                key={item.href}
-                href={item.href}
-                className={cn(
-                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
-                  active
-                    ? "bg-brand-800 text-white"
-                    : "text-brand-200 hover:bg-brand-900 hover:text-white",
-                )}
+      <div className="section-container py-10">
+        <div className="grid grid-cols-1 md:grid-cols-[240px_1fr] gap-10">
+          <aside className="md:border-r md:border-gray-100 md:pr-8">
+            {firmName && (
+              <h2 className="text-navy font-bold text-lg leading-snug mb-6">{firmName}</h2>
+            )}
+            <nav className="flex flex-col gap-3 text-sm">
+              {navItems.map((item) => {
+                const active = pathname.startsWith(item.href);
+                return (
+                  <Link
+                    key={item.href}
+                    href={item.href}
+                    className={cn(
+                      "transition-colors",
+                      active ? "text-navy font-semibold" : "text-navy/70 hover:text-navy",
+                    )}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
+              <button
+                onClick={handleLogout}
+                className="text-left text-navy/70 hover:text-navy transition-colors"
               >
-                <item.icon className="w-4 h-4" />
-                {item.label}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="p-4 border-t border-brand-900">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium text-brand-300 hover:bg-brand-900 hover:text-white w-full transition-colors"
-          >
-            <LogOut className="w-4 h-4" />
-            Log Out
-          </button>
+                Logout
+              </button>
+            </nav>
+          </aside>
+          <main className="min-w-0">{children}</main>
         </div>
-      </aside>
-
-      {/* Main */}
-      <main className="flex-1 overflow-y-auto">{children}</main>
+      </div>
     </div>
   );
 }
