@@ -210,6 +210,18 @@ async def db_session():
         yield session
 
 
+@pytest_asyncio.fixture
+async def verify_session():
+    """Fresh session for asserting on writes a FastAPI request just committed.
+
+    Distinct from ``db_session`` — that one is used to seed before the request
+    runs; this one opens after, so it sees committed state without sharing
+    identity-map state with the request's session.
+    """
+    async with _test_session_factory() as session:
+        yield session
+
+
 # ── Organisation fixtures ────────────────────────────────────────────────────
 @pytest_asyncio.fixture
 async def test_org(db_session):

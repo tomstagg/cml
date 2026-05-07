@@ -2,7 +2,7 @@
  * API client — thin wrapper over fetch with base URL and auth header injection.
  */
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+export const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
 
 type RequestOptions = {
   method?: string;

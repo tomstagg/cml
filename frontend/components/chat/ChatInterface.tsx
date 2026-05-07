@@ -5,6 +5,11 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Loader2, Save } from "lucide-react";
 import { toast } from "sonner";
 import { sessionsApi } from "@/lib/api";
+import {
+  trackIntakeStarted,
+  trackIntakeCompleted,
+  trackScorecardChosen,
+} from "@/lib/analytics";
 import { MessageBubble } from "./MessageBubble";
 import { OptionChips } from "./OptionChips";
 import { PropertyPostcode } from "./PropertyPostcode";
@@ -98,7 +103,9 @@ export function ChatInterface() {
   async function startSession() {
     try {
       const data = await sessionsApi.create("residential_conveyancing");
-      setSession(data as Session);
+      const created = data as Session;
+      setSession(created);
+      trackIntakeStarted(created.session_id);
     } catch {
       toast.error("Failed to start session. Please refresh and try again.");
     } finally {
@@ -148,17 +155,23 @@ export function ChatInterface() {
 
     if (!session?.current_question) return;
 
+    const submittedQuestionId = session.current_question.id;
     setSubmitting(true);
     try {
       const data = await sessionsApi.answer(
         session.session_id,
-        session.current_question.id,
+        submittedQuestionId,
         answer as string,
       );
       const updated = data as Session;
       setSession(updated);
 
+      if (submittedQuestionId === "scorecard_preference" && typeof answer === "string") {
+        trackScorecardChosen(session.session_id, answer);
+      }
+
       if (updated.is_complete) {
+        trackIntakeCompleted(session.session_id);
         setTimeout(() => {
           router.push(`/results/${session.session_id}`);
         }, 800);

@@ -5,6 +5,7 @@ import { X, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { appointmentsApi } from "@/lib/api";
+import { trackCallback } from "@/lib/analytics";
 
 type Props = {
   firm: {
@@ -43,6 +44,7 @@ export function CallbackModal({ firm, sessionId, onClose }: Props) {
         consent_contacted: data.consent_contacted,
         consent_terms: data.consent_terms,
       });
+      trackCallback(sessionId, [firm.org_id], [firm.quote?.total ?? null]);
       setDone(true);
     } catch {
       toast.error("Failed to submit request. Please try again.");

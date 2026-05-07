@@ -5,6 +5,7 @@ import { Loader2, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Star } from "lucid
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { searchApi, type FirmResult, type SearchResponse } from "@/lib/api";
+import { trackResultsViewed } from "@/lib/analytics";
 import { ComplaintsCell } from "./ComplaintsCell";
 import { RegulatoryCell } from "./RegulatoryCell";
 import { AppointModal } from "./AppointModal";
@@ -45,6 +46,7 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
     try {
       const res = await searchApi.getResults(sessionId);
       setData(res);
+      trackResultsViewed(sessionId, res.top_five_contactable.length, res.results.length);
     } catch (err) {
       const status = (err as { status?: number }).status;
       if (status === 400) {

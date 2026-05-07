@@ -5,6 +5,7 @@ import { X, Loader2, CheckCircle } from "lucide-react";
 import { toast } from "sonner";
 import { useForm } from "react-hook-form";
 import { appointmentsApi } from "@/lib/api";
+import { trackProceed } from "@/lib/analytics";
 import { formatCurrency } from "@/lib/utils";
 
 type Props = {
@@ -40,6 +41,7 @@ export function AppointModal({ firm, sessionId, onClose }: Props) {
         consent_contacted: data.consent_contacted,
         consent_terms: data.consent_terms,
       });
+      trackProceed(sessionId, firm.org_id, firm.quote?.total ?? null);
       setDone(true);
     } catch {
       toast.error("Failed to submit appointment. Please try again.");

@@ -411,10 +411,10 @@ Each phase is a roughly-PR-sized chunk. Tasks are checkable and ordered for sens
 - [ ] **H7** Light updates to `contact`, `privacy`, `terms` to drop probate references.
 
 ### Phase I — Analytics + Meta Pixel
-- [ ] **I1** Add Meta Pixel `<Script>` in root layout. Env var `NEXT_PUBLIC_META_PIXEL_ID`.
-- [ ] **I2** Fire pixel events at every transition listed under [Analytics events](#analytics-events).
-- [ ] **I3** New `POST /api/public/events` (rate-limited, no auth) writing to `analytics_events`. Frontend mirrors every Meta event here.
-- [ ] **I4** New `GET /api/admin/analytics/export?from=&to=` returning CSV.
+- [x] **I1** Add Meta Pixel `<Script>` in root layout. Env var `NEXT_PUBLIC_META_PIXEL_ID`.
+- [x] **I2** Fire pixel events at every transition listed under [Analytics events](#analytics-events).
+- [x] **I3** New `POST /api/public/events` (rate-limited, no auth) writing to `analytics_events`. Frontend mirrors every Meta event here.
+- [x] **I4** New `GET /api/admin/analytics/export?from=&to=` returning CSV.
 
 ### Phase J — Production readiness
 - [ ] **J1** Refresh SRA firm import: `scripts/import_sra_csv.py --csv … --region "WMCA" --geocode` over WMCA postcodes.
