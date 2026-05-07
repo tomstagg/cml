@@ -13,6 +13,7 @@ the Estimated Price path lands post-pilot this restriction goes away.
 """
 
 import math
+from datetime import date
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -159,6 +160,31 @@ async def search_firms(db: AsyncSession, answers: dict) -> dict:
         c = cand_by_id[firm.org_id]
         org = c["org"]
         office = c["office"]
+        complaints_sources = [
+            {
+                "decision_date": d.decision_date.isoformat() if d.decision_date else None,
+                "url": d.source_url,
+            }
+            for d in sorted(
+                org.complaints_decisions,
+                key=lambda d: d.decision_date or date.min,
+                reverse=True,
+            )
+            if d.source_url
+        ]
+        regulatory_sources = [
+            {
+                "decision_date": d.decision_date.isoformat() if d.decision_date else None,
+                "url": d.source_url,
+            }
+            for d in sorted(
+                org.regulatory_decisions,
+                key=lambda d: d.decision_date or date.min,
+                reverse=True,
+            )
+            if d.source_url
+        ]
+
         full_results.append(
             {
                 "rank": rank,
@@ -175,6 +201,7 @@ async def search_firms(db: AsyncSession, answers: dict) -> dict:
                 "distance_km": (
                     round(c["distance_km"], 1) if c["distance_km"] is not None else None
                 ),
+                "office_count": c["office_count"],
                 "quote": c["quote"],
                 "factor_scores": {
                     "reputation": firm.scores.reputation,
@@ -184,6 +211,8 @@ async def search_firms(db: AsyncSession, answers: dict) -> dict:
                     "distance": firm.scores.distance if include_distance else None,
                     "offices": firm.scores.offices,
                 },
+                "complaints_sources": complaints_sources,
+                "regulatory_sources": regulatory_sources,
                 # Display only the final overall score is rounded — §5.7.4
                 # mandates internal precision.
                 "score": round(overall),

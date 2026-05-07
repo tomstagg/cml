@@ -26,6 +26,11 @@ class FactorScores(BaseModel):
     offices: float
 
 
+class DecisionSource(BaseModel):
+    decision_date: str | None
+    url: str
+
+
 class FirmResult(BaseModel):
     rank: int
     org_id: uuid.UUID
@@ -39,8 +44,11 @@ class FirmResult(BaseModel):
     postcode: str | None
     city: str | None
     distance_km: float | None
+    office_count: int = 1
     quote: QuoteBreakdown | None
     factor_scores: FactorScores | None = None
+    complaints_sources: list[DecisionSource] = []
+    regulatory_sources: list[DecisionSource] = []
     score: float
 
 
