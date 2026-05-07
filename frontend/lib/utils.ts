@@ -19,6 +19,22 @@ export function formatRating(rating: number | null | undefined): string {
   return rating.toFixed(1);
 }
 
+export type SeverityBand = {
+  stars: 0 | 1 | 2 | 3 | 4 | 5;
+  label: string;
+};
+
+/** Map a 0-100 complaints / regulatory score onto the shared severity band
+ *  defined in Annex One §5.7.5 (PLAN.md "UI severity bands"). */
+export function severityBand(score: number): SeverityBand {
+  if (score >= 100) return { stars: 5, label: "No history" };
+  if (score >= 80) return { stars: 4, label: "Very low" };
+  if (score >= 60) return { stars: 3, label: "Low" };
+  if (score >= 40) return { stars: 2, label: "Moderate" };
+  if (score >= 20) return { stars: 1, label: "Elevated" };
+  return { stars: 0, label: "High" };
+}
+
 export function getAuthStatusColor(status: string): string {
   switch (status.toLowerCase()) {
     case "authorised":

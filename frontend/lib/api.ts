@@ -74,8 +74,66 @@ export const sessionsApi = {
 };
 
 // --- Public: Search / Results ---
+export type QuoteBreakdown = {
+  base_fee: number;
+  adjustments: { name: string; amount: number }[];
+  fees_subtotal: number;
+  vat: number;
+  disbursements: { name: string; amount: number; estimated: boolean }[];
+  disbursements_total: number;
+  total: number;
+  currency: string;
+  pricing_model: string;
+};
+
+export type FactorScores = {
+  reputation: number;
+  price: number | null;
+  complaints: number;
+  regulatory: number;
+  distance: number | null;
+  offices: number;
+};
+
+export type DecisionSource = {
+  decision_date: string | null;
+  url: string;
+};
+
+export type FirmResult = {
+  rank: number;
+  org_id: string;
+  name: string;
+  sra_number: string;
+  auth_status: string;
+  enrolled: boolean;
+  website_url: string | null;
+  aggregate_rating: number | null;
+  aggregate_review_count: number | null;
+  postcode: string | null;
+  city: string | null;
+  distance_km: number | null;
+  office_count: number;
+  quote: QuoteBreakdown | null;
+  factor_scores: FactorScores | null;
+  complaints_sources: DecisionSource[];
+  regulatory_sources: DecisionSource[];
+  score: number;
+};
+
+export type SearchResponse = {
+  session_id: string;
+  results: FirmResult[];
+  top_five_contactable: FirmResult[];
+  total: number;
+  postcode: string | null;
+  scorecard_preference: string;
+  include_distance: boolean;
+};
+
 export const searchApi = {
-  getResults: (sessionId: string) => request(`/api/public/search/${sessionId}`),
+  getResults: (sessionId: string) =>
+    request<SearchResponse>(`/api/public/search/${sessionId}`),
 };
 
 // --- Public: Appointments ---
