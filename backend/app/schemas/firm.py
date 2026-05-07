@@ -119,9 +119,9 @@ class PriceCardResponse(BaseModel):
 
 
 class DashboardStats(BaseModel):
-    total_appearances: int
-    total_appointments: int
-    total_callbacks: int
-    aggregate_rating: float | None
-    aggregate_review_count: int | None
-    recent_appointments: list[dict]
+    """Counts for the firm dashboard 2×2 grid (last 30 days)."""
+
+    new_appointments_30d: int
+    video_call_requests_30d: int
+    appearances_in_results_30d: int
+    new_reviews_30d: int

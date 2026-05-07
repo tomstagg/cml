@@ -1,7 +1,6 @@
-"""Firm dashboard: stats and appointments."""
+"""Firm dashboard: 30-day counts for the 2×2 grid (Phase G2)."""
 
-import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import func, select
@@ -9,9 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.dependencies import get_current_user
+from app.models.analytics_event import AnalyticsEvent
 from app.models.appointment import Appointment, AppointmentType
 from app.models.firm_user import FirmUser
-from app.models.organisation import Organisation
+from app.models.review import Review
 from app.schemas.firm import DashboardStats
 
 router = APIRouter(prefix="/dashboard", tags=["firm-dashboard"])
@@ -23,55 +23,36 @@ async def get_dashboard_stats(
     db: AsyncSession = Depends(get_db),
 ):
     org_id = current_user.org_id
+    since = datetime.now(timezone.utc) - timedelta(days=30)
 
-    # Total appointments
-    appt_result = await db.execute(
+    new_appointments = await db.scalar(
         select(func.count(Appointment.id)).where(
             Appointment.org_id == org_id,
             Appointment.type == AppointmentType.appoint,
+            Appointment.created_at >= since,
         )
     )
-    total_appointments = appt_result.scalar() or 0
 
-    # Total callbacks
-    callback_result = await db.execute(
-        select(func.count(Appointment.id)).where(
-            Appointment.org_id == org_id,
-            Appointment.type == AppointmentType.callback,
+    new_reviews = await db.scalar(
+        select(func.count(Review.id)).where(
+            Review.org_id == org_id,
+            Review.created_at >= since,
         )
     )
-    total_callbacks = callback_result.scalar() or 0
 
-    # Org rating
-    org_result = await db.execute(select(Organisation).where(Organisation.id == org_id))
-    org = org_result.scalar_one_or_none()
-
-    # Recent appointments (last 10)
-    recent_result = await db.execute(
-        select(Appointment)
-        .where(Appointment.org_id == org_id)
-        .order_by(Appointment.created_at.desc())
-        .limit(10)
+    # `results_viewed` events whose metadata.org_ids array contains this org.
+    # Phase I emits these — until then the count is zero.
+    appearances = await db.scalar(
+        select(func.count(AnalyticsEvent.id)).where(
+            AnalyticsEvent.event_type == "results_viewed",
+            AnalyticsEvent.metadata_["org_ids"].contains([str(org_id)]),
+            AnalyticsEvent.created_at >= since,
+        )
     )
-    recent = recent_result.scalars().all()
-
-    recent_list = [
-        {
-            "id": str(a.id),
-            "type": a.type,
-            "status": a.status,
-            "client_name": a.client_name,
-            "quoted_price": float(a.quoted_price) if a.quoted_price else None,
-            "created_at": a.created_at.isoformat(),
-        }
-        for a in recent
-    ]
 
     return DashboardStats(
-        total_appearances=0,  # Phase 2: track search appearance impressions
-        total_appointments=total_appointments,
-        total_callbacks=total_callbacks,
-        aggregate_rating=org.aggregate_rating if org else None,
-        aggregate_review_count=org.aggregate_review_count if org else None,
-        recent_appointments=recent_list,
+        new_appointments_30d=new_appointments or 0,
+        video_call_requests_30d=0,
+        appearances_in_results_30d=appearances or 0,
+        new_reviews_30d=new_reviews or 0,
     )

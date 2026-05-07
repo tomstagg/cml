@@ -64,8 +64,8 @@ export default function ProfilePage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-8 h-8 text-navy animate-spin" />
       </div>
     );
   }
@@ -73,29 +73,29 @@ export default function ProfilePage() {
   if (!profile) return null;
 
   return (
-    <div className="p-8 max-w-2xl">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Firm Profile</h1>
+    <div className="max-w-2xl">
+      <h1 className="text-2xl font-bold text-navy mb-6">Firm Details</h1>
 
       <div className="card p-6 mb-6">
-        <h2 className="font-semibold text-gray-900 mb-4">Firm Details</h2>
+        <h2 className="font-semibold text-navy mb-4">Firm</h2>
         <dl className="space-y-3">
           <div>
             <dt className="text-sm text-gray-500">Firm Name</dt>
-            <dd className="font-medium text-gray-900">{profile.name}</dd>
+            <dd className="font-medium text-navy">{profile.name}</dd>
           </div>
           <div>
             <dt className="text-sm text-gray-500">SRA Number</dt>
-            <dd className="font-medium text-gray-900">{profile.sra_number}</dd>
+            <dd className="font-medium text-navy">{profile.sra_number}</dd>
           </div>
           <div>
             <dt className="text-sm text-gray-500">SRA Status</dt>
-            <dd className="font-medium text-gray-900 capitalize">{profile.auth_status}</dd>
+            <dd className="font-medium text-navy capitalize">{profile.auth_status}</dd>
           </div>
         </dl>
       </div>
 
       <div className="card p-6 mb-6">
-        <h2 className="font-semibold text-gray-900 mb-4">Contact Information</h2>
+        <h2 className="font-semibold text-navy mb-4">Contact Information</h2>
         <div className="space-y-4">
           <div>
             <label className="label">Website URL</label>
@@ -129,7 +129,7 @@ export default function ProfilePage() {
           </div>
         </div>
         <div className="mt-4 pt-4 border-t border-gray-100">
-          <button onClick={handleSave} disabled={saving} className="btn-primary">
+          <button onClick={handleSave} disabled={saving} className="btn-gradient">
             {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Changes</>}
           </button>
         </div>
@@ -137,13 +137,13 @@ export default function ProfilePage() {
 
       {profile.offices.length > 0 && (
         <div className="card p-6">
-          <h2 className="font-semibold text-gray-900 mb-4">Offices</h2>
+          <h2 className="font-semibold text-navy mb-4">Offices</h2>
           <div className="space-y-3">
             {profile.offices.map((office) => (
               <div key={office.id} className="text-sm text-gray-600">
                 <p>{office.address_line1}</p>
                 <p>{office.city}, {office.postcode}</p>
-                {office.is_primary && <span className="text-xs text-brand-600">Primary office</span>}
+                {office.is_primary && <span className="text-xs text-purple">Primary office</span>}
               </div>
             ))}
           </div>

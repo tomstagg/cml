@@ -56,15 +56,15 @@ export default function ReviewsPage() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-full">
-        <Loader2 className="w-8 h-8 text-brand-600 animate-spin" />
+      <div className="flex items-center justify-center py-24">
+        <Loader2 className="w-8 h-8 text-navy animate-spin" />
       </div>
     );
   }
 
   return (
-    <div className="p-8">
-      <h1 className="text-2xl font-bold text-gray-900 mb-6">Reviews</h1>
+    <div>
+      <h1 className="text-2xl font-bold text-navy mb-6">Reviews</h1>
 
       {reviews.length === 0 ? (
         <div className="card p-12 text-center text-gray-400">
@@ -99,8 +99,8 @@ export default function ReviewsPage() {
 
                   {/* Existing response */}
                   {review.firm_response && (
-                    <div className="mt-3 pl-3 border-l-2 border-brand-200">
-                      <p className="text-xs text-brand-700 font-medium mb-1">Your response:</p>
+                    <div className="mt-3 pl-3 border-l-2 border-purple/40">
+                      <p className="text-xs text-navy font-medium mb-1">Your response:</p>
                       <p className="text-sm text-gray-600">{review.firm_response}</p>
                     </div>
                   )}
@@ -119,11 +119,11 @@ export default function ReviewsPage() {
                       <div className="flex gap-2 mt-2">
                         <button
                           onClick={() => handleRespond(review.id)}
-                          className="btn-primary text-sm px-3 py-1.5"
+                          className="btn-gradient text-sm px-4 py-1.5"
                         >Submit</button>
                         <button
                           onClick={() => { setResponding(null); setResponseText(""); }}
-                          className="btn-secondary text-sm px-3 py-1.5"
+                          className="btn-secondary text-sm px-4 py-1.5"
                         >Cancel</button>
                       </div>
                     </div>
