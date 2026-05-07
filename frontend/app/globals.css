@@ -19,7 +19,8 @@
   }
 
   body {
-    @apply text-gray-900 bg-white antialiased;
+    @apply text-navy bg-white antialiased;
+    line-height: 1.5;
   }
 
   /* Default heading scale — mobile sizes that step up at md.
@@ -33,39 +34,44 @@
 }
 
 @layer components {
+  /* Primary CTA — gradient pill (purple → teal). Used across marketing + portal. */
   .btn-primary {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-brand-600 text-white font-medium hover:bg-brand-700 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-secondary {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-lg bg-white text-brand-700 font-medium border border-brand-200 hover:bg-brand-50 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2;
-  }
-
-  .btn-ghost {
-    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-lg text-gray-600 font-medium hover:bg-gray-100 transition-colors;
-  }
-
-  /* Gradient pill — purple → teal, used for primary CTAs in the firm portal
-     (and from Phase H, across the marketing site too). */
-  .btn-gradient {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-full text-white font-semibold transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full text-white font-semibold transition-shadow focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-purple focus-visible:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed;
     background-image: linear-gradient(135deg, #9747ff 0%, #0ae5f6 100%);
   }
 
-  .btn-gradient:hover {
-    box-shadow: 0 6px 20px rgba(151, 71, 255, 0.25);
+  .btn-primary:hover {
+    box-shadow: 0 8px 24px rgba(151, 71, 255, 0.28);
+  }
+
+  .btn-secondary {
+    @apply inline-flex items-center justify-center gap-2 px-7 py-3 rounded-full bg-white text-navy font-semibold border border-navy hover:bg-surface-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-navy focus-visible:ring-offset-2;
+  }
+
+  .btn-ghost {
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 rounded-full text-navy font-medium hover:bg-surface-muted transition-colors;
+  }
+
+  /* Legacy alias retained for files that already used .btn-gradient. */
+  .btn-gradient {
+    @apply btn-primary;
   }
 
   .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
+    @apply bg-white rounded-2xl border border-gray-200 shadow-soft;
   }
 
   .input {
-    @apply w-full px-4 py-2.5 rounded-lg border border-gray-300 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition-shadow;
+    @apply w-full px-4 py-3 rounded-2xl border border-gray-200 bg-white text-navy placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-purple focus:border-transparent transition-shadow;
   }
 
   .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+    @apply block text-sm font-semibold text-navy mb-1;
+  }
+
+  /* Quick-reply / category chip used on hero search and FAQs page */
+  .chip {
+    @apply inline-flex items-center gap-1.5 rounded-full border border-white/40 bg-white/80 px-4 py-1.5 text-sm font-medium text-navy backdrop-blur transition-colors hover:bg-white;
   }
 
   .badge-auth-green {

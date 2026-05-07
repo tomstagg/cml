@@ -7,25 +7,25 @@ export default function TermsPage() {
     <div className="py-16">
       <div className="section-container max-w-3xl mx-auto prose prose-gray">
         <h1>Terms of Service</h1>
-        <p className="lead">Last updated: March 2026</p>
+        <p className="lead">Last updated: May 2026</p>
 
         <h2>1. Acceptance of terms</h2>
         <p>By using Choose My Lawyer, you agree to these terms. If you do not agree, please do not use our platform.</p>
 
         <h2>2. The service</h2>
-        <p>Choose My Lawyer is an independent comparison platform. We do not provide legal advice. We connect consumers with SRA-authorised solicitor firms.</p>
+        <p>Choose My Lawyer is an independent comparison platform for residential conveyancing across the West Midlands Combined Authority. We do not provide legal advice. We connect consumers with SRA-authorised solicitor firms via Proceed (instructing one firm) or Callback (up to five firms).</p>
 
         <h2>3. Quotes</h2>
-        <p>Quotes displayed are estimates based on pricing provided by firms and your answers. Final fees are agreed between you and the solicitor firm directly.</p>
+        <p>Quotes displayed are calculated from each firm's published price card against the matter details you provide. Final fees are agreed between you and the solicitor firm directly. Excluded disbursements (Stamp Duty, leasehold notice fees, ground rent apportionment, indemnity policies, lender-specific fees) are flagged separately and are not included in the comparable Total Effective Price.</p>
 
         <h2>4. No guarantee of service</h2>
-        <p>We do not guarantee that any firm will accept your appointment request. Firms may decline at their discretion.</p>
+        <p>We do not guarantee that any firm will accept your Proceed or Callback request. Firms may decline at their discretion (for example, on conflict-of-interest grounds).</p>
 
         <h2>5. Consumer responsibilities</h2>
-        <p>You must provide accurate information in the chat flow. Inaccurate information may result in incorrect quotes.</p>
+        <p>You must provide accurate information in the chat flow. Inaccurate information may result in incorrect quotes or rankings.</p>
 
         <h2>6. Firm responsibilities</h2>
-        <p>Enrolled firms must keep their pricing current and respond to appointment requests promptly.</p>
+        <p>Enrolled firms must keep their conveyancing pricing current and respond to Proceed and Callback introductions promptly.</p>
 
         <h2>7. Limitation of liability</h2>
         <p>Choose My Lawyer is not liable for the quality of legal services provided by listed firms. Our liability is limited to the amount you paid us (which is zero for consumers).</p>

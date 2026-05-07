@@ -7,12 +7,12 @@ export const metadata: Metadata = {
 
 export default function ContactPage() {
   return (
-    <div className="py-16">
+    <div className="py-16 bg-surface-muted min-h-[60vh]">
       <div className="section-container max-w-2xl mx-auto">
-        <h1 className="text-3xl font-bold text-gray-900 mb-4">Contact Us</h1>
-        <p className="text-gray-600 mb-8">
-          Have a question? We'd love to hear from you. Send us a message and we'll respond as soon
-          as possible.
+        <h1 className="font-bold text-navy mb-4">Contact us</h1>
+        <p className="text-ink-muted mb-8">
+          Question about Choose My Lawyer, or interested in joining the conveyancing pilot? Send us
+          a message and we'll respond as soon as we can.
         </p>
 
         <div className="card p-8">
@@ -49,10 +49,10 @@ export default function ContactPage() {
           </div>
         </div>
 
-        <div className="mt-8 text-gray-600 text-sm">
+        <div className="mt-8 text-ink-muted text-sm">
           <p>
-            <strong>Email:</strong>{" "}
-            <a href="mailto:hello@choosemylawyer.co.uk" className="text-brand-600 hover:underline">
+            <strong className="text-navy">Email:</strong>{" "}
+            <a href="mailto:hello@choosemylawyer.co.uk" className="text-purple hover:underline">
               hello@choosemylawyer.co.uk
             </a>
           </p>

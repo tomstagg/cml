@@ -1,56 +1,87 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Instagram, Linkedin, Youtube } from "lucide-react";
 
 export function Footer() {
   return (
-    <footer className="bg-brand-950 text-gray-400 py-12">
-      <div className="section-container">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
-          <div className="col-span-2 md:col-span-1">
-            <Link href="/" className="flex items-center mb-3">
+    <footer className="relative overflow-hidden bg-gradient-footer text-white">
+      <div className="section-container py-14">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-12">
+          <div>
+            <Link href="/" className="inline-flex items-center mb-4" aria-label="Choose My Lawyer home">
               <Image
                 src="/logo-dark.png"
                 alt="Choose My Lawyer"
-                width={160}
-                height={56}
-                className="h-8 w-auto"
+                width={180}
+                height={64}
+                className="h-12 w-auto"
               />
             </Link>
-            <p className="text-sm leading-relaxed">
-              An independent legal comparison platform for England & Wales. Not regulated by the SRA.
+            <p className="text-sm leading-relaxed text-white/70 max-w-sm">
+              We connect consumers with legal experts. Independent, transparent comparison for
+              residential conveyancing across the West Midlands.
             </p>
           </div>
-          <div>
-            <h4 className="text-white font-semibold mb-3 text-sm">Services</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/probate" className="hover:text-white transition-colors">Probate</Link></li>
-              <li><Link href="/how-it-works" className="hover:text-white transition-colors">How It Works</Link></li>
-              <li><Link href="/chat" className="hover:text-white transition-colors">Get Quotes</Link></li>
-            </ul>
+
+          <div className="grid grid-cols-2 gap-8 md:col-span-1">
+            <div>
+              <h4 className="text-white font-semibold mb-3 text-sm">Explore</h4>
+              <ul className="space-y-2 text-sm text-white/70">
+                <li><Link href="/how-it-works" className="hover:text-white transition-colors">How it works</Link></li>
+                <li><Link href="/how-it-works#faqs" className="hover:text-white transition-colors">FAQs</Link></li>
+                <li><Link href="/conveyancing" className="hover:text-white transition-colors">Conveyancing</Link></li>
+              </ul>
+            </div>
+            <div>
+              <h4 className="text-white font-semibold mb-3 text-sm">For firms</h4>
+              <ul className="space-y-2 text-sm text-white/70">
+                <li><Link href="/for-firms" className="hover:text-white transition-colors">Why list with us</Link></li>
+                <li><Link href="/contact" className="hover:text-white transition-colors">Contact us</Link></li>
+              </ul>
+            </div>
           </div>
-          <div>
-            <h4 className="text-white font-semibold mb-3 text-sm">For Firms</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/for-firms" className="hover:text-white transition-colors">Why List With Us</Link></li>
-              <li><Link href="/login" className="hover:text-white transition-colors">Firm Login</Link></li>
-              <li><Link href="/contact" className="hover:text-white transition-colors">Contact Us</Link></li>
-            </ul>
-          </div>
-          <div>
-            <h4 className="text-white font-semibold mb-3 text-sm">Legal</h4>
-            <ul className="space-y-2 text-sm">
-              <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
-              <li><Link href="/terms" className="hover:text-white transition-colors">Terms of Service</Link></li>
-              <li><Link href="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link></li>
-            </ul>
+
+          <div className="md:text-right">
+            <h4 className="text-white font-semibold mb-3 text-sm">Follow us</h4>
+            <div className="flex gap-3 md:justify-end">
+              <a
+                href="https://instagram.com"
+                aria-label="Instagram"
+                className="w-9 h-9 rounded-full border border-white/30 flex items-center justify-center hover:bg-white/10 transition-colors"
+              >
+                <Instagram className="w-4 h-4" />
+              </a>
+              <a
+                href="https://youtube.com"
+                aria-label="YouTube"
+                className="w-9 h-9 rounded-full border border-white/30 flex items-center justify-center hover:bg-white/10 transition-colors"
+              >
+                <Youtube className="w-4 h-4" />
+              </a>
+              <a
+                href="https://linkedin.com"
+                aria-label="LinkedIn"
+                className="w-9 h-9 rounded-full border border-white/30 flex items-center justify-center hover:bg-white/10 transition-colors"
+              >
+                <Linkedin className="w-4 h-4" />
+              </a>
+            </div>
           </div>
         </div>
-        <div className="border-t border-brand-900 pt-8 text-sm text-center">
+
+        <div className="border-t border-white/15 pt-6 flex flex-col md:flex-row md:items-center md:justify-between gap-4 text-xs text-white/60">
           <p>© {new Date().getFullYear()} Choose My Lawyer. All rights reserved.</p>
-          <p className="mt-1 text-brand-400">
-            Choose My Lawyer is an independent comparison service and is not regulated by the Solicitors Regulation Authority.
-          </p>
+          <ul className="flex flex-wrap gap-x-6 gap-y-2">
+            <li><Link href="/terms" className="hover:text-white transition-colors">Website Terms</Link></li>
+            <li><Link href="/privacy" className="hover:text-white transition-colors">Privacy Policy</Link></li>
+            <li><Link href="/cookies" className="hover:text-white transition-colors">Cookie Policy</Link></li>
+          </ul>
         </div>
+
+        <p className="mt-6 text-xs text-white/50 max-w-3xl">
+          Choose My Lawyer is an independent comparison service and is not regulated by the
+          Solicitors Regulation Authority.
+        </p>
       </div>
     </footer>
   );
