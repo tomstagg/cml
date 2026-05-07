@@ -17,7 +17,7 @@ from app.tasks.review_sync import start_scheduler, stop_scheduler
 # API routers
 from app.api.public import sessions, search, appointments, reviews as public_reviews
 from app.api.firm import auth, profile, pricing, dashboard, reviews as firm_reviews
-from app.api.admin import organisations
+from app.api.admin import appointments as admin_appointments, organisations
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -94,6 +94,11 @@ from fastapi import Depends  # noqa: E402
 
 app.include_router(
     organisations.router,
+    prefix="/api/admin",
+    dependencies=[Depends(verify_admin_api_key)],
+)
+app.include_router(
+    admin_appointments.router,
     prefix="/api/admin",
     dependencies=[Depends(verify_admin_api_key)],
 )

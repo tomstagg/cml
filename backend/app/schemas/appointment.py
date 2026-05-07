@@ -18,6 +18,10 @@ class AppointmentCreate(BaseModel):
     consent_terms: bool = Field(..., description="Accept terms and conditions")
 
 
+class ConflictCheckRequest(BaseModel):
+    outcome: str = Field(..., pattern="^(clear|conflict)$")
+
+
 class AppointmentResponse(BaseModel):
     id: uuid.UUID
     org_id: uuid.UUID

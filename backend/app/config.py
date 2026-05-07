@@ -41,9 +41,13 @@ class Settings(BaseSettings):
     api_url: str = "http://localhost:8000"
     cors_origins: str = "http://localhost:3000"
 
-    # Review settings
-    review_invitation_delay_days: int = 90
+    # Review / follow-up settings
+    review_invitation_delay_days: int = 60
     review_invitation_expiry_days: int = 30
+    proceed_followup_working_days: int = 5
+
+    # Public-facing reference URLs
+    excluded_disbursements_url: str = "https://choosemylawyer.co.uk/disbursements"
 
     # Rate limiting
     rate_limit_public: int = 100
