@@ -6,56 +6,48 @@ import { useState } from "react";
 import { Menu, X } from "lucide-react";
 
 const navLinks = [
-  { href: "/probate", label: "Probate" },
-  { href: "/how-it-works", label: "How It Works" },
-  { href: "/for-firms", label: "For Firms" },
+  { href: "/how-it-works", label: "How it works" },
+  { href: "/how-it-works#faqs", label: "FAQs" },
 ];
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200 shadow-sm">
+    <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
       <div className="section-container">
-        <div className="flex items-center justify-between h-24">
-          {/* Logo */}
-          <Link href="/" className="flex items-center">
+        <div className="flex items-center justify-between h-20">
+          <Link href="/" className="flex items-center" aria-label="Choose My Lawyer home">
             <Image
               src="/logo.png"
               alt="Choose My Lawyer"
               width={180}
-              height={76}
-              className="h-14 w-auto"
+              height={64}
+              className="h-12 w-auto"
               priority
             />
           </Link>
 
-          {/* Desktop nav */}
-          <nav className="hidden md:flex items-center gap-6">
+          <nav className="hidden lg:flex items-center gap-8">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="text-gray-600 hover:text-brand-900 font-medium transition-colors"
+                className="text-navy/80 hover:text-navy font-medium transition-colors"
               >
                 {link.label}
               </Link>
             ))}
           </nav>
 
-          {/* Desktop CTA */}
-          <div className="hidden md:flex items-center gap-3">
-            <Link href="/login" className="btn-ghost text-sm">
-              Firm Login
-            </Link>
-            <Link href="/chat" className="btn-primary text-sm px-4 py-2">
-              Get Quotes
+          <div className="hidden lg:flex items-center">
+            <Link href="/chat" className="btn-primary text-sm">
+              Find a lawyer
             </Link>
           </div>
 
-          {/* Mobile menu button */}
           <button
-            className="md:hidden btn-ghost p-2"
+            className="lg:hidden btn-ghost p-2"
             onClick={() => setMobileOpen(!mobileOpen)}
             aria-label="Toggle menu"
           >
@@ -64,26 +56,26 @@ export function Navbar() {
         </div>
       </div>
 
-      {/* Mobile menu */}
       {mobileOpen && (
-        <div className="md:hidden border-t border-gray-200 bg-white">
-          <div className="section-container py-4 space-y-3">
+        <div className="lg:hidden border-t border-gray-100 bg-white">
+          <div className="section-container py-4 space-y-2">
             {navLinks.map((link) => (
               <Link
                 key={link.href}
                 href={link.href}
-                className="block text-gray-700 font-medium py-2"
+                className="block text-navy font-medium py-2"
                 onClick={() => setMobileOpen(false)}
               >
                 {link.label}
               </Link>
             ))}
-            <div className="pt-3 border-t border-gray-100 flex flex-col gap-2">
-              <Link href="/login" className="btn-ghost w-full justify-center">
-                Firm Login
-              </Link>
-              <Link href="/chat" className="btn-primary w-full justify-center">
-                Get Quotes
+            <div className="pt-3 border-t border-gray-100">
+              <Link
+                href="/chat"
+                className="btn-primary w-full"
+                onClick={() => setMobileOpen(false)}
+              >
+                Find a lawyer
               </Link>
             </div>
           </div>

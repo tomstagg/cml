@@ -12,11 +12,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: {
     template: "%s | Choose My Lawyer",
-    default: "Choose My Lawyer — Find Your Probate Solicitor",
+    default: "Choose My Lawyer — Find a conveyancing solicitor",
   },
   description:
-    "Compare probate solicitors in England & Wales. Get instant quotes, read reviews, and appoint a solicitor — all in one place.",
-  keywords: "probate solicitor, estate administration, grant of probate, choose my lawyer",
+    "Compare residential conveyancing solicitors across the West Midlands. Independent, transparent quotes ranked on price, reputation, complaints, regulation and distance.",
+  keywords: "conveyancing solicitor, conveyancing quotes, residential conveyancing, west midlands conveyancer, choose my lawyer",
   openGraph: {
     siteName: "Choose My Lawyer",
     type: "website",

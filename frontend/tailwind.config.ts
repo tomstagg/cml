@@ -27,6 +27,22 @@ const config: Config = {
         navy: "#080C64",
         mint: "#69E4B5",
         purple: "#9747FF",
+        surface: {
+          canvas: "#FFFFFF",
+          muted: "#F4F2FA",
+          alt: "#EAF8FB",
+        },
+        ink: {
+          primary: "#080C64",
+          muted: "#5B6280",
+        },
+      },
+      backgroundImage: {
+        "gradient-hero": "linear-gradient(135deg, #9747FF 0%, #0AE5F6 100%)",
+        "gradient-footer": "linear-gradient(135deg, #080C64 0%, #3E2556 100%)",
+      },
+      boxShadow: {
+        soft: "0 8px 24px rgba(8, 12, 100, 0.08)",
       },
       fontFamily: {
         sans: ["var(--font-inter)", "system-ui", "sans-serif"],

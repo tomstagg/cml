@@ -1,109 +1,175 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ArrowRight, BarChart2, Bell, CheckCircle, Star, Users } from "lucide-react";
+import {
+  ArrowRight,
+  BarChart3,
+  CheckCircle,
+  ClipboardList,
+  Mail,
+  ShieldCheck,
+  Sparkles,
+  Users,
+} from "lucide-react";
 
 export const metadata: Metadata = {
-  title: "For Law Firms",
-  description: "Join Choose My Lawyer and connect with clients actively looking for probate solicitors.",
+  title: "For firms — Choose My Lawyer",
+  description:
+    "Join the Choose My Lawyer pilot for conveyancing solicitors across the West Midlands. Transparent ranking, lead delivery in the consumer's name, no monthly fee during the pilot.",
 };
 
 const benefits = [
   {
     icon: Users,
-    title: "Qualified client leads",
-    description: "Every appointment comes from a consumer who has already answered questions about their estate and accepted your quote.",
+    title: "Pre-qualified leads",
+    description:
+      "Every Proceed and Callback comes from a consumer who has answered the full intake and seen your quote alongside the rest of the market.",
   },
   {
-    icon: Star,
-    title: "Build your reputation",
-    description: "Collect verified reviews from real clients. Respond to feedback and showcase your expertise.",
+    icon: Mail,
+    title: "Introductions in the consumer's name",
+    description:
+      "Lead emails are sent on behalf of the consumer, with their contact details and matter summary. You reply directly — CML stays out of the way.",
   },
   {
-    icon: BarChart2,
-    title: "Transparent pricing",
-    description: "You set your own pricing. We calculate quotes automatically from your price card — no surprises.",
+    icon: BarChart3,
+    title: "Transparent ranking",
+    description:
+      "Six-factor scorecard, deterministic and published in full. Identical inputs always produce identical rankings — there is no pay-to-rank.",
   },
   {
-    icon: Bell,
-    title: "Instant notifications",
-    description: "Receive email alerts the moment a client requests an appointment or callback with your firm.",
+    icon: ShieldCheck,
+    title: "Built-in conflict-check workflow",
+    description:
+      "Flag a conflict and we'll email the consumer with a deep link back to results so they can pick another firm.",
+  },
+];
+
+const enrollmentSteps = [
+  {
+    icon: Mail,
+    title: "We invite you",
+    desc: "Our team sends a personalised enrolment link tied to your firm's SRA record.",
+  },
+  {
+    icon: ClipboardList,
+    title: "Set up your firm",
+    desc: "Confirm offices, then publish your conveyancing price card — bands by purchase price plus adjustments for tenure, mortgage, new build, HtB ISA, and shared ownership.",
+  },
+  {
+    icon: Sparkles,
+    title: "Start appearing in results",
+    desc: "Enrolled firms appear in the top-5 contactable strip with Proceed and Callback buttons. Non-enrolled firms still appear in the full market view.",
   },
 ];
 
 export default function ForFirmsPage() {
   return (
-    <div className="py-16">
-      {/* Hero */}
-      <section className="bg-gradient-to-br from-brand-950 to-brand-800 text-white py-20 -mt-0">
-        <div className="section-container text-center">
-          <h1 className="text-4xl sm:text-5xl font-bold mb-6">
-            Reach clients looking for probate solicitors
-          </h1>
-          <p className="text-xl text-brand-100 mb-8 max-w-2xl mx-auto">
-            Choose My Lawyer connects SRA-authorised firms with consumers who are actively comparing
-            probate solicitors. Join free during our launch period.
+    <>
+      <section className="bg-gradient-hero text-white">
+        <div className="section-container py-24 text-center">
+          <p className="text-sm uppercase tracking-wide text-white/70 mb-3">
+            West Midlands · Residential conveyancing pilot
           </p>
-          <p className="text-brand-300 mb-2">Interested? Contact us to register your firm.</p>
-          <Link href="/contact" className="btn-secondary border-white text-brand-950 hover:bg-brand-50">
-            Get In Touch
+          <h1 className="font-bold mb-5 max-w-3xl mx-auto">
+            Reach West Midlands homebuyers and sellers actively comparing conveyancers
+          </h1>
+          <p className="text-lg text-white/85 mb-8 max-w-2xl mx-auto">
+            Choose My Lawyer connects SRA-authorised conveyancing firms with consumers who have
+            already chosen to compare. Free to join during the 90-day pilot.
+          </p>
+          <Link href="/contact" className="btn-secondary bg-white text-navy border-transparent">
+            Register your interest
             <ArrowRight className="w-4 h-4" />
           </Link>
         </div>
       </section>
 
-      <div className="section-container py-16">
-        {/* Benefits */}
-        <div className="text-center mb-12">
-          <h2 className="text-3xl font-bold text-gray-900 mb-4">Why list with us?</h2>
-        </div>
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-8 mb-16">
-          {benefits.map((b) => (
-            <div key={b.title} className="card p-6 flex gap-4">
-              <div className="flex-shrink-0 w-10 h-10 rounded-lg bg-brand-50 flex items-center justify-center">
-                <b.icon className="w-5 h-5 text-brand-600" />
+      <section className="py-20 bg-white">
+        <div className="section-container">
+          <div className="text-center mb-12">
+            <h2 className="font-bold text-navy mb-3">Why list with us</h2>
+            <p className="text-ink-muted max-w-2xl mx-auto">
+              We're not a directory and we're not a lead farm. CML is a deterministic comparison
+              engine — and the pilot is designed to prove it.
+            </p>
+          </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            {benefits.map((b) => (
+              <div key={b.title} className="card p-7 flex gap-4">
+                <div className="flex-shrink-0 w-12 h-12 rounded-2xl bg-surface-alt flex items-center justify-center">
+                  <b.icon className="w-6 h-6 text-navy" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-navy mb-2">{b.title}</h3>
+                  <p className="text-ink-muted text-sm leading-relaxed">{b.description}</p>
+                </div>
               </div>
-              <div>
-                <h3 className="font-semibold text-gray-900 mb-1">{b.title}</h3>
-                <p className="text-gray-600 text-sm">{b.description}</p>
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {/* How enrollment works */}
-        <h2 className="text-2xl font-bold text-gray-900 mb-8">How enrollment works</h2>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-16">
-          {[
-            { step: "1", title: "We invite you", desc: "Our team sends you a personalised enrollment link." },
-            { step: "2", title: "Create your profile", desc: "Enter your firm details and set your probate pricing structure." },
-            { step: "3", title: "Start appearing in results", desc: "Enrolled firms appear in the top 5 results with action buttons." },
-          ].map((s) => (
-            <div key={s.step} className="text-center">
-              <div className="text-5xl font-bold text-brand-100 mb-3">{s.step}</div>
-              <h3 className="font-semibold text-gray-900 mb-2">{s.title}</h3>
-              <p className="text-gray-600 text-sm">{s.desc}</p>
-            </div>
-          ))}
-        </div>
-
-        {/* Pricing */}
-        <div className="card p-8 text-center bg-brand-50 border-brand-100">
-          <h2 className="text-2xl font-bold text-gray-900 mb-4">Simple pricing</h2>
-          <p className="text-gray-600 mb-2">
-            <strong>Free to join</strong> during our launch period.
-          </p>
-          <p className="text-gray-600 mb-6">
-            A referral fee of <strong>£125 + VAT</strong> will apply per successful appointment in future — we'll give you 30 days' notice before this starts.
-          </p>
-          <div className="flex justify-center gap-3 flex-wrap">
-            {["No monthly fee", "No setup cost", "No obligation"].map((item) => (
-              <span key={item} className="flex items-center gap-1.5 text-brand-700 font-medium">
-                <CheckCircle className="w-4 h-4" /> {item}
-              </span>
             ))}
           </div>
         </div>
-      </div>
-    </div>
+      </section>
+
+      <section className="py-20 bg-surface-muted">
+        <div className="section-container max-w-5xl">
+          <div className="text-center mb-12">
+            <h2 className="font-bold text-navy mb-3">How enrolment works</h2>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {enrollmentSteps.map((s, i) => (
+              <div key={s.title} className="card p-7">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-8 h-8 rounded-full bg-gradient-hero text-white text-sm font-bold flex items-center justify-center">
+                    {i + 1}
+                  </span>
+                  <s.icon className="w-5 h-5 text-purple" />
+                </div>
+                <h3 className="font-bold text-navy mb-2">{s.title}</h3>
+                <p className="text-sm text-ink-muted leading-relaxed">{s.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <section className="py-20 bg-white">
+        <div className="section-container max-w-4xl">
+          <div className="rounded-3xl bg-surface-alt p-10 md:p-14 text-center">
+            <h2 className="font-bold text-navy mb-4">Pilot pricing</h2>
+            <p className="text-ink-muted mb-2">
+              <strong className="text-navy">Free to join</strong> for the duration of the
+              90-day West Midlands pilot.
+            </p>
+            <p className="text-ink-muted mb-8 max-w-2xl mx-auto">
+              A referral fee will apply per chargeable Proceed or Callback after the pilot, billed
+              manually with a delay window so you have time to make contact. We'll give 30 days'
+              notice before this kicks in.
+            </p>
+            <div className="flex justify-center gap-4 flex-wrap">
+              {["No monthly fee", "No setup cost", "No obligation", "Cancel anytime"].map((item) => (
+                <span key={item} className="flex items-center gap-1.5 text-navy font-medium text-sm">
+                  <CheckCircle className="w-4 h-4 text-purple" /> {item}
+                </span>
+              ))}
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section className="py-16 bg-white">
+        <div className="section-container">
+          <div className="rounded-3xl bg-gradient-hero p-10 md:p-14 text-white shadow-soft text-center">
+            <h2 className="font-bold mb-3">Want to take part in the pilot?</h2>
+            <p className="text-white/85 mb-7 max-w-xl mx-auto">
+              We're enrolling West Midlands conveyancing firms ahead of the 1 June 2026 go-live.
+              Drop us a message and we'll send your enrolment link.
+            </p>
+            <Link href="/contact" className="btn-secondary bg-white text-navy border-transparent">
+              Get in touch
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+        </div>
+      </section>
+    </>
   );
 }
