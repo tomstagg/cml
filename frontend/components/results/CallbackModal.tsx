@@ -113,6 +113,24 @@ export function CallbackModal({ firm, sessionId, onClose }: Props) {
               />
             </div>
 
+            <div className="rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-900">
+              <p className="font-medium mb-1">Heads-up: some costs are excluded</p>
+              <p>
+                Any quoted price covers legal fees and the disbursements listed on the
+                firm&apos;s price card. Matter-specific costs like Stamp Duty, leasehold notice
+                fees, and indemnity policies are <strong>excluded</strong> and will be
+                confirmed by {firm.name} once your matter is open.{" "}
+                <a
+                  href="/disbursements"
+                  target="_blank"
+                  className="underline hover:text-amber-950"
+                >
+                  Read more
+                </a>
+                .
+              </p>
+            </div>
+
             <div className="space-y-2 pt-2">
               <label className="flex items-start gap-2 cursor-pointer">
                 <input type="checkbox" className="mt-1 rounded" {...register("consent_contacted", { required: true })} />
@@ -125,7 +143,7 @@ export function CallbackModal({ firm, sessionId, onClose }: Props) {
                 <span className="text-sm text-gray-600">
                   I agree to the{" "}
                   <a href="/terms" target="_blank" className="text-brand-600 hover:underline">terms of service</a>{" "}
-                  *
+                  and understand excluded disbursements may be added later *
                 </span>
               </label>
             </div>

@@ -35,7 +35,8 @@ Browser ──► Next.js 15 (App Router)  ──► FastAPI (async)  ──► 
 | `app/models/` | SQLAlchemy ORM models |
 | `app/schemas/` | Pydantic request/response schemas |
 | `app/services/` | Business logic |
-| `app/tasks/review_sync.py` | APScheduler jobs |
+| `app/tasks/review_sync.py` | APScheduler entrypoint + weekly Google reviews sync |
+| `app/tasks/followups.py` | Phase F follow-up jobs (callback EOD, 5-WD Proceed, 2-month feedback) |
 
 **API namespaces**:
 
@@ -54,7 +55,8 @@ Browser ──► Next.js 15 (App Router)  ──► FastAPI (async)  ──► 
 | `scorecard.py` | Weight tables (balanced + 6 prioritised) and tie-broken `apply()` (Annex One §11, §16) |
 | `search.py` | Full-market 6-factor ranking + top-5 contactable extraction (Annex One §3.5) |
 | `geocoding.py` | Fetchify.io postcode → lat/lng |
-| `email.py` | Sparkpost transactional emails (mocked if no key) |
+| `email.py` | Sparkpost transactional emails (mocked if no key); Proceed/Callback senders dispatch in the user's name with `reply_to` + CML BCC |
+| `followup_tokens.py` | HMAC-signed yes/no tokens for one-click follow-up replies |
 | `reviews.py` | Google Places sync, aggregate rating calculation |
 
 **Ranking algorithm** — deterministic six-factor scorecard (Annex One §5–11). Each factor is scored 0–100 at full numerical precision; the overall score is a weighted sum and only the displayed integer is rounded.
@@ -165,7 +167,7 @@ analytics_events  (standalone — funnel + Meta Pixel mirror, Phase I)
 
 `chat_sessions` — `answers` (JSONB), `message_history` (JSONB), `results_cache` (JSONB), `scorecard_preference` (enum: `balanced`/`reputation`/`price`/`complaints`/`regulatory`/`distance`/`offices`), `include_distance` (bool), `expires_at` (30 days)
 
-`appointments` — `type` (appoint/callback), `status` (pending/confirmed/completed/cancelled), `client_name`, `client_email`, `quoted_price`, `quote_breakdown`, `firm_contact_made` (nullable bool — set by end-of-day callback follow-up), `conflict_check_outcome` (enum: `pending`/`clear`/`conflict`), consent fields
+`appointments` — `type` (appoint/callback), `status` (pending/confirmed/completed/cancelled), `client_name`, `client_email`, `quoted_price`, `quote_breakdown`, `firm_contact_made` (nullable bool — set by the consumer clicking Yes/No in either follow-up email), `conflict_check_outcome` (enum: `pending`/`clear`/`conflict`), consent fields
 
 `complaints_decisions` — `org_id`, `decision_id` (LeO ID), `decision_date`, `remedy_type`, `severity_band`, `severity_score`, `remedy_amount`, `remedy_amount_score`, `complaint_handling_penalty`, `source_url`. Pre-computed at ingest from §6 tables.
 
@@ -387,6 +389,151 @@ JWT is stored in localStorage and sent as `Authorization: Bearer <token>` on all
 | Register | `firm_users` | all fields, `role=admin` |
 | Register | `organisations` | `enrolled=true`, `enrollment_token_used=true` |
 | Login | `firm_users` | `last_login` |
+
+---
+
+## User actions & email workflow
+
+After a consumer reaches the results page they can take one of two actions on
+a top-5 contactable firm: **Proceed** (instruct) or **Request a Callback**.
+The full pipeline below is what's wired up by Phase F.
+
+### Action dispatch — Proceed and Callback
+
+```
+Results page
+   │
+   ├─ Proceed   → POST /api/public/appointments  type=appoint
+   └─ Callback  → POST /api/public/appointments  type=callback
+                       │
+                       ▼
+                FastAPI handler:
+                  • validate consent flags (400 if false)
+                  • verify org enrolled (404 otherwise)
+                  • insert into `appointments`
+                  • dispatch two emails via BackgroundTasks
+                       │
+            ┌──────────┴──────────┐
+            ▼                     ▼
+      User-facing copy       Firm-facing email
+      (CML from-line)        (sent in user's name)
+```
+
+**Emails dispatched per action** — handler in `app/api/public/appointments.py`
+branches on `body.type`:
+
+| Action | User copy (`send_*_user_copy`) | Firm email (`send_*_to_firm`) |
+|---|---|---|
+| Proceed | Confirms instruction; reminds about excluded disbursements (Stamp Duty, indemnity policies, …) with link to `/disbursements` | "Conveyancing instruction from {client_name} via Choose My Lawyer" |
+| Callback | Confirms the availability window passed to the firm | "Callback request from {client_name} via Choose My Lawyer" |
+
+### "Sent in the user's name" mechanic
+
+The firm-facing email is the consumer talking to the firm — CML is the relay,
+not the sender. `send_email()` in `app/services/email.py` accepts:
+
+| kwarg | Wired to | Effect |
+|---|---|---|
+| `from_name` | client's display name | Firm sees the consumer's name in their inbox |
+| `from_email` | (CML's verified domain) | Required by Sparkpost — the *envelope* sender is still us |
+| `reply_to` | client's email | Hitting Reply in the firm's inbox goes straight to the consumer |
+| `bcc` | `[settings.sparkpost_from_email]` | CML keeps an audit copy of every dispatched lead |
+
+The CML BCC is silently dropped if `SPARKPOST_FROM_EMAIL` isn't configured
+(local dev). Consumer copies don't override these — they go from CML's
+default sender so the consumer sees "Choose My Lawyer" in their own inbox.
+
+### Follow-up scheduler
+
+Three APScheduler cron jobs fire from `app/tasks/followups.py`. Registered
+into the shared scheduler by `register_followup_jobs()`, called from
+`app/tasks/review_sync.py::start_scheduler` (which itself is wired into
+the FastAPI lifespan in `app/main.py`).
+
+| Job | Cron (UTC) | Targets | Email | Sets |
+|---|---|---|---|---|
+| `_callback_followup_job` | daily 17:00 | Callbacks created today, `firm_contact_made IS NULL` | "Did the firm call you back?" with Yes / No links | `firm_contact_made` (via capture endpoint) |
+| `_proceed_followup_job` | daily 09:00 | Proceeds created exactly 5 working days ago, `firm_contact_made IS NULL` | "Is your matter progressing?" + price-drift reminder + Yes / No links | `firm_contact_made` (via capture endpoint) |
+| `_proceed_feedback_request_job` | daily 09:30 | Proceeds created `review_invitation_delay_days` (=60) days ago with no existing `review_invitations` row | "How was your experience with {firm_name}?" with `/review/{token}` link | inserts `review_invitations` row (UUID token, 30-day expiry) |
+
+**Working days** — the 5-day Proceed job uses `working_days_ago(n, today)` to
+walk back 5 weekdays only (Mon–Fri), so a Proceed made on a Friday gets its
+follow-up the following Friday.
+
+**Dedupe by date window** — none of these jobs need a `*_sent_at` column.
+The query window is "appointments created in the 24-hour bucket of the
+target date", so each appointment falls into exactly one daily cron run.
+The 2-month job additionally LEFT JOINs `review_invitations` and filters
+on `id IS NULL`, so a manual re-run can't double-issue review tokens.
+
+The `_proceed_feedback_request_job` replaces the prior 90-day post-completion
+review job that lived in `tasks/review_sync.py`. The Phase F variant keys
+off Proceed appointments at 60 days regardless of `status`, which matches
+the conveyancing pilot's reality (matters run 8–12 weeks).
+
+### One-click follow-up capture
+
+The Yes / No buttons in the follow-up emails point at a public capture
+endpoint guarded by HMAC tokens — there's no login involved.
+
+```
+Follow-up email
+   │
+   ├─ "Yes, they called"  → GET /api/public/appointments/{id}/firm-contact?answer=yes&token=<hmac>
+   └─ "No, not yet"       → GET /api/public/appointments/{id}/firm-contact?answer=no&token=<hmac>
+                                  │
+                                  ▼
+                        verify HMAC (settings.secret_key)
+                                  │
+                                  ▼
+                        appointments.firm_contact_made = (answer == "yes")
+                                  │
+                                  ▼
+                        renders a small HTML "Thanks" page
+```
+
+Token is `HMAC-SHA256(secret_key, "{appointment_id}:{yes|no}")` — generated
+by `make_followup_token()`, verified by `verify_followup_token()` in
+`app/services/followup_tokens.py`. A "yes" token won't validate against a
+"no" link and vice-versa, so neither click can be forged from the other.
+
+Token rejection paths:
+
+| Condition | Response |
+|---|---|
+| `answer` not in `{yes, no}` | 400 |
+| HMAC mismatch | 403 |
+| Appointment not found | 404 |
+
+### Admin conflict-check flow
+
+When a firm replies to the Proceed email saying they can't act due to a
+conflict of interest, an admin records it via:
+
+```
+POST /api/admin/appointments/{appointment_id}/conflict-check
+Headers: X-Admin-Key: <ADMIN_API_KEY>
+Body:    { "outcome": "clear" | "conflict" }
+```
+
+| `outcome` | Sets | Side effect |
+|---|---|---|
+| `clear` | `appointments.conflict_check_outcome = clear` | (none) |
+| `conflict` | `appointments.conflict_check_outcome = conflict` | Emails the consumer with a deep link to `{APP_URL}/results/{session_id}` so they can pick another firm |
+
+The email (`send_conflict_check_failed`) explicitly explains a conflict isn't
+a reflection on the consumer — just an existing relationship the firm has
+with another party. The deep link drops them straight back into their
+ranked results so they don't re-do intake.
+
+### Annex One traceability
+
+| Plan ref | Implementation |
+|---|---|
+| §12.2 — Proceed / Callback emails sent "in the user's name" with CML BCC | `send_proceed_to_firm`, `send_callback_to_firm` set `from_name` + `reply_to` + `bcc` |
+| §12.4 — Conflict-check failure emails the consumer with a link back to results | `POST /api/admin/appointments/{id}/conflict-check` with `outcome=conflict` |
+| Email matrix — 5-WD Proceed follow-up, EOD Callback follow-up, 2-month feedback request | `_proceed_followup_job`, `_callback_followup_job`, `_proceed_feedback_request_job` |
+| Excluded Disbursements reminder on consent | Modal copy in `AppointModal.tsx` / `CallbackModal.tsx`; mirrored in Proceed user-copy email |
 
 ---
 

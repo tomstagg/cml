@@ -359,47 +359,47 @@ Source: `docs/design/README.md` and Figma exports in `docs/design/`.
 Each phase is a roughly-PR-sized chunk. Tasks are checkable and ordered for sensible incremental delivery. After every backend task: `cd backend && uv run ruff format . && uv run pytest -v` (all green required).
 
 ### Phase A — Foundation: data model + practice-area pivot
-- [ ] **A1** Alembic migration `0002_conveyancing_pivot.py` — create `complaints_decisions` and `regulatory_decisions` tables with the columns above.
-- [ ] **A2** Alembic migration (same revision) — create `analytics_events` table.
-- [ ] **A3** Alembic migration (same revision) — flip `practice_area` defaults to `'residential_conveyancing'`; add `chat_sessions.scorecard_preference`, `chat_sessions.include_distance`, `appointments.firm_contact_made`, `appointments.conflict_check_outcome`, `organisations.intervened`.
-- [ ] **A4** Add SQLAlchemy models: `ComplaintsDecision`, `RegulatoryDecision`, `AnalyticsEvent`. Update existing models for new columns.
-- [ ] **A5** Update Pydantic schemas: `app/schemas/{chat,firm,search,appointment,common}.py` for the new shapes.
+- [x] **A1** Alembic migration `0002_conveyancing_pivot.py` — create `complaints_decisions` and `regulatory_decisions` tables with the columns above.
+- [x] **A2** Alembic migration (same revision) — create `analytics_events` table.
+- [x] **A3** Alembic migration (same revision) — flip `practice_area` defaults to `'residential_conveyancing'`; add `chat_sessions.scorecard_preference`, `chat_sessions.include_distance`, `appointments.firm_contact_made`, `appointments.conflict_check_outcome`, `organisations.intervened`.
+- [x] **A4** Add SQLAlchemy models: `ComplaintsDecision`, `RegulatoryDecision`, `AnalyticsEvent`. Update existing models for new columns.
+- [x] **A5** Update Pydantic schemas: `app/schemas/{chat,firm,search,appointment,common}.py` for the new shapes.
 
 ### Phase B — Conveyancing intake (chat + stepper)
-- [ ] **B1** Replace `app/services/chat.py` `PROBATE_QUESTIONS` with `CONVEYANCING_QUESTIONS` (13 steps; validation per requirements §5.1.3).
-- [ ] **B2** Refresh `tests/conftest.py` `ALL_13_ANSWERS` and chat-flow tests for the conveyancing schema.
-- [ ] **B3** New `frontend/components/chat/IntakeStepper.tsx` per `docs/design/06-chat-progress.png`. Replace `AnswerSidebar.tsx` callers.
-- [ ] **B4** Rename `chat/PostcodeInput.tsx` consumers; reuse for property postcode (step 3) and distance opt-in postcode (step 9).
-- [ ] **B5** Add scorecard preference picker UI (Balanced + 6 prioritised) before the user reaches results.
+- [x] **B1** Replace `app/services/chat.py` `PROBATE_QUESTIONS` with `CONVEYANCING_QUESTIONS` (13 steps; validation per requirements §5.1.3).
+- [x] **B2** Refresh `tests/conftest.py` `ALL_13_ANSWERS` and chat-flow tests for the conveyancing schema.
+- [x] **B3** New `frontend/components/chat/IntakeStepper.tsx` per `docs/design/06-chat-progress.png`. Replace `AnswerSidebar.tsx` callers.
+- [x] **B4** Rename `chat/PostcodeInput.tsx` consumers; reuse for property postcode (step 3) and distance opt-in postcode (step 9).
+- [x] **B5** Add scorecard preference picker UI (Balanced + 6 prioritised) before the user reaches results.
 
 ### Phase C — Pricing (Quoted Total Effective Price)
-- [ ] **C1** Rewrite `app/services/price_calc.py` → `calculate_total_effective_price(price_card, answers)`. Apply each adjustment's condition expression. Apply VAT to fees and per-disbursement `vat_applies` flags. No `c` or `d` factors.
-- [ ] **C2** Update `tests/unit/test_price_calc.py` — conveyancing fixtures (price bands, adjustment combinations, mixed-VAT disbursements).
-- [ ] **C3** Rewrite `frontend/components/firm/PriceCardForm.tsx` for conveyancing — bands by purchase price, condition picker (tenure / mortgage / new_build / HtB / shared_ownership), included-disbursements editor with per-row VAT toggle.
+- [x] **C1** Rewrite `app/services/price_calc.py` → `calculate_total_effective_price(price_card, answers)`. Apply each adjustment's condition expression. Apply VAT to fees and per-disbursement `vat_applies` flags. No `c` or `d` factors.
+- [x] **C2** Update `tests/unit/test_price_calc.py` — conveyancing fixtures (price bands, adjustment combinations, mixed-VAT disbursements).
+- [x] **C3** Rewrite `frontend/components/firm/PriceCardForm.tsx` for conveyancing — bands by purchase price, condition picker (tenure / mortgage / new_build / HtB / shared_ownership), included-disbursements editor with per-row VAT toggle.
 
 ### Phase D — Ranking engine (6-factor scorecard)
-- [ ] **D1** New `app/services/ranking.py` — six factor scorers per Annex One §5–9.
-- [ ] **D2** New `app/services/scorecard.py` — weight tables for balanced + 6 prioritised; `apply()` function; tie-break ordering.
-- [ ] **D3** Refactor `app/services/search.py` — load all in-scope WMCA firms, run scorers, return `(full_results, top_five_contactable)`. Remove `intervened` firms upfront.
-- [ ] **D4** Add `tests/unit/test_scorecard.py`; refresh `tests/integration/test_search.py` covering tie-break, prioritised scorecards, distance-excluded rescaling, intervention removal, complaints / regulatory deductions.
-- [ ] **D5** Seed scripts `backend/scripts/import_leo_csv.py` and `import_sra_decisions_csv.py` (LeO Remedy Type → severity → Remedy Amount → score; SRA outcome → deduction value). Anchor on LeO decision ID and SRA ID.
+- [x] **D1** New `app/services/ranking.py` — six factor scorers per Annex One §5–9.
+- [x] **D2** New `app/services/scorecard.py` — weight tables for balanced + 6 prioritised; `apply()` function; tie-break ordering.
+- [x] **D3** Refactor `app/services/search.py` — load all in-scope WMCA firms, run scorers, return `(full_results, top_five_contactable)`. Remove `intervened` firms upfront.
+- [x] **D4** Add `tests/unit/test_scorecard.py`; refresh `tests/integration/test_search.py` covering tie-break, prioritised scorecards, distance-excluded rescaling, intervention removal, complaints / regulatory deductions.
+- [x] **D5** Seed scripts `backend/scripts/import_leo_csv.py` and `import_sra_decisions_csv.py` (LeO Remedy Type → severity → Remedy Amount → score; SRA outcome → deduction value). Anchor on LeO decision ID and SRA ID.
 
 ### Phase E — Results page redesign
-- [ ] **E1** Rewrite `frontend/components/results/ResultsClient.tsx` per `docs/design/02-chat.png` — top-5 light-teal-tinted table + full sortable table + pagination.
-- [ ] **E2** New `components/results/ComplaintsCell.tsx` and `RegulatoryCell.tsx` rendering the 0–5 star bands plus a "View source" link.
-- [ ] **E3** Sort handlers on full-results columns (per requirements §5.3.7.2). No sort on top-5.
-- [ ] **E4** Update `frontend/lib/api.ts` to send `scorecard_preference` + `include_distance`; consume new response shape.
+- [x] **E1** Rewrite `frontend/components/results/ResultsClient.tsx` per `docs/design/02-chat.png` — top-5 light-teal-tinted table + full sortable table + pagination.
+- [x] **E2** New `components/results/ComplaintsCell.tsx` and `RegulatoryCell.tsx` rendering the 0–5 star bands plus a "View source" link.
+- [x] **E3** Sort handlers on full-results columns (per requirements §5.3.7.2). No sort on top-5.
+- [x] **E4** Update `frontend/lib/api.ts` to send `scorecard_preference` + `include_distance`; consume new response shape.
 
 ### Phase F — User actions + email matrix
-- [ ] **F1** Update `app/services/email.py` — Proceed / Callback firm emails are sent **in the user's name** (display name + reply-to). Add CML BCC. Update consumer copy.
-- [ ] **F2** New `app/tasks/followups.py` — APScheduler jobs: end-of-day callback follow-up, 5-working-day Proceed follow-up, 2-month Proceed feedback request (replaces current 90-day review job). Wire from `app/main.py`.
-- [ ] **F3** Admin endpoint `POST /api/admin/appointments/{id}/conflict-check` (`{ outcome: clear | conflict }`). On `conflict`, send the user the conflict-check failure email with deep link back to results.
-- [ ] **F4** Update `components/results/{AppointModal,CallbackModal}.tsx` consent copy — remind users of Excluded Disbursements with a link to the CML disbursement classification article (placeholder URL).
+- [x] **F1** Update `app/services/email.py` — Proceed / Callback firm emails are sent **in the user's name** (display name + reply-to). Add CML BCC. Update consumer copy.
+- [x] **F2** New `app/tasks/followups.py` — APScheduler jobs: end-of-day callback follow-up, 5-working-day Proceed follow-up, 2-month Proceed feedback request (replaces current 90-day review job). Wire from `app/main.py`.
+- [x] **F3** Admin endpoint `POST /api/admin/appointments/{id}/conflict-check` (`{ outcome: clear | conflict }`). On `conflict`, send the user the conflict-check failure email with deep link back to results.
+- [x] **F4** Update `components/results/{AppointModal,CallbackModal}.tsx` consent copy — remind users of Excluded Disbursements with a link to the CML disbursement classification article (placeholder URL).
 
 ### Phase G — Firm portal redesign
-- [ ] **G1** Reskin `components/firm/FirmLayout.tsx` left rail to: Dashboard / Firm Details / Fees & Service Offering / Reviews / Logout.
-- [ ] **G2** Rewrite `app/(firm)/dashboard/page.tsx` 2×2 grid: New appointments / Video call requests / Appearances in results / New reviews. Video calls = placeholder 0 for pilot. Appearances in results reads from `analytics_events`.
-- [ ] **G3** Apply new palette + gradient pills across firm portal pages.
+- [x] **G1** Reskin `components/firm/FirmLayout.tsx` left rail to: Dashboard / Firm Details / Fees & Service Offering / Reviews / Logout.
+- [x] **G2** Rewrite `app/(firm)/dashboard/page.tsx` 2×2 grid: New appointments / Video call requests / Appearances in results / New reviews. Video calls = placeholder 0 for pilot. Appearances in results reads from `analytics_events`.
+- [x] **G3** Apply new palette + gradient pills across firm portal pages.
 
 ### Phase H — Marketing re-skin
 - [ ] **H1** Update `frontend/tailwind.config.ts` and `frontend/app/globals.css` — palette, gradient utilities, pill button radii, card radii, Inter type scale.

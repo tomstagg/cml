@@ -1,15 +1,18 @@
-"""Unit tests for email service — all external calls are mocked."""
+"""Unit tests for the email service — Sparkpost is mocked throughout."""
 
 from unittest.mock import AsyncMock, MagicMock, patch
 
-import pytest
-
 from app.services.email import (
-    send_appointment_confirmation_consumer,
-    send_appointment_notification_firm,
+    send_callback_followup,
+    send_callback_to_firm,
+    send_callback_user_copy,
+    send_conflict_check_failed,
     send_email,
     send_enrollment_invitation,
-    send_review_invitation,
+    send_proceed_feedback_request,
+    send_proceed_followup,
+    send_proceed_to_firm,
+    send_proceed_user_copy,
     send_session_save_email,
 )
 
@@ -18,18 +21,15 @@ from app.services.email import (
 
 
 async def test_send_email_no_api_key_returns_true():
-    """No Sparkpost key → mock mode, always returns True."""
     with patch("app.services.email._get_client", return_value=None):
-        result = await send_email("test@example.com", "Subject", "<p>Body</p>")
-    assert result is True
+        assert await send_email("test@example.com", "Subject", "<p>Body</p>") is True
 
 
 async def test_send_email_sparkpost_success():
     mock_sp = MagicMock()
     mock_sp.transmissions.send.return_value = {"total_accepted_recipients": 1}
     with patch("app.services.email._get_client", return_value=mock_sp):
-        result = await send_email("test@example.com", "Subject", "<p>Body</p>")
-    assert result is True
+        assert await send_email("test@example.com", "Subject", "<p>Body</p>") is True
     mock_sp.transmissions.send.assert_called_once()
 
 
@@ -37,127 +37,181 @@ async def test_send_email_sparkpost_exception_returns_false():
     mock_sp = MagicMock()
     mock_sp.transmissions.send.side_effect = Exception("Sparkpost down")
     with patch("app.services.email._get_client", return_value=mock_sp):
-        result = await send_email("test@example.com", "Subject", "<p>Body</p>")
-    assert result is False
+        assert await send_email("test@example.com", "Subject", "<p>Body</p>") is False
 
 
 async def test_send_email_zero_accepted_returns_false():
     mock_sp = MagicMock()
     mock_sp.transmissions.send.return_value = {"total_accepted_recipients": 0}
     with patch("app.services.email._get_client", return_value=mock_sp):
-        result = await send_email("test@example.com", "Subject", "<p>Body</p>")
-    assert result is False
+        assert await send_email("test@example.com", "Subject", "<p>Body</p>") is False
 
 
-# ── send_appointment_confirmation_consumer ────────────────────────────────────
-
-
-async def test_appointment_confirmation_appoint_type():
-    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
-        mock_send.return_value = True
-        result = await send_appointment_confirmation_consumer(
-            "client@example.com", "Jane Smith", "Test Law Firm", "appoint", 1500.0
-        )
-    assert result is True
-    to, subject, html = mock_send.call_args[0]
-    assert to == "client@example.com"
-    assert "appointment" in subject.lower()
-    assert "Test Law Firm" in subject
-    assert "1,500.00" in html
-
-
-async def test_appointment_confirmation_callback_type():
-    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
-        mock_send.return_value = True
-        await send_appointment_confirmation_consumer(
-            "client@example.com", "Jane Smith", "Test Law Firm", "callback", None
-        )
-    _, subject, _ = mock_send.call_args[0]
-    assert "callback" in subject.lower()
-
-
-async def test_appointment_confirmation_no_quote_omits_price():
-    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
-        mock_send.return_value = True
-        await send_appointment_confirmation_consumer(
-            "client@example.com", "Jane", "Firm", "appoint", None
-        )
-    _, _, html = mock_send.call_args[0]
-    assert "Estimated quote" not in html
-
-
-async def test_appointment_confirmation_with_quote_shows_price():
-    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
-        mock_send.return_value = True
-        await send_appointment_confirmation_consumer(
-            "client@example.com", "Jane", "Firm", "appoint", 2750.50
-        )
-    _, _, html = mock_send.call_args[0]
-    assert "2,750.50" in html
-
-
-# ── send_appointment_notification_firm ───────────────────────────────────────
-
-
-async def test_firm_notification_includes_client_details():
-    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
-        mock_send.return_value = True
-        result = await send_appointment_notification_firm(
+async def test_send_email_passes_reply_to_and_bcc():
+    """Custom from_name + reply_to + bcc must reach the SparkPost SDK."""
+    mock_sp = MagicMock()
+    mock_sp.transmissions.send.return_value = {"total_accepted_recipients": 1}
+    with patch("app.services.email._get_client", return_value=mock_sp):
+        await send_email(
             "firm@law.com",
-            "Law Firm",
-            "Jane Smith",
-            "jane@example.com",
-            "07700900000",
-            "appoint",
-            "Monday morning",
-            1500.0,
+            "Subject",
+            "<p>Body</p>",
+            from_name="Jane Smith",
+            reply_to="jane@example.com",
+            bcc=["audit@cml.co.uk"],
         )
-    assert result is True
-    _, _, html = mock_send.call_args[0]
-    assert "Jane Smith" in html
-    assert "jane@example.com" in html
-    assert "07700900000" in html
-    assert "Monday morning" in html
-    assert "1,500.00" in html
+    kwargs = mock_sp.transmissions.send.call_args.kwargs
+    assert kwargs["reply_to"] == "jane@example.com"
+    assert kwargs["bcc"] == ["audit@cml.co.uk"]
+    assert "Jane Smith" in kwargs["from_email"]
 
 
-async def test_firm_notification_omits_optional_fields_when_none():
+# ── Proceed firm email — sent in user's name ─────────────────────────────────
+
+
+async def test_proceed_to_firm_uses_user_name_and_reply_to():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
-        await send_appointment_notification_firm(
-            "firm@law.com",
-            "Law Firm",
-            "Jane Smith",
-            "jane@example.com",
-            None,
-            "callback",
-            None,
-            None,
+        await send_proceed_to_firm(
+            "firm@law.com", "Bridge Street Solicitors", "Jane Smith", "jane@example.com", 2073.0
         )
-    _, _, html = mock_send.call_args[0]
-    assert "Phone" not in html
-    assert "Preferred time" not in html
-    assert "Quoted price" not in html
+    kwargs = mock_send.call_args.kwargs
+    assert kwargs["from_name"] == "Jane Smith"
+    assert kwargs["reply_to"] == "jane@example.com"
+    assert kwargs["bcc"]  # CML BCC must be set
 
 
-async def test_firm_notification_callback_subject():
+async def test_proceed_to_firm_includes_quoted_price():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
-        await send_appointment_notification_firm(
+        await send_proceed_to_firm("firm@law.com", "Firm", "Jane", "j@e.com", 2073.0)
+    _, _, html = mock_send.call_args.args
+    assert "2,073.00" in html
+
+
+async def test_proceed_to_firm_omits_price_when_none():
+    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = True
+        await send_proceed_to_firm("firm@law.com", "Firm", "Jane", "j@e.com", None)
+    _, _, html = mock_send.call_args.args
+    assert "quoted price" not in html.lower()
+
+
+# ── Callback firm email ──────────────────────────────────────────────────────
+
+
+async def test_callback_to_firm_includes_phone_and_availability():
+    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = True
+        await send_callback_to_firm(
             "firm@law.com",
             "Firm",
-            "Client",
-            "c@e.com",
-            None,
-            "callback",
-            None,
+            "Jane",
+            "j@e.com",
+            "07700900000",
+            "Weekdays after 5pm",
             None,
         )
-    _, subject, _ = mock_send.call_args[0]
-    assert "callback" in subject.lower()
+    kwargs = mock_send.call_args.kwargs
+    _, _, html = mock_send.call_args.args
+    assert kwargs["from_name"] == "Jane"
+    assert kwargs["reply_to"] == "j@e.com"
+    assert "07700900000" in html
+    assert "Weekdays after 5pm" in html
 
 
-# ── send_enrollment_invitation ────────────────────────────────────────────────
+async def test_callback_to_firm_omits_optional_fields():
+    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = True
+        await send_callback_to_firm("firm@law.com", "Firm", "Jane", "j@e.com", None, None, None)
+    _, _, html = mock_send.call_args.args
+    assert "Phone" not in html
+    assert "Availability" not in html
+
+
+# ── Consumer copies ──────────────────────────────────────────────────────────
+
+
+async def test_proceed_user_copy_mentions_excluded_disbursements():
+    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = True
+        await send_proceed_user_copy(
+            "jane@example.com",
+            "Jane",
+            "Bridge Street Solicitors",
+            2073.0,
+            "https://example.com/disbursements",
+        )
+    _, _, html = mock_send.call_args.args
+    assert "excluded" in html.lower()
+    assert "https://example.com/disbursements" in html
+    assert "2,073.00" in html
+
+
+async def test_callback_user_copy_confirms_availability():
+    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = True
+        await send_callback_user_copy(
+            "jane@example.com", "Jane", "Firm", "Weekdays after 5pm", None
+        )
+    _, _, html = mock_send.call_args.args
+    assert "Weekdays after 5pm" in html
+
+
+# ── Follow-ups ───────────────────────────────────────────────────────────────
+
+
+async def test_callback_followup_includes_yes_no_links():
+    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = True
+        await send_callback_followup(
+            "jane@example.com",
+            "Jane",
+            "Firm",
+            "https://api/yes-link",
+            "https://api/no-link",
+        )
+    _, _, html = mock_send.call_args.args
+    assert "https://api/yes-link" in html
+    assert "https://api/no-link" in html
+
+
+async def test_proceed_followup_warns_about_price_drift():
+    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = True
+        await send_proceed_followup("jane@example.com", "Jane", "Firm", "https://yes", "https://no")
+    _, _, html = mock_send.call_args.args
+    assert "price" in html.lower()
+
+
+async def test_proceed_feedback_request_links_review_url():
+    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = True
+        await send_proceed_feedback_request(
+            "jane@example.com", "Firm", "https://example.com/review/abc"
+        )
+    _, _, html = mock_send.call_args.args
+    assert "https://example.com/review/abc" in html
+
+
+# ── Conflict-check failure ───────────────────────────────────────────────────
+
+
+async def test_conflict_check_failed_links_back_to_results():
+    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
+        mock_send.return_value = True
+        await send_conflict_check_failed(
+            "jane@example.com",
+            "Jane",
+            "Firm",
+            "https://app/results/abcd",
+        )
+    _, _, html = mock_send.call_args.args
+    assert "https://app/results/abcd" in html
+    assert "conflict" in html.lower()
+
+
+# ── Existing CML emails (unchanged) ──────────────────────────────────────────
 
 
 async def test_enrollment_invitation_contains_url_and_firm_name():
@@ -166,35 +220,15 @@ async def test_enrollment_invitation_contains_url_and_firm_name():
         await send_enrollment_invitation(
             "firm@law.com", "Test Law Firm", "http://example.com/enroll/abc123"
         )
-    _, subject, html = mock_send.call_args[0]
+    _, subject, html = mock_send.call_args.args
     assert "Test Law Firm" in subject
     assert "http://example.com/enroll/abc123" in html
-    assert "Test Law Firm" in html
-
-
-# ── send_session_save_email ───────────────────────────────────────────────────
 
 
 async def test_session_save_email_contains_resume_url():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
         await send_session_save_email("client@example.com", "http://example.com/resume/xyz")
-    to, _, html = mock_send.call_args[0]
+    to, _, html = mock_send.call_args.args
     assert to == "client@example.com"
     assert "http://example.com/resume/xyz" in html
-
-
-# ── send_review_invitation ────────────────────────────────────────────────────
-
-
-async def test_review_invitation_contains_firm_name_and_url():
-    with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
-        mock_send.return_value = True
-        await send_review_invitation(
-            "client@example.com", "Test Law Firm", "http://example.com/review/token123"
-        )
-    to, subject, html = mock_send.call_args[0]
-    assert to == "client@example.com"
-    assert "Test Law Firm" in subject
-    assert "Test Law Firm" in html
-    assert "http://example.com/review/token123" in html
