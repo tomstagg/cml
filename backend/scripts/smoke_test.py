@@ -190,7 +190,6 @@ class SmokeTest:
                 self.fail("decision rows present but no source URLs")
 
         self.step("7. POST Proceed appointment")
-        # Restore balanced for the Proceed price.
         self.client.patch(
             f"{self.base}/api/public/sessions/{session_id}/answer",
             json={"question_id": "scorecard_preference", "answer": "balanced"},
@@ -241,7 +240,6 @@ class SmokeTest:
                 "metadata": {"page": "/smoke-test"},
             },
         )
-        # Events endpoint returns 202 Accepted.
         if r.status_code == 202:
             self.ok("POST /events (202)")
         else:

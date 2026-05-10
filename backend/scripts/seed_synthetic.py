@@ -550,8 +550,21 @@ def _emit_leo_csv(path: Path) -> None:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         for spec in FIRMS:
-            sra = spec[0]
-            complaints = spec[11]
+            (
+                sra,
+                _name,
+                _postcode,
+                _prefix,
+                _enrolled,
+                _auth_status,
+                _intervened,
+                _rating,
+                _review_count,
+                _fee_offset,
+                _office_count,
+                complaints,
+                _regulatory,
+            ) = spec
             for severity, amount, handling, days_ago in complaints:
                 band, _sev_score = severity
                 amt_value, _amt_score = amount
@@ -587,8 +600,21 @@ def _emit_sra_decisions_csv(path: Path) -> None:
         writer = csv.DictWriter(f, fieldnames=fields)
         writer.writeheader()
         for spec in FIRMS:
-            (sra, _name, _postcode, _prefix, _enrolled, _auth, intervened, *_rest) = spec
-            regulatory = spec[12]
+            (
+                sra,
+                _name,
+                _postcode,
+                _prefix,
+                _enrolled,
+                _auth_status,
+                intervened,
+                _rating,
+                _review_count,
+                _fee_offset,
+                _office_count,
+                _complaints,
+                regulatory,
+            ) = spec
 
             for source, decision_type, _deduction, sdt_fine, days_ago in regulatory:
                 writer.writerow(

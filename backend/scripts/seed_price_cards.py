@@ -55,9 +55,21 @@ async def seed_price_cards() -> None:
         newly_enrolled = 0
 
         for spec in FIRMS:
-            sra = spec[0]
-            enrolled_target = spec[4]
-            fee_offset = spec[9]
+            (
+                sra,
+                _name,
+                _postcode,
+                _prefix,
+                enrolled_target,
+                _auth_status,
+                _intervened,
+                _rating,
+                _review_count,
+                fee_offset,
+                _office_count,
+                _complaints,
+                _regulatory,
+            ) = spec
 
             org = (
                 await db.execute(select(Organisation).where(Organisation.sra_number == sra))
