@@ -563,30 +563,71 @@ restartPolicyMaxRetries = 3
 
 **Frontend Dockerfile notes**:
 - Multi-stage build: deps → builder → runner (node:20-alpine)
-- `NEXT_PUBLIC_API_URL` must be set as a Railway build variable (not just runtime) — it's baked in at `next build`
+- `NEXT_PUBLIC_*` vars are baked in at `next build` — they must be passed as Docker build args via Railway "build variables", not runtime env vars
 - `npm ci` (not `npm install`) to use lockfile for reproducible builds
 
-**Environment variables** — set in Railway dashboard per service:
+### Environment variables
 
-Backend:
+Set in the Railway dashboard per service. Anything marked **required** will leave a feature broken (or the service refusing to start) if absent.
 
-| Variable | Purpose |
-|---|---|
-| `DATABASE_URL` | Railway provides as `postgresql://...` — config.py auto-converts to `asyncpg` |
-| `SECRET_KEY` | Random 32+ char string for JWT signing |
-| `ENVIRONMENT` | `production` |
-| `APP_URL` | Frontend Railway domain (e.g. `https://cml-frontend.up.railway.app`) |
-| `API_URL` | Backend Railway domain |
-| `CORS_ORIGINS` | Comma-separated — include Railway domain + custom domain |
-| `SPARKPOST_API_KEY` | Email |
-| `GOOGLE_PLACES_API_KEY` | Review sync |
-| `FETCHIFY_API_KEY` | Geocoding |
+**Backend** (runtime env):
 
-Frontend:
+| Variable | Required? | Purpose |
+|---|---|---|
+| `DATABASE_URL` | ✅ | Railway PG addon reference; `postgresql://` is auto-converted to `postgresql+asyncpg://` by `config.py` |
+| `SECRET_KEY` | ✅ | JWT signing + HMAC follow-up tokens. Random 32+ chars. |
+| `ADMIN_API_KEY` | ✅ | Header value for `/api/admin/*` (`X-Admin-Key`). Must be non-empty or every admin route 401s. |
+| `ENVIRONMENT` | ✅ | `production` — enables HSTS in the security-headers middleware (`app/main.py`) |
+| `APP_URL` | ✅ | Frontend public URL (e.g. `https://choosemylawyer.co.uk`). Used in email links, save-for-later URLs, conflict-check deep links. |
+| `API_URL` | ✅ | Backend public URL. Currently logged on startup; reserve for future use. |
+| `CORS_ORIGINS` | ✅ | Comma-separated. Must include both the Railway subdomain and the production custom domain during cutover (e.g. `https://cml-frontend.up.railway.app,https://choosemylawyer.co.uk,https://www.choosemylawyer.co.uk`) |
+| `SPARKPOST_API_KEY` | ✅ for emails | Without this, every email path silently no-ops (logged only) |
+| `SPARKPOST_FROM_EMAIL` | ✅ for emails | Must match a verified Sparkpost sending domain. Also receives the BCC of every Proceed/Callback firm email. |
+| `SPARKPOST_FROM_NAME` | optional | Default `Choose My Lawyer` |
+| `GOOGLE_PLACES_API_KEY` | optional | Weekly Google reviews sync; without it the scheduler job no-ops |
+| `FETCHIFY_API_KEY` | optional | Postcode → lat/lng. Without it the distance factor falls back to no distance score; the rest of ranking still works |
+| `JWT_ALGORITHM`, `JWT_EXPIRY_HOURS` | optional | Defaults `HS256`, `24` |
+| `REVIEW_INVITATION_DELAY_DAYS`, `REVIEW_INVITATION_EXPIRY_DAYS` | optional | Defaults `60`, `30` (Phase F) |
+| `PROCEED_FOLLOWUP_WORKING_DAYS` | optional | Default `5` |
+| `EXCLUDED_DISBURSEMENTS_URL` | optional | Default `https://choosemylawyer.co.uk/disbursements` (linked from Proceed user-copy email) |
+| `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_LOGIN` | optional | Defaults `100`, `5` (per-IP, per-minute) |
 
-| Variable | Purpose |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | Backend public URL — **build variable**, not runtime |
+**Frontend** (build args + minimal runtime):
+
+| Variable | Where set | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | Railway **build variable** | Backend public URL. Baked into the browser bundle by `next build` — runtime-only env will not work. |
+| `NEXT_PUBLIC_META_PIXEL_ID` | Railway **build variable** | Meta Pixel ID. Without this the `<MetaPixel />` component renders nothing and Meta tracking is silently disabled even if consent is granted. |
+
+### Cloudflare DNS
+
+Production domain: `choosemylawyer.co.uk`. Proxied through Cloudflare; Railway terminates TLS upstream so set Cloudflare to **Full (strict)** SSL mode.
+
+| Type | Name | Target | Notes |
+|---|---|---|---|
+| CNAME | `@` (apex) or `choosemylawyer.co.uk` | Railway frontend public URL | Cloudflare CNAME flattening lets you CNAME the apex |
+| CNAME | `www` | Same as apex | Redirect to apex via Cloudflare page rule, or serve directly |
+| CNAME | `api` | Railway backend public URL | Backend service domain. Add `https://api.choosemylawyer.co.uk` to backend `CORS_ORIGINS` is **not** needed (it's the API itself); but `NEXT_PUBLIC_API_URL` should point here. |
+| TXT | `@` | Sparkpost SPF (`v=spf1 include:sparkpostmail.com ~all`) | From Sparkpost dashboard |
+| TXT | `scph0125._domainkey` (or similar) | Sparkpost DKIM record | From Sparkpost dashboard — the selector name comes from your Sparkpost setup |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:postmaster@choosemylawyer.co.uk` | Start with `p=none` for monitoring; tighten later |
+
+After DNS resolves, in Railway add custom domains to each service (frontend gets `choosemylawyer.co.uk` + `www`; backend gets `api`). Railway issues TLS certs automatically.
+
+### Go-live checklist
+
+- [ ] Railway PG addon provisioned; `DATABASE_URL` reference set on backend service
+- [ ] All **required** backend env vars set (table above); deploy is green
+- [ ] `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_META_PIXEL_ID` set as Railway **build** variables on the frontend service; rebuild has run (not just redeploy)
+- [ ] `CORS_ORIGINS` includes the production domain(s)
+- [ ] Sparkpost sending domain verified; SPF/DKIM/DMARC records propagated
+- [ ] First deploy: `alembic upgrade head` ran cleanly (logged in `start.sh` output)
+- [ ] Ops data bootstrap done — see "Ops data bootstrap" below; final `seed_price_cards.py` run shows enrolled firms with active price cards
+- [ ] `scripts/smoke_test.py --base-url https://api.choosemylawyer.co.uk --admin-key $ADMIN_API_KEY` passes against production
+- [ ] Cookie consent banner appears in incognito on `https://choosemylawyer.co.uk`; rejecting hides it; accepting loads `fbevents.js`
+- [ ] Meta Events Manager test-events viewer shows live PageView + IntakeStarted while clicking through
+- [ ] Manual Proceed click confirms firm receives email **from the user's name** (display name + reply-to), CML BCC arrives in `SPARKPOST_FROM_EMAIL` inbox
+- [ ] HSTS header present on backend response (`curl -I https://api.choosemylawyer.co.uk/health` shows `Strict-Transport-Security`)
 
 ---
 

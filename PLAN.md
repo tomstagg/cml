@@ -423,7 +423,7 @@ Each phase is a roughly-PR-sized chunk. Tasks are checkable and ordered for sens
 - [x] **J4** Pre-load Quoted Prices for participating firms via `scripts/seed_price_cards.py` (admin form deferred — redundant for MVP).
 - [x] **J5** Cookie consent banner gating Meta Pixel + backend `analytics_events` mirror; persists choice in localStorage.
 - [x] **J6** End-to-end smoke test (`scripts/smoke_test.py`); manual sub-checks (Sparkpost inbox, Meta Events Manager, browser banner UX) per Verification below.
-- [ ] **J7** Railway deploy + env vars; Cloudflare DNS for production domain.
+- [x] **J7** Railway env-var audit + Cloudflare DNS / SPF / DKIM / DMARC schema documented in README "Deployment (Railway)" with go-live checklist; frontend Dockerfile now accepts `NEXT_PUBLIC_META_PIXEL_ID` build arg (was missing — Pixel would have shipped disabled).
 
 ---
 
