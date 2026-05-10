@@ -631,7 +631,26 @@ Expected counts on a clean DB:
 
 All three CSV importers are idempotent — they upsert by `sra_number` (firms) or `decision_id` (decisions), so re-running is safe. `seed_price_cards.py` upserts the single active card per (org, practice_area) so re-running replaces in place rather than duplicating.
 
-**Pricing source of truth.** The MVP has no admin pricing form — participating firms are priced by the founder. The fee offsets driving each card live in `seed_synthetic.FIRMS`; `seed_price_cards.py` reads the enrolled subset and uses the standard band template from `price_card()`. To onboard a real firm, edit FIRMS with `enrolled=True` plus the negotiated `fee_offset`, run `import_sra_csv.py` if the org isn't already there, then re-run `seed_price_cards.py`.
+**Pricing source of truth.** The MVP has no admin pricing form — every WMCA firm is priced by the founder. Annex One §3 requires the full market to be ranked, so all firms get a price card; the search service then filters on `enrolled=true` to extract the top-5 contactable. The fee offsets driving each card live in `seed_synthetic.FIRMS`; `seed_price_cards.py` reads the whole list (not just the enrolled subset), upserts a single active card per firm, and flips `Organisation.enrolled=True` for those marked enrolled. The firm-portal `/enroll/{token}` flow exists but is bypassed for the pilot — the script is canonical. To onboard a real firm, edit FIRMS with `enrolled=True` plus the negotiated `fee_offset`, run `import_sra_csv.py` if the org isn't already there, then re-run `seed_price_cards.py`.
+
+### 4. End-to-end smoke test
+
+Once the dataset is loaded, drive the system through a full user journey to confirm everything works:
+
+```bash
+docker-compose exec backend python scripts/smoke_test.py \
+  --admin-key "$ADMIN_API_KEY"
+```
+
+Or against a deployed environment:
+
+```bash
+docker-compose exec backend python scripts/smoke_test.py \
+  --base-url https://api.choosemylawyer.co.uk \
+  --admin-key "$ADMIN_API_KEY"
+```
+
+The script exercises 10 checkpoints — health, session creation, all 13 intake answers, balanced + reputation-priority ranking with §8.13 intervention filter, complaints + regulatory source URL render, Proceed appointment, admin conflict-check, analytics event capture, admin CSV export — and exits non-zero on any failure. Manual checks the script *can't* automate are listed in PLAN.md "Verification" (Sparkpost inbox confirmation that firm emails arrive in the user's name, Meta Events Manager test-events viewer, browser cookie banner UX).
 
 ### 3. Replacing the synthetic dataset
 

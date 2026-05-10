@@ -1,19 +1,27 @@
 #!/usr/bin/env python3
-"""Pre-load active conveyancing price cards (Phase J4).
+"""Pre-load active conveyancing price cards + enrol participating firms (J4).
 
-The MVP has no admin pricing form — participating firms are priced by
-the founder via this script. Run it after `import_sra_csv.py` has
-created the organisations.
+The MVP has no admin pricing form — every WMCA firm is priced and (where
+applicable) flagged as enrolled by the founder via this script. Run it
+after `import_sra_csv.py` has created the organisations.
 
-Source of truth is the enrolled subset of `seed_synthetic.FIRMS` so the
-synthetic dataset and the ops bootstrap stay aligned. When real firms
-come on board, edit FIRMS in seed_synthetic.py with their
-(sra_number, name, postcode, prefix, enrolled=True, …, fee_offset) and
-re-run this script.
+Annex One §3 requires the full WMCA market to be ranked, so every firm
+gets an active price card — not just the enrolled subset. The top-5
+contactable extractor in the search service then filters on
+`enrolled=true`, so the "whole of market / fully independent" claim
+holds.
 
-Idempotency: any prior active card on (org_id, residential_conveyancing)
-is replaced in place rather than duplicated, so re-running yields
-exactly one active card per firm.
+Source of truth is `seed_synthetic.FIRMS` (with `enrolled` flagging the
+participating subset) so the synthetic dataset and the ops bootstrap
+stay aligned. When real firms come on board, edit FIRMS in
+seed_synthetic.py and re-run this script.
+
+Two side-effects per firm:
+  1. A single active conveyancing PriceCard is upserted on
+     (org_id, residential_conveyancing). Re-running replaces in place.
+  2. If the firm spec has `enrolled=True`, `Organisation.enrolled` is
+     set to True. The firm-portal `/enroll/{token}` flow exists but is
+     bypassed for the pilot — this script is canonical.
 
 Usage:
     docker-compose exec backend python scripts/seed_price_cards.py
@@ -44,13 +52,12 @@ async def seed_price_cards() -> None:
         created = 0
         updated = 0
         skipped = 0
+        newly_enrolled = 0
 
         for spec in FIRMS:
             sra = spec[0]
-            enrolled = spec[4]
+            enrolled_target = spec[4]
             fee_offset = spec[9]
-            if not enrolled:
-                continue
 
             org = (
                 await db.execute(select(Organisation).where(Organisation.sra_number == sra))
@@ -59,6 +66,11 @@ async def seed_price_cards() -> None:
                 print(f"  Skipping {sra}: organisation not found (run import_sra_csv first?)")
                 skipped += 1
                 continue
+
+            if enrolled_target and not org.enrolled:
+                org.enrolled = True
+                db.add(org)
+                newly_enrolled += 1
 
             pricing = price_card(fee_offset)
 
@@ -90,7 +102,10 @@ async def seed_price_cards() -> None:
                 created += 1
 
         await db.commit()
-        print(f"Price cards: {created} created, {updated} updated, {skipped} skipped")
+        print(
+            f"Price cards: {created} created, {updated} updated, {skipped} skipped; "
+            f"{newly_enrolled} newly enrolled"
+        )
 
 
 if __name__ == "__main__":

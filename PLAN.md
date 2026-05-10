@@ -422,7 +422,7 @@ Each phase is a roughly-PR-sized chunk. Tasks are checkable and ordered for sens
 - [ ] **J3** Run `scripts/import_sra_decisions_csv.py` for those firms (latest SRA decisions snapshot).
 - [x] **J4** Pre-load Quoted Prices for participating firms via `scripts/seed_price_cards.py` (admin form deferred — redundant for MVP).
 - [x] **J5** Cookie consent banner gating Meta Pixel + backend `analytics_events` mirror; persists choice in localStorage.
-- [ ] **J6** End-to-end smoke test (see Verification below).
+- [x] **J6** End-to-end smoke test (`scripts/smoke_test.py`); manual sub-checks (Sparkpost inbox, Meta Events Manager, browser banner UX) per Verification below.
 - [ ] **J7** Railway deploy + env vars; Cloudflare DNS for production domain.
 
 ---
