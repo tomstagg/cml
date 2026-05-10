@@ -1,4 +1,5 @@
 import { API_BASE } from "./api";
+import { hasMarketingConsent } from "./consent";
 
 // Standard Meta event names get richer attribution in Ads Manager;
 // other events are recorded as custom events.
@@ -86,6 +87,9 @@ function emit(
   sessionId: string | null,
   metadata: Record<string, unknown>,
 ): void {
+  // Pre-consent we ship no tracking — Meta Pixel and the backend mirror
+  // are both gated on the user's explicit choice.
+  if (!hasMarketingConsent()) return;
   fireMetaPixel(type, metadata);
   mirrorToBackend(type, sessionId, metadata);
 }

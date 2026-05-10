@@ -617,6 +617,7 @@ Run the three importers against the backend service in order. SRA firms must com
 python scripts/import_sra_csv.py --csv scripts/seed_data/sra_firms.csv --geocode
 python scripts/import_sra_decisions_csv.py --csv scripts/seed_data/sra_decisions.csv
 python scripts/import_leo_csv.py --csv scripts/seed_data/leo_decisions.csv
+python scripts/seed_price_cards.py
 ```
 
 Expected counts on a clean DB:
@@ -626,8 +627,11 @@ Expected counts on a clean DB:
 | `import_sra_csv` | 14 created, 1 skipped (firm 9000006 has `auth_status="conditions"` — the SRA importer's production filter accepts authorised firms only, by design) |
 | `import_sra_decisions_csv` | 5 decisions created, 1 intervention flagged on firm 9000015 |
 | `import_leo_csv` | 7 decisions created, 1 skipped (the row for firm 9000006, dropped above) |
+| `seed_price_cards` | 5 active price cards created (one per enrolled firm; 9000006 skipped because the org is missing) |
 
-All three importers are idempotent — they upsert by `sra_number` (firms) or `decision_id` (decisions), so re-running is safe.
+All three CSV importers are idempotent — they upsert by `sra_number` (firms) or `decision_id` (decisions), so re-running is safe. `seed_price_cards.py` upserts the single active card per (org, practice_area) so re-running replaces in place rather than duplicating.
+
+**Pricing source of truth.** The MVP has no admin pricing form — participating firms are priced by the founder. The fee offsets driving each card live in `seed_synthetic.FIRMS`; `seed_price_cards.py` reads the enrolled subset and uses the standard band template from `price_card()`. To onboard a real firm, edit FIRMS with `enrolled=True` plus the negotiated `fee_offset`, run `import_sra_csv.py` if the org isn't already there, then re-run `seed_price_cards.py`.
 
 ### 3. Replacing the synthetic dataset
 
