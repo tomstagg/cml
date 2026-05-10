@@ -590,6 +590,57 @@ Frontend:
 
 ---
 
+## Ops data bootstrap
+
+The Railway DB starts empty. Until curated SRA / LeO / SRA-decisions CSVs are ready, a 15-firm synthetic dataset under `backend/scripts/seed_data/` bootstraps a representative ops environment. The same importers that consume real data also consume these — there is no separate "demo" code path.
+
+### 1. (Re)generate the seed CSVs
+
+Already committed; re-run only if `seed_synthetic.py`'s in-memory firm spec changes:
+
+```bash
+docker-compose exec backend python scripts/seed_synthetic.py --emit-csvs scripts/seed_data
+```
+
+The script does not connect to the database in this mode. It writes three importer-shaped files:
+
+- `sra_firms.csv` — 15 firms spread across all five WMCA postcode prefixes (B / CV / DY / WV / WS)
+- `leo_decisions.csv` — 8 LeO complaints decisions covering every severity band + amount band the runtime ranker needs to exercise
+- `sra_decisions.csv` — 5 SRA / SDT decisions plus 1 intervention row
+
+### 2. Load into the ops DB
+
+Run the three importers against the backend service in order. SRA firms must come first so the decision importers can resolve `sra_number → org_id`:
+
+```bash
+# From a Railway shell on the backend service (or docker-compose exec backend locally):
+python scripts/import_sra_csv.py --csv scripts/seed_data/sra_firms.csv --geocode
+python scripts/import_sra_decisions_csv.py --csv scripts/seed_data/sra_decisions.csv
+python scripts/import_leo_csv.py --csv scripts/seed_data/leo_decisions.csv
+```
+
+Expected counts on a clean DB:
+
+| Importer | Result |
+|---|---|
+| `import_sra_csv` | 14 created, 1 skipped (firm 9000006 has `auth_status="conditions"` — the SRA importer's production filter accepts authorised firms only, by design) |
+| `import_sra_decisions_csv` | 5 decisions created, 1 intervention flagged on firm 9000015 |
+| `import_leo_csv` | 7 decisions created, 1 skipped (the row for firm 9000006, dropped above) |
+
+All three importers are idempotent — they upsert by `sra_number` (firms) or `decision_id` (decisions), so re-running is safe.
+
+### 3. Replacing the synthetic dataset
+
+When curated real CSVs land, point the importers at them instead. The synthetic firms occupy SRA numbers `9000000–9000099`, namespaced clear of any real SRA range, and can be wiped from the ops DB with:
+
+```sql
+DELETE FROM organisations WHERE sra_number LIKE '90000%';
+```
+
+Cascading FKs remove the dependent `offices`, `price_cards`, `complaints_decisions` and `regulatory_decisions` rows automatically.
+
+---
+
 ## Lessons Learned
 
 1. **`NEXT_PUBLIC_*` vars are build-time** — they must be available at `docker build` / `next build` time. Railway supports "build variables" (set in service settings) to pass them into the Dockerfile via `ARG` + `ENV`. Setting them only as runtime env vars will result in `undefined` in the browser bundle.

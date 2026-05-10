@@ -402,13 +402,13 @@ Each phase is a roughly-PR-sized chunk. Tasks are checkable and ordered for sens
 - [x] **G3** Apply new palette + gradient pills across firm portal pages.
 
 ### Phase H — Marketing re-skin
-- [ ] **H1** Update `frontend/tailwind.config.ts` and `frontend/app/globals.css` — palette, gradient utilities, pill button radii, card radii, Inter type scale.
-- [ ] **H2** Reskin `Navbar.tsx` (How it works · Legal services · Knowledge · FAQs · Firm Register/Login + gradient "Find a lawyer" pill); `Footer.tsx` (navy → purple gradient). Swap PNG logo refs to `docs/logo.svg`.
-- [ ] **H3** Rewrite `app/(marketing)/page.tsx` per `docs/design/01-home.png`: hero with search input + quick-tag chips → Simplifying access 3-up → Types of legal help tile grid (conveyancing tile active, others greyed) → testimonials → CTA banner.
-- [ ] **H4** Rewrite `app/(marketing)/how-it-works/page.tsx` for conveyancing flow.
-- [ ] **H5** Rewrite `app/(marketing)/for-firms/page.tsx` for conveyancing solicitors.
-- [ ] **H6** Replace `app/(marketing)/probate/` with `app/(marketing)/conveyancing/page.tsx` (SEO landing).
-- [ ] **H7** Light updates to `contact`, `privacy`, `terms` to drop probate references.
+- [x] **H1** Update `frontend/tailwind.config.ts` and `frontend/app/globals.css` — palette, gradient utilities, pill button radii, card radii, Inter type scale.
+- [x] **H2** Reskin `Navbar.tsx` (How it works · Legal services · Knowledge · FAQs · Firm Register/Login + gradient "Find a lawyer" pill); `Footer.tsx` (navy → purple gradient). Swap PNG logo refs to `docs/logo.svg`.
+- [x] **H3** Rewrite `app/(marketing)/page.tsx` per `docs/design/01-home.png`: hero with search input + quick-tag chips → Simplifying access 3-up → Types of legal help tile grid (conveyancing tile active, others greyed) → testimonials → CTA banner.
+- [x] **H4** Rewrite `app/(marketing)/how-it-works/page.tsx` for conveyancing flow.
+- [x] **H5** Rewrite `app/(marketing)/for-firms/page.tsx` for conveyancing solicitors.
+- [x] **H6** Replace `app/(marketing)/probate/` with `app/(marketing)/conveyancing/page.tsx` (SEO landing).
+- [x] **H7** Light updates to `contact`, `privacy`, `terms` to drop probate references.
 
 ### Phase I — Analytics + Meta Pixel
 - [x] **I1** Add Meta Pixel `<Script>` in root layout. Env var `NEXT_PUBLIC_META_PIXEL_ID`.

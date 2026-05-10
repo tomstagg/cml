@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Synthetic seed for Phase E smoke testing.
+"""Synthetic seed for Phase E smoke testing and Phase J ops bootstrap.
 
 Creates 15 fake WMCA conveyancing firms with a mix of enrolment status,
 SRA authorisation status, complaint + regulatory histories, office
@@ -9,35 +9,33 @@ results page (top-5, full market, severity bands, source links).
 SRA numbers 9000000–9000099 are reserved for synthetic data and wiped
 before re-seeding so the script is idempotent.
 
-Usage:
+Two modes:
+
+    # Direct DB seed (local dev)
     docker-compose exec backend python scripts/seed_synthetic.py
+
+    # Emit CSV files for the real importers (Phase J ops bootstrap)
+    docker-compose exec backend python scripts/seed_synthetic.py \\
+        --emit-csvs scripts/seed_data
+
+In `--emit-csvs` mode the script does not connect to the database. It
+writes three files matching the column shapes of import_sra_csv.py,
+import_leo_csv.py and import_sra_decisions_csv.py so the same dataset
+can be loaded into the Railway ops DB by running the real importers.
 """
 
+import argparse
 import asyncio
+import csv
 import sys
 import uuid
-from datetime import date
+from datetime import date, timedelta
 from decimal import Decimal
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
-from sqlalchemy import delete, select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-from app.config import settings
-from app.models.complaints_decision import ComplaintsDecision
-from app.models.office import Office
-from app.models.organisation import Organisation
-from app.models.price_card import PriceCard
-from app.models.regulatory_decision import (
-    RegulatoryDecision,
-    RegulatorySource,
-    SraDecisionType,
-)
-
-engine = create_async_engine(settings.database_url, echo=False)
-SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+from app.models.regulatory_decision import SraDecisionType
 
 # Approximate city-centre lat/lngs for WMCA postcode prefixes.
 CITY = {
@@ -365,6 +363,20 @@ def _office_for(prefix: str, postcode: str, idx: int) -> dict:
 
 
 async def seed() -> None:
+    # Imports deferred so --emit-csvs can run without a reachable DB.
+    from sqlalchemy import delete, select
+    from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+
+    from app.config import settings
+    from app.models.complaints_decision import ComplaintsDecision
+    from app.models.office import Office
+    from app.models.organisation import Organisation
+    from app.models.price_card import PriceCard
+    from app.models.regulatory_decision import RegulatoryDecision, RegulatorySource
+
+    engine = create_async_engine(settings.database_url, echo=False)
+    SessionLocal = async_sessionmaker(engine, expire_on_commit=False)
+
     async with SessionLocal() as db:
         # Wipe any prior synthetic rows so re-runs are clean. Cascading
         # deletes on offices / price_cards / complaints / regulatory all
@@ -460,5 +472,189 @@ async def seed() -> None:
         print("  - 1 intervened (filtered out per Annex One §8.13)")
 
 
-if __name__ == "__main__":
+# ---------------------------------------------------------------------------
+# CSV emission (Phase J ops bootstrap)
+#
+# The real importers (import_sra_csv.py / import_leo_csv.py /
+# import_sra_decisions_csv.py) consume CSVs with specific column shapes.
+# Round-trip the synthetic FIRMS through those shapes so the same data
+# can seed the Railway ops DB via the production ingest path.
+# ---------------------------------------------------------------------------
+
+# Severity band → canonical LeO remedy phrase. Each phrase is one of the
+# entries in import_leo_csv.REMEDY_PHRASE_TO_BAND so the importer maps it
+# back to the same band the synthetic data declared.
+SEVERITY_PHRASE = {
+    0: "No remedy",
+    1: "To apologise",
+    2: "To refund fees already paid",
+    3: "To pay compensation of a specified amount for loss suffered",
+}
+
+
+def _emit_sra_firms_csv(path: Path) -> None:
+    fields = [
+        "Organisation name",
+        "SRA number",
+        "Status",
+        "Address line 1",
+        "Address line 2",
+        "City",
+        "County",
+        "Postcode",
+        "Website",
+        "Phone",
+        "Email",
+    ]
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for spec in FIRMS:
+            (sra, name, postcode, prefix, _enrolled, auth_status, *_rest) = spec
+            primary = _office_for(prefix, postcode, 0)
+            # Seed firms are "Authorised" for SRA-firms-CSV purposes;
+            # interventions are signalled separately via the SRA
+            # decisions CSV (decision_type=intervention).
+            status = "Authorised" if auth_status == "authorised" else auth_status.title()
+            writer.writerow(
+                {
+                    "Organisation name": name,
+                    "SRA number": sra,
+                    "Status": status,
+                    "Address line 1": primary["address_line1"],
+                    "Address line 2": "",
+                    "City": primary["city"],
+                    "County": primary["county"],
+                    "Postcode": primary["postcode"],
+                    "Website": f"https://example.com/{sra}",
+                    "Phone": "0121 000 0000",
+                    "Email": f"hello@{sra}.example.com",
+                }
+            )
+
+
+def _emit_leo_csv(path: Path) -> None:
+    fields = [
+        "decision_id",
+        "sra_number",
+        "decision_date",
+        "provider_type",
+        "poor_service_found",
+        "remedy_type",
+        "remedy_amount",
+        "complaint_handling",
+        "source_url",
+    ]
+    today = date.today()
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for spec in FIRMS:
+            sra = spec[0]
+            complaints = spec[11]
+            for severity, amount, handling, days_ago in complaints:
+                band, _sev_score = severity
+                amt_value, _amt_score = amount
+                writer.writerow(
+                    {
+                        "decision_id": f"LEO-{sra}-{days_ago}",
+                        "sra_number": sra,
+                        "decision_date": (today - timedelta(days=days_ago)).isoformat(),
+                        "provider_type": "Firm SRA",
+                        "poor_service_found": "Yes",
+                        "remedy_type": SEVERITY_PHRASE[band],
+                        "remedy_amount": f"£{amt_value}",
+                        "complaint_handling": "Yes" if handling else "No",
+                        "source_url": (
+                            f"https://www.legalombudsman.org.uk/decisions/{sra}-{days_ago}"
+                        ),
+                    }
+                )
+
+
+def _emit_sra_decisions_csv(path: Path) -> None:
+    fields = [
+        "sra_number",
+        "decision_id",
+        "decision_date",
+        "source",
+        "decision_type",
+        "sdt_fine_amount",
+        "source_url",
+    ]
+    today = date.today()
+    with path.open("w", newline="", encoding="utf-8") as f:
+        writer = csv.DictWriter(f, fieldnames=fields)
+        writer.writeheader()
+        for spec in FIRMS:
+            (sra, _name, _postcode, _prefix, _enrolled, _auth, intervened, *_rest) = spec
+            regulatory = spec[12]
+
+            for source, decision_type, _deduction, sdt_fine, days_ago in regulatory:
+                writer.writerow(
+                    {
+                        "sra_number": sra,
+                        "decision_id": f"{source.upper()}-{sra}-{days_ago}",
+                        "decision_date": (today - timedelta(days=days_ago)).isoformat(),
+                        "source": source,
+                        "decision_type": decision_type.value,
+                        "sdt_fine_amount": str(sdt_fine) if sdt_fine is not None else "",
+                        "source_url": f"https://www.sra.org.uk/decisions/{sra}-{days_ago}",
+                    }
+                )
+
+            # §8.13 — interventions ride in via the decisions CSV so the
+            # importer flips Organisation.intervened. We use a synthetic
+            # decision_id so re-imports stay idempotent.
+            if intervened:
+                writer.writerow(
+                    {
+                        "sra_number": sra,
+                        "decision_id": f"SRA-{sra}-INTERVENTION",
+                        "decision_date": (today - timedelta(days=365)).isoformat(),
+                        "source": "sra",
+                        "decision_type": SraDecisionType.intervention.value,
+                        "sdt_fine_amount": "",
+                        "source_url": f"https://www.sra.org.uk/decisions/{sra}-intervention",
+                    }
+                )
+
+
+def emit_csvs(out_dir: Path) -> None:
+    out_dir.mkdir(parents=True, exist_ok=True)
+    sra_path = out_dir / "sra_firms.csv"
+    leo_path = out_dir / "leo_decisions.csv"
+    decisions_path = out_dir / "sra_decisions.csv"
+
+    _emit_sra_firms_csv(sra_path)
+    _emit_leo_csv(leo_path)
+    _emit_sra_decisions_csv(decisions_path)
+
+    print(f"Wrote {sra_path}")
+    print(f"Wrote {leo_path}")
+    print(f"Wrote {decisions_path}")
+    print()
+    print("Run the real importers against this dataset:")
+    print(f"  python scripts/import_sra_csv.py --csv {sra_path} --geocode")
+    print(f"  python scripts/import_sra_decisions_csv.py --csv {decisions_path}")
+    print(f"  python scripts/import_leo_csv.py --csv {leo_path}")
+
+
+def main() -> None:
+    parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    parser.add_argument(
+        "--emit-csvs",
+        metavar="DIR",
+        help="Write three importer-ready CSVs to DIR and exit (no DB connection).",
+    )
+    args = parser.parse_args()
+
+    if args.emit_csvs:
+        emit_csvs(Path(args.emit_csvs))
+        return
+
     asyncio.run(seed())
+
+
+if __name__ == "__main__":
+    main()

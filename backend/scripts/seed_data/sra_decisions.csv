@@ -1,0 +1,7 @@
+sra_number,decision_id,decision_date,source,decision_type,sdt_fine_amount,source_url
+9000003,SRA-9000003-400,2025-04-05,sra,rebuke,,https://www.sra.org.uk/decisions/9000003-400
+9000005,SRA-9000005-500,2024-12-26,sra,fine_band_b,,https://www.sra.org.uk/decisions/9000005-500
+9000010,SRA-9000010-600,2024-09-17,sra,rebuke,,https://www.sra.org.uk/decisions/9000010-600
+9000010,SDT-9000010-800,2024-03-01,sdt,fine_band_a,8500,https://www.sra.org.uk/decisions/9000010-800
+9000013,SRA-9000013-700,2024-06-09,sra,fine_band_c,,https://www.sra.org.uk/decisions/9000013-700
+9000015,SRA-9000015-INTERVENTION,2025-05-10,sra,intervention,,https://www.sra.org.uk/decisions/9000015-intervention

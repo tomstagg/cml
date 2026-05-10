@@ -1,0 +1,9 @@
+decision_id,sra_number,decision_date,provider_type,poor_service_found,remedy_type,remedy_amount,complaint_handling,source_url
+LEO-9000002-200,9000002,2025-10-22,Firm SRA,Yes,To apologise,£0,No,https://www.legalombudsman.org.uk/decisions/9000002-200
+LEO-9000005-150,9000005,2025-12-11,Firm SRA,Yes,To refund fees already paid,£400,No,https://www.legalombudsman.org.uk/decisions/9000005-150
+LEO-9000005-320,9000005,2025-06-24,Firm SRA,Yes,To apologise,£0,Yes,https://www.legalombudsman.org.uk/decisions/9000005-320
+LEO-9000006-90,9000006,2026-02-09,Firm SRA,Yes,No remedy,£0,No,https://www.legalombudsman.org.uk/decisions/9000006-90
+LEO-9000008-250,9000008,2025-09-02,Firm SRA,Yes,To apologise,£0,No,https://www.legalombudsman.org.uk/decisions/9000008-250
+LEO-9000011-180,9000011,2025-11-11,Firm SRA,Yes,To refund fees already paid,£400,No,https://www.legalombudsman.org.uk/decisions/9000011-180
+LEO-9000013-120,9000013,2026-01-10,Firm SRA,Yes,To pay compensation of a specified amount for loss suffered,£7500,Yes,https://www.legalombudsman.org.uk/decisions/9000013-120
+LEO-9000013-400,9000013,2025-04-05,Firm SRA,Yes,To pay compensation of a specified amount for loss suffered,£2500,No,https://www.legalombudsman.org.uk/decisions/9000013-400
