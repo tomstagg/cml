@@ -563,30 +563,145 @@ restartPolicyMaxRetries = 3
 
 **Frontend Dockerfile notes**:
 - Multi-stage build: deps → builder → runner (node:20-alpine)
-- `NEXT_PUBLIC_API_URL` must be set as a Railway build variable (not just runtime) — it's baked in at `next build`
+- `NEXT_PUBLIC_*` vars are baked in at `next build` — they must be passed as Docker build args via Railway "build variables", not runtime env vars
 - `npm ci` (not `npm install`) to use lockfile for reproducible builds
 
-**Environment variables** — set in Railway dashboard per service:
+### Environment variables
 
-Backend:
+Set in the Railway dashboard per service. Anything marked **required** will leave a feature broken (or the service refusing to start) if absent.
 
-| Variable | Purpose |
+**Backend** (runtime env):
+
+| Variable | Required? | Purpose |
+|---|---|---|
+| `DATABASE_URL` | ✅ | Railway PG addon reference; `postgresql://` is auto-converted to `postgresql+asyncpg://` by `config.py` |
+| `SECRET_KEY` | ✅ | JWT signing + HMAC follow-up tokens. Random 32+ chars. |
+| `ADMIN_API_KEY` | ✅ | Header value for `/api/admin/*` (`X-Admin-Key`). Must be non-empty or every admin route 401s. |
+| `ENVIRONMENT` | ✅ | `production` — enables HSTS in the security-headers middleware (`app/main.py`) |
+| `APP_URL` | ✅ | Frontend public URL (e.g. `https://choosemylawyer.co.uk`). Used in email links, save-for-later URLs, conflict-check deep links. |
+| `API_URL` | ✅ | Backend public URL. Currently logged on startup; reserve for future use. |
+| `CORS_ORIGINS` | ✅ | Comma-separated. Must include both the Railway subdomain and the production custom domain during cutover (e.g. `https://cml-frontend.up.railway.app,https://choosemylawyer.co.uk,https://www.choosemylawyer.co.uk`) |
+| `SPARKPOST_API_KEY` | ✅ for emails | Without this, every email path silently no-ops (logged only) |
+| `SPARKPOST_FROM_EMAIL` | ✅ for emails | Must match a verified Sparkpost sending domain. Also receives the BCC of every Proceed/Callback firm email. |
+| `SPARKPOST_FROM_NAME` | optional | Default `Choose My Lawyer` |
+| `GOOGLE_PLACES_API_KEY` | optional | Weekly Google reviews sync; without it the scheduler job no-ops |
+| `FETCHIFY_API_KEY` | optional | Postcode → lat/lng. Without it the distance factor falls back to no distance score; the rest of ranking still works |
+| `JWT_ALGORITHM`, `JWT_EXPIRY_HOURS` | optional | Defaults `HS256`, `24` |
+| `REVIEW_INVITATION_DELAY_DAYS`, `REVIEW_INVITATION_EXPIRY_DAYS` | optional | Defaults `60`, `30` (Phase F) |
+| `PROCEED_FOLLOWUP_WORKING_DAYS` | optional | Default `5` |
+| `EXCLUDED_DISBURSEMENTS_URL` | optional | Default `https://choosemylawyer.co.uk/disbursements` (linked from Proceed user-copy email) |
+| `RATE_LIMIT_PUBLIC`, `RATE_LIMIT_LOGIN` | optional | Defaults `100`, `5` (per-IP, per-minute) |
+
+**Frontend** (build args + minimal runtime):
+
+| Variable | Where set | Purpose |
+|---|---|---|
+| `NEXT_PUBLIC_API_URL` | Railway **build variable** | Backend public URL. Baked into the browser bundle by `next build` — runtime-only env will not work. |
+| `NEXT_PUBLIC_META_PIXEL_ID` | Railway **build variable** | Meta Pixel ID. Without this the `<MetaPixel />` component renders nothing and Meta tracking is silently disabled even if consent is granted. |
+
+### Cloudflare DNS
+
+Production domain: `choosemylawyer.co.uk`. Proxied through Cloudflare; Railway terminates TLS upstream so set Cloudflare to **Full (strict)** SSL mode.
+
+| Type | Name | Target | Notes |
+|---|---|---|---|
+| CNAME | `@` (apex) or `choosemylawyer.co.uk` | Railway frontend public URL | Cloudflare CNAME flattening lets you CNAME the apex |
+| CNAME | `www` | Same as apex | Redirect to apex via Cloudflare page rule, or serve directly |
+| CNAME | `api` | Railway backend public URL | Backend service domain. Add `https://api.choosemylawyer.co.uk` to backend `CORS_ORIGINS` is **not** needed (it's the API itself); but `NEXT_PUBLIC_API_URL` should point here. |
+| TXT | `@` | Sparkpost SPF (`v=spf1 include:sparkpostmail.com ~all`) | From Sparkpost dashboard |
+| TXT | `scph0125._domainkey` (or similar) | Sparkpost DKIM record | From Sparkpost dashboard — the selector name comes from your Sparkpost setup |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:postmaster@choosemylawyer.co.uk` | Start with `p=none` for monitoring; tighten later |
+
+After DNS resolves, in Railway add custom domains to each service (frontend gets `choosemylawyer.co.uk` + `www`; backend gets `api`). Railway issues TLS certs automatically.
+
+### Go-live checklist
+
+- [ ] Railway PG addon provisioned; `DATABASE_URL` reference set on backend service
+- [ ] All **required** backend env vars set (table above); deploy is green
+- [ ] `NEXT_PUBLIC_API_URL` and `NEXT_PUBLIC_META_PIXEL_ID` set as Railway **build** variables on the frontend service; rebuild has run (not just redeploy)
+- [ ] `CORS_ORIGINS` includes the production domain(s)
+- [ ] Sparkpost sending domain verified; SPF/DKIM/DMARC records propagated
+- [ ] First deploy: `alembic upgrade head` ran cleanly (logged in `start.sh` output)
+- [ ] Ops data bootstrap done — see "Ops data bootstrap" below; final `seed_price_cards.py` run shows enrolled firms with active price cards
+- [ ] `scripts/smoke_test.py --base-url https://api.choosemylawyer.co.uk --admin-key $ADMIN_API_KEY` passes against production
+- [ ] Cookie consent banner appears in incognito on `https://choosemylawyer.co.uk`; rejecting hides it; accepting loads `fbevents.js`
+- [ ] Meta Events Manager test-events viewer shows live PageView + IntakeStarted while clicking through
+- [ ] Manual Proceed click confirms firm receives email **from the user's name** (display name + reply-to), CML BCC arrives in `SPARKPOST_FROM_EMAIL` inbox
+- [ ] HSTS header present on backend response (`curl -I https://api.choosemylawyer.co.uk/health` shows `Strict-Transport-Security`)
+
+---
+
+## Ops data bootstrap
+
+The Railway DB starts empty. Until curated SRA / LeO / SRA-decisions CSVs are ready, a 15-firm synthetic dataset under `backend/scripts/seed_data/` bootstraps a representative ops environment. The same importers that consume real data also consume these — there is no separate "demo" code path.
+
+### 1. (Re)generate the seed CSVs
+
+Already committed; re-run only if `seed_synthetic.py`'s in-memory firm spec changes:
+
+```bash
+docker-compose exec backend python scripts/seed_synthetic.py --emit-csvs scripts/seed_data
+```
+
+The script does not connect to the database in this mode. It writes three importer-shaped files:
+
+- `sra_firms.csv` — 15 firms spread across all five WMCA postcode prefixes (B / CV / DY / WV / WS)
+- `leo_decisions.csv` — 8 LeO complaints decisions covering every severity band + amount band the runtime ranker needs to exercise
+- `sra_decisions.csv` — 5 SRA / SDT decisions plus 1 intervention row
+
+### 2. Load into the ops DB
+
+Run the three importers against the backend service in order. SRA firms must come first so the decision importers can resolve `sra_number → org_id`:
+
+```bash
+# From a Railway shell on the backend service (or docker-compose exec backend locally):
+python scripts/import_sra_csv.py --csv scripts/seed_data/sra_firms.csv --geocode
+python scripts/import_sra_decisions_csv.py --csv scripts/seed_data/sra_decisions.csv
+python scripts/import_leo_csv.py --csv scripts/seed_data/leo_decisions.csv
+python scripts/seed_price_cards.py
+```
+
+Expected counts on a clean DB:
+
+| Importer | Result |
 |---|---|
-| `DATABASE_URL` | Railway provides as `postgresql://...` — config.py auto-converts to `asyncpg` |
-| `SECRET_KEY` | Random 32+ char string for JWT signing |
-| `ENVIRONMENT` | `production` |
-| `APP_URL` | Frontend Railway domain (e.g. `https://cml-frontend.up.railway.app`) |
-| `API_URL` | Backend Railway domain |
-| `CORS_ORIGINS` | Comma-separated — include Railway domain + custom domain |
-| `SPARKPOST_API_KEY` | Email |
-| `GOOGLE_PLACES_API_KEY` | Review sync |
-| `FETCHIFY_API_KEY` | Geocoding |
+| `import_sra_csv` | 14 created, 1 skipped (firm 9000006 has `auth_status="conditions"` — the SRA importer's production filter accepts authorised firms only, by design) |
+| `import_sra_decisions_csv` | 5 decisions created, 1 intervention flagged on firm 9000015 |
+| `import_leo_csv` | 7 decisions created, 1 skipped (the row for firm 9000006, dropped above) |
+| `seed_price_cards` | 5 active price cards created (one per enrolled firm; 9000006 skipped because the org is missing) |
 
-Frontend:
+All three CSV importers are idempotent — they upsert by `sra_number` (firms) or `decision_id` (decisions), so re-running is safe. `seed_price_cards.py` upserts the single active card per (org, practice_area) so re-running replaces in place rather than duplicating.
 
-| Variable | Purpose |
-|---|---|
-| `NEXT_PUBLIC_API_URL` | Backend public URL — **build variable**, not runtime |
+**Pricing source of truth.** The MVP has no admin pricing form — every WMCA firm is priced by the founder. Annex One §3 requires the full market to be ranked, so all firms get a price card; the search service then filters on `enrolled=true` to extract the top-5 contactable. The fee offsets driving each card live in `seed_synthetic.FIRMS`; `seed_price_cards.py` reads the whole list (not just the enrolled subset), upserts a single active card per firm, and flips `Organisation.enrolled=True` for those marked enrolled. The firm-portal `/enroll/{token}` flow exists but is bypassed for the pilot — the script is canonical. To onboard a real firm, edit FIRMS with `enrolled=True` plus the negotiated `fee_offset`, run `import_sra_csv.py` if the org isn't already there, then re-run `seed_price_cards.py`.
+
+### 4. End-to-end smoke test
+
+Once the dataset is loaded, drive the system through a full user journey to confirm everything works:
+
+```bash
+docker-compose exec backend python scripts/smoke_test.py \
+  --admin-key "$ADMIN_API_KEY"
+```
+
+Or against a deployed environment:
+
+```bash
+docker-compose exec backend python scripts/smoke_test.py \
+  --base-url https://api.choosemylawyer.co.uk \
+  --admin-key "$ADMIN_API_KEY"
+```
+
+The script exercises 10 checkpoints — health, session creation, all 13 intake answers, balanced + reputation-priority ranking with §8.13 intervention filter, complaints + regulatory source URL render, Proceed appointment, admin conflict-check, analytics event capture, admin CSV export — and exits non-zero on any failure. Manual checks the script *can't* automate are listed in PLAN.md "Verification" (Sparkpost inbox confirmation that firm emails arrive in the user's name, Meta Events Manager test-events viewer, browser cookie banner UX).
+
+### 3. Replacing the synthetic dataset
+
+When curated real CSVs land, point the importers at them instead. The synthetic firms occupy SRA numbers `9000000–9000099`, namespaced clear of any real SRA range, and can be wiped from the ops DB with:
+
+```sql
+DELETE FROM organisations WHERE sra_number LIKE '90000%';
+```
+
+Cascading FKs remove the dependent `offices`, `price_cards`, `complaints_decisions` and `regulatory_decisions` rows automatically.
 
 ---
 

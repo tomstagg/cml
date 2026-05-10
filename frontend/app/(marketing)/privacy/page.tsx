@@ -67,8 +67,12 @@ export default function PrivacyPage() {
 
         <h2>7. Cookies</h2>
         <p>
-          We use essential cookies only. See our{" "}
-          <a href="/cookies">Cookie Policy</a> for details.
+          We use essential cookies that are required for the site to function (e.g. remembering your
+          progress through the conveyancing intake). With your consent we also use marketing and
+          analytics cookies to measure campaign performance via Meta Pixel and to capture
+          first-party funnel events. You can choose to accept or reject the optional cookies via
+          the banner shown on your first visit; your choice is stored in your browser and can be
+          changed at any time by clearing your browser&apos;s site data for choosemylawyer.co.uk.
         </p>
       </div>
     </div>

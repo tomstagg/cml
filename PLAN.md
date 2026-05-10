@@ -402,13 +402,13 @@ Each phase is a roughly-PR-sized chunk. Tasks are checkable and ordered for sens
 - [x] **G3** Apply new palette + gradient pills across firm portal pages.
 
 ### Phase H — Marketing re-skin
-- [ ] **H1** Update `frontend/tailwind.config.ts` and `frontend/app/globals.css` — palette, gradient utilities, pill button radii, card radii, Inter type scale.
-- [ ] **H2** Reskin `Navbar.tsx` (How it works · Legal services · Knowledge · FAQs · Firm Register/Login + gradient "Find a lawyer" pill); `Footer.tsx` (navy → purple gradient). Swap PNG logo refs to `docs/logo.svg`.
-- [ ] **H3** Rewrite `app/(marketing)/page.tsx` per `docs/design/01-home.png`: hero with search input + quick-tag chips → Simplifying access 3-up → Types of legal help tile grid (conveyancing tile active, others greyed) → testimonials → CTA banner.
-- [ ] **H4** Rewrite `app/(marketing)/how-it-works/page.tsx` for conveyancing flow.
-- [ ] **H5** Rewrite `app/(marketing)/for-firms/page.tsx` for conveyancing solicitors.
-- [ ] **H6** Replace `app/(marketing)/probate/` with `app/(marketing)/conveyancing/page.tsx` (SEO landing).
-- [ ] **H7** Light updates to `contact`, `privacy`, `terms` to drop probate references.
+- [x] **H1** Update `frontend/tailwind.config.ts` and `frontend/app/globals.css` — palette, gradient utilities, pill button radii, card radii, Inter type scale.
+- [x] **H2** Reskin `Navbar.tsx` (How it works · Legal services · Knowledge · FAQs · Firm Register/Login + gradient "Find a lawyer" pill); `Footer.tsx` (navy → purple gradient). Swap PNG logo refs to `docs/logo.svg`.
+- [x] **H3** Rewrite `app/(marketing)/page.tsx` per `docs/design/01-home.png`: hero with search input + quick-tag chips → Simplifying access 3-up → Types of legal help tile grid (conveyancing tile active, others greyed) → testimonials → CTA banner.
+- [x] **H4** Rewrite `app/(marketing)/how-it-works/page.tsx` for conveyancing flow.
+- [x] **H5** Rewrite `app/(marketing)/for-firms/page.tsx` for conveyancing solicitors.
+- [x] **H6** Replace `app/(marketing)/probate/` with `app/(marketing)/conveyancing/page.tsx` (SEO landing).
+- [x] **H7** Light updates to `contact`, `privacy`, `terms` to drop probate references.
 
 ### Phase I — Analytics + Meta Pixel
 - [x] **I1** Add Meta Pixel `<Script>` in root layout. Env var `NEXT_PUBLIC_META_PIXEL_ID`.
@@ -420,10 +420,10 @@ Each phase is a roughly-PR-sized chunk. Tasks are checkable and ordered for sens
 - [ ] **J1** Refresh SRA firm import: `scripts/import_sra_csv.py --csv … --region "WMCA" --geocode` over WMCA postcodes.
 - [ ] **J2** Run `scripts/import_leo_csv.py` for those firms (latest LeO publication snapshot).
 - [ ] **J3** Run `scripts/import_sra_decisions_csv.py` for those firms (latest SRA decisions snapshot).
-- [ ] **J4** Pre-load Quoted Prices for participating firms (admin form or seed script).
-- [ ] **J5** Cookie consent banner.
-- [ ] **J6** End-to-end smoke test (see Verification below).
-- [ ] **J7** Railway deploy + env vars; Cloudflare DNS for production domain.
+- [x] **J4** Pre-load Quoted Prices for participating firms via `scripts/seed_price_cards.py` (admin form deferred — redundant for MVP).
+- [x] **J5** Cookie consent banner gating Meta Pixel + backend `analytics_events` mirror; persists choice in localStorage.
+- [x] **J6** End-to-end smoke test (`scripts/smoke_test.py`); manual sub-checks (Sparkpost inbox, Meta Events Manager, browser banner UX) per Verification below.
+- [x] **J7** Railway env-var audit + Cloudflare DNS / SPF / DKIM / DMARC schema documented in README "Deployment (Railway)" with go-live checklist; frontend Dockerfile now accepts `NEXT_PUBLIC_META_PIXEL_ID` build arg (was missing — Pixel would have shipped disabled).
 
 ---
 
