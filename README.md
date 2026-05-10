@@ -651,49 +651,98 @@ The script does not connect to the database in this mode. It writes three import
 
 ### 2. Load into the ops DB
 
-Run the three importers against the backend service in order. SRA firms must come first so the decision importers can resolve `sra_number → org_id`:
+The four scripts must be run **in order** — SRA firms first so the decision importers can resolve `sra_number → org_id`; price cards last because they upsert pricing onto orgs that already exist:
 
 ```bash
-# From a Railway shell on the backend service (or docker-compose exec backend locally):
 python scripts/import_sra_csv.py --csv scripts/seed_data/sra_firms.csv --geocode
 python scripts/import_sra_decisions_csv.py --csv scripts/seed_data/sra_decisions.csv
 python scripts/import_leo_csv.py --csv scripts/seed_data/leo_decisions.csv
 python scripts/seed_price_cards.py
 ```
 
-Expected counts on a clean DB:
+#### Running against Railway from your laptop
+
+The Railway CLI's `railway shell` **does not SSH into a container** — it opens a local subshell with Railway env vars exported. That means:
+
+- The script runs on your laptop, using your project's local Python venv (so use `uv run python …` from the `backend/` directory).
+- `DATABASE_URL` is exported pointing at Railway's **internal** Postgres hostname (`postgres.railway.internal`), which is unreachable from outside Railway's network. You must override it with the **public** TCP-proxy URL for the duration of the import.
+
+Two safe ways to get the public URL:
+
+```bash
+# CLI:
+railway variables --service Postgres | grep -i DATABASE_PUBLIC_URL
+
+# Or dashboard: Postgres service → Variables tab → DATABASE_PUBLIC_URL
+# (or Connect tab → Public Network)
+```
+
+It looks like `postgresql://postgres:<password>@<host>.proxy.rlwy.net:<port>/railway` — **must** start with `postgresql://` or `postgres://`; SQLAlchemy rejects URLs without a scheme.
+
+Full procedure:
+
+```bash
+# 1. Open a Railway subshell (this exports env vars locally — internal DATABASE_URL):
+cd backend
+railway shell
+
+# 2. Override DATABASE_URL with the public proxy URL for laptop access:
+export DATABASE_URL="postgresql://postgres:<password>@<host>.proxy.rlwy.net:<port>/railway"
+
+# 3. Sanity-check the override:
+echo "${DATABASE_URL:0:30}…"
+# Should print "postgresql://postgres:…@<host>.proxy.rlwy.net" — NOT "postgres.railway.internal"
+
+# 4. Run the four importers via the local venv:
+uv run python scripts/import_sra_csv.py --csv scripts/seed_data/sra_firms.csv --geocode
+uv run python scripts/import_sra_decisions_csv.py --csv scripts/seed_data/sra_decisions.csv
+uv run python scripts/import_leo_csv.py --csv scripts/seed_data/leo_decisions.csv
+uv run python scripts/seed_price_cards.py
+
+# 5. Exit the subshell so DATABASE_URL drops back to your local dev value:
+exit
+```
+
+⚠ **Never overwrite the backend service's `DATABASE_URL` in Railway** — it must stay the internal hostname so the deployed service uses the private network (faster, free intra-region traffic). The override above is local-shell-only.
+
+#### Expected counts on a clean DB
 
 | Importer | Result |
 |---|---|
 | `import_sra_csv` | 14 created, 1 skipped (firm 9000006 has `auth_status="conditions"` — the SRA importer's production filter accepts authorised firms only, by design) |
 | `import_sra_decisions_csv` | 5 decisions created, 1 intervention flagged on firm 9000015 |
 | `import_leo_csv` | 7 decisions created, 1 skipped (the row for firm 9000006, dropped above) |
-| `seed_price_cards` | 5 active price cards created (one per enrolled firm; 9000006 skipped because the org is missing) |
+| `seed_price_cards` | 14 created, 0 updated, 1 skipped (9000006); 5 newly enrolled |
 
 All three CSV importers are idempotent — they upsert by `sra_number` (firms) or `decision_id` (decisions), so re-running is safe. `seed_price_cards.py` upserts the single active card per (org, practice_area) so re-running replaces in place rather than duplicating.
 
 **Pricing source of truth.** The MVP has no admin pricing form — every WMCA firm is priced by the founder. Annex One §3 requires the full market to be ranked, so all firms get a price card; the search service then filters on `enrolled=true` to extract the top-5 contactable. The fee offsets driving each card live in `seed_synthetic.FIRMS`; `seed_price_cards.py` reads the whole list (not just the enrolled subset), upserts a single active card per firm, and flips `Organisation.enrolled=True` for those marked enrolled. The firm-portal `/enroll/{token}` flow exists but is bypassed for the pilot — the script is canonical. To onboard a real firm, edit FIRMS with `enrolled=True` plus the negotiated `fee_offset`, run `import_sra_csv.py` if the org isn't already there, then re-run `seed_price_cards.py`.
 
-### 4. End-to-end smoke test
+### 3. End-to-end smoke test
 
-Once the dataset is loaded, drive the system through a full user journey to confirm everything works:
+Once the dataset is loaded, drive the system through a full user journey to confirm everything works. Unlike the importers, the smoke test only needs to reach the backend's **public HTTP API** — it never connects directly to the database, so no `DATABASE_URL` override is needed.
+
+Locally against docker-compose:
 
 ```bash
 docker-compose exec backend python scripts/smoke_test.py \
   --admin-key "$ADMIN_API_KEY"
 ```
 
-Or against a deployed environment:
+Against Railway from your laptop (requires `ADMIN_API_KEY` to be set in the Railway dashboard first — see "Environment variables" above):
 
 ```bash
-docker-compose exec backend python scripts/smoke_test.py \
+cd backend
+railway shell
+uv run python scripts/smoke_test.py \
   --base-url https://api.choosemylawyer.co.uk \
   --admin-key "$ADMIN_API_KEY"
+exit
 ```
 
 The script exercises 10 checkpoints — health, session creation, all 13 intake answers, balanced + reputation-priority ranking with §8.13 intervention filter, complaints + regulatory source URL render, Proceed appointment, admin conflict-check, analytics event capture, admin CSV export — and exits non-zero on any failure. Manual checks the script *can't* automate are listed in PLAN.md "Verification" (Sparkpost inbox confirmation that firm emails arrive in the user's name, Meta Events Manager test-events viewer, browser cookie banner UX).
 
-### 3. Replacing the synthetic dataset
+### 4. Replacing the synthetic dataset
 
 When curated real CSVs land, point the importers at them instead. The synthetic firms occupy SRA numbers `9000000–9000099`, namespaced clear of any real SRA range, and can be wiped from the ops DB with:
 
