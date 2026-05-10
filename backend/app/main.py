@@ -6,23 +6,25 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
-from slowapi.util import get_remote_address
 
 from app.config import settings
 from app.dependencies import verify_admin_api_key
+from app.limiter import limiter
 from app.tasks.review_sync import start_scheduler, stop_scheduler
 
 # API routers
-from app.api.public import sessions, search, appointments, reviews as public_reviews
+from app.api.public import sessions, search, appointments, events, reviews as public_reviews
 from app.api.firm import auth, profile, pricing, dashboard, reviews as firm_reviews
-from app.api.admin import appointments as admin_appointments, organisations
+from app.api.admin import (
+    analytics as admin_analytics,
+    appointments as admin_appointments,
+    organisations,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-limiter = Limiter(key_func=get_remote_address)
 
 
 @asynccontextmanager
@@ -80,6 +82,7 @@ async def health_check():
 app.include_router(sessions.router, prefix="/api/public")
 app.include_router(search.router, prefix="/api/public")
 app.include_router(appointments.router, prefix="/api/public")
+app.include_router(events.router, prefix="/api/public")
 app.include_router(public_reviews.router, prefix="/api/public")
 
 # Mount firm API
@@ -99,6 +102,11 @@ app.include_router(
 )
 app.include_router(
     admin_appointments.router,
+    prefix="/api/admin",
+    dependencies=[Depends(verify_admin_api_key)],
+)
+app.include_router(
+    admin_analytics.router,
     prefix="/api/admin",
     dependencies=[Depends(verify_admin_api_key)],
 )

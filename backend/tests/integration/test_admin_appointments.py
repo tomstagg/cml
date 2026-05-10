@@ -1,20 +1,14 @@
 """Integration tests for POST /api/admin/appointments/{id}/conflict-check."""
 
-import os
 import uuid
 from datetime import datetime, timedelta, timezone
 from unittest.mock import AsyncMock, patch
 
 import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
 
 from app.models.appointment import Appointment, AppointmentType, ConflictCheckOutcome
 from app.models.chat_session import ChatSession
-
-_verify_engine = create_async_engine(os.environ["DATABASE_URL"], poolclass=NullPool)
-_verify_factory = async_sessionmaker(_verify_engine, expire_on_commit=False)
 
 
 @pytest_asyncio.fixture
@@ -53,7 +47,9 @@ async def test_conflict_check_requires_admin_key(client, proceed_appointment):
     assert resp.status_code == 401
 
 
-async def test_conflict_check_clear_does_not_email(admin_client, proceed_appointment, db_session):
+async def test_conflict_check_clear_does_not_email(
+    admin_client, proceed_appointment, verify_session
+):
     with patch(
         "app.api.admin.appointments.send_conflict_check_failed", new_callable=AsyncMock
     ) as mock_email:
@@ -65,11 +61,10 @@ async def test_conflict_check_clear_does_not_email(admin_client, proceed_appoint
     assert resp.json()["conflict_check_outcome"] == "clear"
     mock_email.assert_not_called()
 
-    async with _verify_factory() as fresh:
-        refreshed = await fresh.execute(
-            select(Appointment).where(Appointment.id == proceed_appointment.id)
-        )
-        assert refreshed.scalar_one().conflict_check_outcome == ConflictCheckOutcome.clear
+    refreshed = await verify_session.execute(
+        select(Appointment).where(Appointment.id == proceed_appointment.id)
+    )
+    assert refreshed.scalar_one().conflict_check_outcome == ConflictCheckOutcome.clear
 
 
 async def test_conflict_check_conflict_emails_user(admin_client, proceed_appointment):

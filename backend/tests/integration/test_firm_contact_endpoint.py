@@ -1,20 +1,14 @@
 """Integration tests for GET /api/public/appointments/{id}/firm-contact."""
 
-import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest_asyncio
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-from sqlalchemy.pool import NullPool
 
 from app.models.appointment import Appointment, AppointmentType
 from app.models.chat_session import ChatSession
 from app.services.followup_tokens import make_followup_token
-
-_verify_engine = create_async_engine(os.environ["DATABASE_URL"], poolclass=NullPool)
-_verify_factory = async_sessionmaker(_verify_engine, expire_on_commit=False)
 
 
 @pytest_asyncio.fixture
@@ -43,7 +37,7 @@ async def callback_appointment(db_session, enrolled_org):
     return appt
 
 
-async def test_firm_contact_yes_sets_flag_true(client, callback_appointment, db_session):
+async def test_firm_contact_yes_sets_flag_true(client, callback_appointment, verify_session):
     token = make_followup_token(callback_appointment.id, True)
     resp = await client.get(
         f"/api/public/appointments/{callback_appointment.id}/firm-contact",
@@ -52,14 +46,13 @@ async def test_firm_contact_yes_sets_flag_true(client, callback_appointment, db_
     assert resp.status_code == 200
     assert "Thanks" in resp.text
 
-    async with _verify_factory() as fresh:
-        refreshed = await fresh.execute(
-            select(Appointment).where(Appointment.id == callback_appointment.id)
-        )
-        assert refreshed.scalar_one().firm_contact_made is True
+    refreshed = await verify_session.execute(
+        select(Appointment).where(Appointment.id == callback_appointment.id)
+    )
+    assert refreshed.scalar_one().firm_contact_made is True
 
 
-async def test_firm_contact_no_sets_flag_false(client, callback_appointment, db_session):
+async def test_firm_contact_no_sets_flag_false(client, callback_appointment, verify_session):
     token = make_followup_token(callback_appointment.id, False)
     resp = await client.get(
         f"/api/public/appointments/{callback_appointment.id}/firm-contact",
@@ -67,11 +60,10 @@ async def test_firm_contact_no_sets_flag_false(client, callback_appointment, db_
     )
     assert resp.status_code == 200
 
-    async with _verify_factory() as fresh:
-        refreshed = await fresh.execute(
-            select(Appointment).where(Appointment.id == callback_appointment.id)
-        )
-        assert refreshed.scalar_one().firm_contact_made is False
+    refreshed = await verify_session.execute(
+        select(Appointment).where(Appointment.id == callback_appointment.id)
+    )
+    assert refreshed.scalar_one().firm_contact_made is False
 
 
 async def test_firm_contact_invalid_token_returns_403(client, callback_appointment):
