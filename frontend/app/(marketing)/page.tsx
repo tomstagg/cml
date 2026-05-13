@@ -1,13 +1,16 @@
 import type { Metadata } from "next";
+import Image from "next/image";
 import Link from "next/link";
 import {
   ArrowRight,
   ClipboardList,
   PhoneCall,
+  Scale,
   Search,
-  ShieldCheck,
+  Sparkles,
   Star,
 } from "lucide-react";
+import { HeroSearch } from "@/components/marketing/HeroSearch";
 
 export const metadata: Metadata = {
   title: "Choose My Lawyer — Find a conveyancing solicitor",
@@ -15,30 +18,39 @@ export const metadata: Metadata = {
     "Compare residential conveyancing solicitors across the West Midlands. Independent, transparent quotes ranked on price, reputation, complaints, regulation and distance.",
 };
 
-const steps = [
+const howItWorks = [
   {
-    n: "1",
+    icon: ClipboardList,
     title: "Tell us about your property",
-    body: [
-      "Our guided chat asks a short set of questions about your purchase or sale: purchase price, tenure, postcode, mortgage, and a few extras (new build, Help to Buy ISA, shared ownership). Takes about 3 minutes.",
-      "Your answers feed straight into the price and ranking calculations — there's no rough estimating.",
-    ],
+    body: "Answer a short, guided chat about your purchase or sale — price, tenure, postcode, mortgage. Takes about three minutes.",
   },
   {
-    n: "2",
-    title: "Compare regulated firms side-by-side",
-    body: [
-      "We rank every in-scope SRA-authorised firm in the West Midlands using a deterministic six-factor scorecard: price, reputation, complaints history, regulatory history, distance and number of offices.",
-      "Each result shows the comparable Total Effective Price (legal fees + applicable VAT + included disbursements), plus star ratings and complaints/regulatory bands. Sort the full table by any factor.",
-    ],
+    icon: Search,
+    title: "Compare regulated firms",
+    body: "Every in-scope SRA-authorised firm is ranked side-by-side on price, reputation, complaints, regulation, distance and offices.",
   },
   {
-    n: "3",
+    icon: PhoneCall,
     title: "Proceed or request a callback",
-    body: [
-      "Click Proceed to instruct a single firm, or Request a callback with up to five. Both actions send an email introduction in your name — not from CML.",
-      "We'll follow up by email to make sure the firm has been in touch, and again at the 5-working-day mark to flag any price drift.",
-    ],
+    body: "Instruct a single firm, or ask up to five for a callback. The firm hears from you directly — no cold leads, no hard sell.",
+  },
+];
+
+const valueProps = [
+  {
+    icon: Scale,
+    title: "Whole-of-market ranking",
+    body: "Every in-scope SRA-authorised firm appears in your results — not just the ones who pay us.",
+  },
+  {
+    icon: Search,
+    title: "Six-factor scorecard",
+    body: "Price, reputation, complaints, regulation, distance and offices — same inputs, same ranking, every time.",
+  },
+  {
+    icon: PhoneCall,
+    title: "Introductions in your name",
+    body: "Proceed or request a callback and the firm emails you directly — no cold leads, no hard sell.",
   },
 ];
 
@@ -60,6 +72,28 @@ const testimonials = [
       "Picked a firm on a Saturday morning and they called me back on Monday. Genuinely smoother than I expected.",
     name: "Priya S.",
     location: "Wolverhampton",
+  },
+];
+
+// Placeholder photography — swap for licensed shots before launch.
+const articles = [
+  {
+    tag: "Buying",
+    title: "What to expect when buying a house in the West Midlands",
+    meta: "CML Editorial · 6 min read",
+    image: "https://images.unsplash.com/photo-1560518883-ce09059eeffa?auto=format&fit=crop&w=800&q=70",
+  },
+  {
+    tag: "Pricing",
+    title: "Disbursements, demystified: what's really in your conveyancing quote",
+    meta: "CML Editorial · 4 min read",
+    image: "https://images.unsplash.com/photo-1450101499163-c8848c66ca85?auto=format&fit=crop&w=800&q=70",
+  },
+  {
+    tag: "Regulation",
+    title: "How the SRA and the Legal Ombudsman protect you",
+    meta: "CML Editorial · 5 min read",
+    image: "https://images.unsplash.com/photo-1554224155-6726b3ff858f?auto=format&fit=crop&w=800&q=70",
   },
 ];
 
@@ -97,34 +131,33 @@ export default function HomePage() {
       <section className="relative overflow-hidden bg-navy text-white">
         <div
           aria-hidden
-          className="absolute inset-0 -z-10 opacity-40 [background-image:radial-gradient(ellipse_at_top,rgba(151,71,255,0.45),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(10,229,246,0.18),transparent_45%)]"
+          className="absolute inset-0 -z-10 opacity-70 [background-image:radial-gradient(ellipse_at_top,rgba(151,71,255,0.55),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(10,229,246,0.25),transparent_45%)]"
         />
+        <div aria-hidden className="absolute inset-0 -z-10 decorative-lines opacity-30" />
         <div className="section-container py-24 sm:py-32">
           <div className="max-w-3xl mx-auto text-center">
-            <p className="text-teal font-semibold mb-4 tracking-wide uppercase text-sm">
+            <span className="eyebrow text-teal mb-5">
               West Midlands · Conveyancing solicitors
-            </p>
-            <h1 className="font-bold mb-6">
-              Find the right conveyancer.{" "}
-              <span className="text-white/60">Instantly.</span>
+            </span>
+            <h1 className="font-bold mt-4 mb-5">
+              The smarter way to{" "}
+              <span className="bg-gradient-to-r from-teal to-purple bg-clip-text text-transparent">
+                find your lawyer
+              </span>
+              .
             </h1>
-            <p className="text-lg sm:text-xl text-white/80 mb-10 leading-relaxed">
-              Answer a few simple questions about your property purchase or sale and get a ranked
-              list of SRA-authorised solicitors with transparent quotes — in under 3 minutes.
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <Link href="/chat" className="btn-primary text-base">
-                Get your free quote
-                <ArrowRight className="w-5 h-5" />
-              </Link>
-              <Link
-                href="/how-it-works"
-                className="btn-secondary bg-transparent text-white border-white hover:bg-white/10"
-              >
-                How it works
-              </Link>
+            <div className="flex justify-center mb-8">
+              <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-sm font-medium text-white/85 backdrop-blur">
+                <Sparkles className="w-4 h-4 text-teal" />
+                Powered by specialist AI
+              </span>
             </div>
-            <p className="mt-6 text-white/60 text-sm">
+            <p className="text-lg sm:text-xl text-white/80 mb-10 leading-relaxed max-w-2xl mx-auto">
+              Answer a few simple questions about your property purchase or sale and get a ranked
+              list of SRA-authorised solicitors with transparent quotes — in under three minutes.
+            </p>
+            <HeroSearch />
+            <p className="mt-8 text-white/60 text-sm">
               Free to use · No obligation · 100% independent
             </p>
           </div>
@@ -132,79 +165,74 @@ export default function HomePage() {
       </section>
 
       {/* How it works */}
-      <section className="py-20 bg-white">
-        <div className="section-container max-w-4xl">
-          <div className="text-center mb-14">
-            <h2 className="font-bold text-navy mb-3">How Choose My Lawyer works</h2>
-            <p className="text-ink-muted max-w-2xl mx-auto">
-              Buying or selling a home doesn't have to mean opaque pricing or endless phone calls.
-              Here's how we make conveyancing simple.
+      <section className="py-20 bg-surface-muted">
+        <div className="section-container">
+          <div className="text-center mb-14 max-w-2xl mx-auto">
+            <span className="eyebrow mb-3">How it works</span>
+            <h2 className="font-bold text-navy mt-3">From question to quote in three minutes</h2>
+            <p className="text-ink-muted mt-4">
+              No phone tag, no opaque pricing. Three short steps from a guided intake to a ranked
+              shortlist of regulated solicitors.
             </p>
           </div>
-          <div className="space-y-12">
-            {steps.map((step) => (
-              <div key={step.n} className="flex gap-6">
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-gradient-hero text-white flex items-center justify-center font-bold text-lg shadow-soft">
-                  {step.n}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {howItWorks.map(({ icon: Icon, title, body }, i) => (
+              <div key={title} className="card p-7 relative">
+                <span className="absolute right-6 top-6 text-5xl font-bold text-surface-muted leading-none select-none">
+                  {String(i + 1).padStart(2, "0")}
+                </span>
+                <div className="w-12 h-12 rounded-2xl bg-surface-alt flex items-center justify-center mb-5">
+                  <Icon className="w-6 h-6 text-navy" />
                 </div>
-                <div>
-                  <h3 className="font-bold text-navy mb-3">{step.title}</h3>
-                  {step.body.map((p) => (
-                    <p key={p} className="text-ink-muted leading-relaxed mb-3">
-                      {p}
-                    </p>
-                  ))}
-                </div>
+                <h3 className="font-bold text-navy mb-2">{title}</h3>
+                <p className="text-ink-muted leading-relaxed">{body}</p>
               </div>
             ))}
           </div>
-          <div className="text-center mt-12">
-            <Link href="/chat" className="btn-primary text-base">
-              Start now — it&apos;s free
-              <ArrowRight className="w-5 h-5" />
+          <div className="text-center mt-10">
+            <Link
+              href="/how-it-works"
+              className="inline-flex items-center gap-2 font-semibold text-purple hover:text-navy transition-colors"
+            >
+              Read the full methodology
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
       </section>
 
-      {/* Why trust us */}
-      <section className="py-20 bg-surface-muted">
+      {/* Simplifying access to legal help */}
+      <section className="py-20 bg-white">
         <div className="section-container">
+          <div className="text-center mb-14 max-w-2xl mx-auto">
+            <span className="eyebrow mb-3">What you get</span>
+            <h2 className="font-bold text-navy mt-3">Simplifying access to legal help</h2>
+            <p className="text-ink-muted mt-4">
+              No opaque pricing, no pay-to-rank, no endless phone calls. Conveyancing made
+              comparable.
+            </p>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="card p-7">
-              <ShieldCheck className="w-8 h-8 text-purple mb-4" />
-              <h3 className="font-bold text-navy mb-2">Whole-of-market</h3>
-              <p className="text-ink-muted text-sm leading-relaxed">
-                Every in-scope firm appears in your full results — whether they're enrolled with us
-                or not. We never rank enrolled firms separately.
-              </p>
-            </div>
-            <div className="card p-7">
-              <Search className="w-8 h-8 text-purple mb-4" />
-              <h3 className="font-bold text-navy mb-2">Deterministic ranking</h3>
-              <p className="text-ink-muted text-sm leading-relaxed">
-                Six factors, weighted to 100. No pay-to-rank, no AI guesswork. Same inputs always
-                produce the same rankings — and the methodology is published in full.
-              </p>
-            </div>
-            <div className="card p-7">
-              <PhoneCall className="w-8 h-8 text-purple mb-4" />
-              <h3 className="font-bold text-navy mb-2">Introductions in your name</h3>
-              <p className="text-ink-muted text-sm leading-relaxed">
-                When you Proceed or request a callback, the firm receives an email from you — not a
-                cold lead from CML. We follow up to make sure they got back to you.
-              </p>
-            </div>
+            {valueProps.map(({ icon: Icon, title, body }) => (
+              <div key={title} className="card p-7">
+                <div className="w-14 h-14 rounded-2xl bg-gradient-hero flex items-center justify-center mb-5 shadow-soft">
+                  <Icon className="w-7 h-7 text-white" />
+                </div>
+                <h3 className="font-bold text-navy mb-2">{title}</h3>
+                <p className="text-ink-muted leading-relaxed">{body}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
 
-      {/* Testimonials */}
-      <section className="py-20 bg-white">
+      {/* Why our customers trust us */}
+      <section className="py-20 bg-surface-muted">
         <div className="section-container">
-          <div className="text-center mb-12">
-            <h2 className="font-bold text-navy mb-3">Why our customers trust us</h2>
-            <div className="flex items-center justify-center gap-1 text-purple">
+          <div className="text-center mb-12 max-w-2xl mx-auto">
+            <span className="eyebrow mb-3">Customer stories</span>
+            <h2 className="font-bold text-navy mt-3">Why our customers trust us</h2>
+            <div className="flex items-center justify-center gap-1 text-purple mt-4">
               {[...Array(5)].map((_, i) => (
                 <Star key={i} className="w-5 h-5 fill-current" />
               ))}
@@ -231,19 +259,145 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Your trusted source for clear legal guidance */}
+      <section className="py-24 bg-white">
+        <div className="section-container">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="relative rounded-3xl overflow-hidden aspect-[16/10] lg:aspect-[4/5] shadow-soft order-first">
+              <Image
+                src="https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=70"
+                alt="Two people discussing legal paperwork"
+                fill
+                className="object-cover"
+                sizes="(min-width: 1024px) 50vw, 100vw"
+              />
+              <div className="absolute inset-0 bg-navy/10" />
+            </div>
+            <div>
+              <span className="eyebrow mb-3">Independent &amp; transparent</span>
+              <h2 className="font-bold text-navy mt-3 mb-5">
+                Your trusted source for clear legal guidance
+              </h2>
+              <p className="text-ink-muted leading-relaxed mb-4">
+                Every firm we list is authorised by the Solicitors Regulation Authority and ranked
+                against publicly available data — Legal Ombudsman complaints decisions, SRA and SDT
+                regulatory outcomes, Google reviews, and each firm's own published prices.
+              </p>
+              <p className="text-ink-muted leading-relaxed mb-6">
+                You see the full picture. We make our methodology public, and identical inputs
+                always produce identical rankings.
+              </p>
+              <Link
+                href="/how-it-works"
+                className="inline-flex items-center gap-2 font-semibold text-purple hover:text-navy transition-colors"
+              >
+                How we rank firms
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Making legal choice clearer and faster */}
+      <section className="relative py-24 overflow-hidden bg-gradient-footer text-white">
+        <div aria-hidden className="absolute inset-0 decorative-lines opacity-20" />
+        <div className="section-container relative">
+          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
+            <div className="lg:order-2 relative rounded-3xl overflow-hidden aspect-[16/10] lg:aspect-[4/5] shadow-soft">
+              <Image
+                src="https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&w=1200&q=70"
+                alt="A couple receiving the keys to their new home"
+                fill
+                className="object-cover"
+                sizes="(min-width: 1024px) 50vw, 100vw"
+              />
+              <div className="absolute inset-0 bg-navy/20" />
+            </div>
+            <div className="lg:order-1">
+              <span className="eyebrow text-teal mb-3">Our methodology</span>
+              <h2 className="font-bold mt-3 mb-5">
+                Making legal choice clearer and faster
+              </h2>
+              <p className="text-white/80 leading-relaxed mb-4">
+                Six factors, weighted to a hundred. Reputation and price share the heaviest weights,
+                with complaints and regulatory history giving you the safety net that other
+                comparison sites quietly skip.
+              </p>
+              <p className="text-white/80 leading-relaxed mb-6">
+                Pick a different priority — say, price first or regulatory record first — and the
+                weights rescale around it. No black-box AI, no surprise fees, no pay-to-rank.
+              </p>
+              <Link
+                href="/how-it-works#ranking"
+                className="inline-flex items-center gap-2 font-semibold text-teal hover:text-white transition-colors"
+              >
+                See the methodology
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Legal knowledge that empowers you */}
+      <section className="py-20 bg-white">
+        <div className="section-container">
+          <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-10 gap-4">
+            <div>
+              <span className="eyebrow mb-3">Knowledge hub</span>
+              <h2 className="font-bold text-navy mt-3">Legal knowledge that empowers you</h2>
+            </div>
+            <Link
+              href="#"
+              className="inline-flex items-center gap-2 font-semibold text-purple hover:text-navy transition-colors"
+            >
+              Browse all articles
+              <ArrowRight className="w-4 h-4" />
+            </Link>
+          </div>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {articles.map((a) => (
+              <Link
+                key={a.title}
+                href="#"
+                className="card overflow-hidden flex flex-col hover:-translate-y-1 transition-transform"
+              >
+                <div className="relative aspect-[16/10]">
+                  <Image
+                    src={a.image}
+                    alt=""
+                    fill
+                    className="object-cover"
+                    sizes="(min-width: 768px) 33vw, 100vw"
+                  />
+                  <span className="absolute left-4 top-4 chip text-xs">{a.tag}</span>
+                </div>
+                <div className="p-6 flex flex-col gap-3 flex-1">
+                  <h3 className="text-h5 md:text-h5-md font-bold text-navy leading-snug">
+                    {a.title}
+                  </h3>
+                  <p className="text-sm text-ink-muted mt-auto">{a.meta}</p>
+                </div>
+              </Link>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* FAQs */}
       <section id="faqs" className="py-20 bg-surface-muted scroll-mt-24">
         <div className="section-container max-w-3xl">
           <div className="text-center mb-12">
-            <p className="text-sm uppercase tracking-wide text-purple mb-3">FAQs</p>
-            <h2 className="font-bold text-navy">Frequently asked questions</h2>
+            <span className="eyebrow mb-3">FAQs</span>
+            <h2 className="font-bold text-navy mt-3">Frequently asked questions</h2>
           </div>
-          <div className="space-y-4">
+          <div className="space-y-3">
             {faqs.map(({ q, a }) => (
-              <details key={q} className="card p-6 group">
+              <details key={q} className="card px-6 py-5 group">
                 <summary className="font-semibold text-navy cursor-pointer list-none flex justify-between items-center gap-4">
                   {q}
-                  <span className="text-purple group-open:rotate-45 transition-transform text-xl leading-none">
+                  <span className="text-purple group-open:rotate-45 transition-transform text-2xl leading-none">
                     +
                   </span>
                 </summary>
@@ -260,8 +414,9 @@ export default function HomePage() {
           <div className="rounded-3xl bg-navy text-white p-10 md:p-14 shadow-soft text-center relative overflow-hidden">
             <div
               aria-hidden
-              className="absolute inset-0 opacity-40 [background-image:radial-gradient(ellipse_at_top_left,rgba(151,71,255,0.6),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(10,229,246,0.25),transparent_50%)]"
+              className="absolute inset-0 opacity-50 [background-image:radial-gradient(ellipse_at_top_left,rgba(151,71,255,0.7),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(10,229,246,0.3),transparent_50%)]"
             />
+            <div aria-hidden className="absolute inset-0 decorative-lines opacity-20" />
             <div className="relative">
               <h2 className="font-bold mb-3">Ready to find your conveyancer?</h2>
               <p className="text-white/80 mb-7 max-w-xl mx-auto">

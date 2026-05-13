@@ -5,7 +5,21 @@ import { Instagram, Linkedin, Youtube } from "lucide-react";
 export function Footer() {
   return (
     <footer className="relative overflow-hidden bg-gradient-footer text-white">
-      <div className="section-container py-14">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute -right-24 sm:-right-32 -bottom-32 sm:-bottom-40 h-[480px] w-[480px] sm:h-[720px] sm:w-[720px] bg-white/10"
+        style={{
+          WebkitMaskImage: "url('/logo-mark.svg')",
+          maskImage: "url('/logo-mark.svg')",
+          WebkitMaskRepeat: "no-repeat",
+          maskRepeat: "no-repeat",
+          WebkitMaskPosition: "center",
+          maskPosition: "center",
+          WebkitMaskSize: "contain",
+          maskSize: "contain",
+        }}
+      />
+      <div className="relative section-container py-14">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-10 mb-12">
           <div>
             <Link href="/" className="inline-flex items-center mb-4" aria-label="Choose My Lawyer home">
@@ -81,6 +95,11 @@ export function Footer() {
         <p className="mt-6 text-xs text-white/50 max-w-3xl">
           Choose My Lawyer is an independent comparison service and is not regulated by the
           Solicitors Regulation Authority.
+        </p>
+        <p className="mt-3 text-xs text-white/50 max-w-3xl">
+          However, we&apos;re not a legal firm and we don&apos;t offer legal advice. We provide
+          helpful guides on our site, to give you an understanding of different services, but
+          these can&apos;t be considered legal advice.
         </p>
       </div>
     </footer>
