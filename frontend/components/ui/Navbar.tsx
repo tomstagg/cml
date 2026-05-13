@@ -16,14 +16,14 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-50 bg-white/95 backdrop-blur border-b border-gray-100">
       <div className="section-container">
-        <div className="flex items-center justify-between h-20">
+        <div className="flex items-center justify-between h-24">
           <Link href="/" className="flex items-center" aria-label="Choose My Lawyer home">
             <Image
               src="/logo.png"
               alt="Choose My Lawyer"
-              width={180}
-              height={64}
-              className="h-12 w-auto"
+              width={260}
+              height={88}
+              className="h-16 sm:h-[68px] w-auto"
               priority
             />
           </Link>

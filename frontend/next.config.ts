@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
   },
   images: {
     domains: ["lh3.googleusercontent.com", "maps.gstatic.com"],
+    remotePatterns: [
+      { protocol: "https", hostname: "images.unsplash.com" },
+    ],
   },
 };
 
