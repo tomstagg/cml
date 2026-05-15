@@ -93,7 +93,8 @@ TRUNCATE_SQL = text(
 )
 
 # Canonical conveyancing intake answers — the value for each step is exactly
-# what the chat API would receive over the wire (strings).
+# what the chat API would receive over the wire (strings). Contact details
+# (name/email/phone) are captured at Proceed/Callback, not during intake.
 CONVEYANCING_ANSWERS = {
     "purchase_price": "275000",
     "tenure": "leasehold",
@@ -104,14 +105,9 @@ CONVEYANCING_ANSWERS = {
     "shared_ownership": "no",
     "scorecard_preference": "balanced",
     "include_distance": "yes",
-    "first_name": "Jane",
-    "last_name": "Smith",
-    "email": "jane@example.com",
-    "phone": "07700900123",
 }
 
-# Alias kept so legacy tests/fixtures that still reference ALL_13_ANSWERS work.
-ALL_13_ANSWERS = CONVEYANCING_ANSWERS
+ALL_ANSWERS = CONVEYANCING_ANSWERS
 
 SAMPLE_CONVEYANCING_PRICE_CARD = {
     "practice_area": "residential_conveyancing",
@@ -325,7 +321,7 @@ async def completed_session(db_session):
     session = ChatSession(
         id=uuid.uuid4(),
         practice_area="residential_conveyancing",
-        answers=ALL_13_ANSWERS,
+        answers=ALL_ANSWERS,
         message_history=[],
         expires_at=datetime.now(timezone.utc) + timedelta(days=30),
     )

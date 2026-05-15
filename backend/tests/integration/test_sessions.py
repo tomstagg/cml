@@ -14,10 +14,6 @@ CONVEYANCING_QUESTION_ORDER = [
     "shared_ownership",
     "scorecard_preference",
     "include_distance",
-    "first_name",
-    "last_name",
-    "email",
-    "phone",
 ]
 
 

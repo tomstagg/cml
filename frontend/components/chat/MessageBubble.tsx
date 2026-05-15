@@ -16,10 +16,8 @@ export function MessageBubble({ message }: { message: Message }) {
     <div className={cn("flex", isUser ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[80%] rounded-2xl px-4 py-3 text-sm leading-relaxed animate-fade-in",
-          isUser
-            ? "bg-brand-600 text-white rounded-br-sm"
-            : "bg-white border border-gray-200 text-gray-800 rounded-bl-sm shadow-sm",
+          "max-w-[80%] rounded-2xl px-5 py-3 text-sm leading-relaxed text-navy animate-fade-in",
+          isUser ? "bg-teal" : "bg-mint",
         )}
       >
         {message.content}

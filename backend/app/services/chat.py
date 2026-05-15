@@ -1,4 +1,8 @@
-"""Conveyancing intake flow — 13 steps with validation per requirements §5.1.3."""
+"""Conveyancing intake flow — 9 steps with validation per requirements §5.1.3.
+
+Personal contact details (first/last name, email, phone) are gathered at the
+Proceed / Callback conversion step, not during intake.
+"""
 
 import re
 from typing import Any
@@ -143,38 +147,6 @@ CONVEYANCING_QUESTIONS: list[dict] = [
             },
         ],
     },
-    {
-        "id": "first_name",
-        "step": 10,
-        "section": "Your details",
-        "text": "What's your first name?",
-        "type": "text",
-        "placeholder": "Jane",
-    },
-    {
-        "id": "last_name",
-        "step": 11,
-        "section": "Your details",
-        "text": "And your last name?",
-        "type": "text",
-        "placeholder": "Smith",
-    },
-    {
-        "id": "email",
-        "step": 12,
-        "section": "Your details",
-        "text": "What email address should we use?",
-        "type": "email",
-        "placeholder": "you@example.com",
-    },
-    {
-        "id": "phone",
-        "step": 13,
-        "section": "Your details",
-        "text": "What's the best phone number to reach you on?",
-        "type": "tel",
-        "placeholder": "07700 900123",
-    },
 ]
 
 QUESTION_INDEX: dict[str, int] = {q["id"]: i for i, q in enumerate(CONVEYANCING_QUESTIONS)}
@@ -294,8 +266,4 @@ def get_intake_flags(answers: dict) -> dict[str, Any]:
         "shared_ownership": _yn(answers.get("shared_ownership")),
         "scorecard_preference": answers.get("scorecard_preference", "balanced"),
         "include_distance": _yn(answers.get("include_distance")),
-        "first_name": answers.get("first_name", ""),
-        "last_name": answers.get("last_name", ""),
-        "email": answers.get("email", ""),
-        "phone": answers.get("phone", ""),
     }
