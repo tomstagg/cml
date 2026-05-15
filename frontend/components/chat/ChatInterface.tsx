@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { ArrowLeft, Loader2, Save } from "lucide-react";
+import { ArrowLeft, ArrowUpRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import { sessionsApi } from "@/lib/api";
 import {
@@ -14,11 +14,10 @@ import { MessageBubble } from "./MessageBubble";
 import { OptionChips } from "./OptionChips";
 import { PropertyPostcode } from "./PropertyPostcode";
 import { TextInput } from "./TextInput";
-import { ProgressBar } from "./ProgressBar";
-import { IntakeStepper } from "./IntakeStepper";
+import { ChatSidebar } from "./ChatSidebar";
 import { SaveModal } from "./SaveModal";
 
-const TOTAL_STEPS = 13;
+const TOTAL_STEPS = 9;
 
 type Message = {
   role: "system" | "user";
@@ -84,7 +83,7 @@ export function ChatInterface() {
         const data = (await sessionsApi.schema()) as SchemaResponse;
         if (!cancelled) setSchema(data.questions);
       } catch {
-        // Stepper falls back to step-only display if the schema fails to load.
+        // Sidebar falls back to "answers will appear here" if the schema fails to load.
       }
     })();
 
@@ -117,8 +116,6 @@ export function ChatInterface() {
     try {
       const data = await sessionsApi.get(sessionId);
       setSession(data as Session);
-      // ?revise=1 means the user clicked "Revise answers" on results — don't
-      // bounce them straight back even though the session is complete.
       if ((data as Session).is_complete && !isReviseMode) {
         router.push(`/results/${sessionId}`);
       }
@@ -132,7 +129,6 @@ export function ChatInterface() {
   async function handleAnswer(answer: string | string[]) {
     if (submitting) return;
 
-    // Editing a previously-answered step — patch it without advancing the flow.
     if (editingQuestion) {
       setSubmitting(true);
       try {
@@ -184,18 +180,12 @@ export function ChatInterface() {
     }
   }
 
-  function handleEditStep(questionId: string) {
-    const question = schema?.find((q) => q.id === questionId);
-    if (!question) return;
-    setEditingQuestion(question);
-  }
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
         <div className="text-center">
-          <Loader2 className="w-8 h-8 text-brand-600 animate-spin mx-auto mb-3" />
-          <p className="text-gray-500">Setting up your comparison...</p>
+          <Loader2 className="w-8 h-8 text-purple animate-spin mx-auto mb-3" />
+          <p className="text-ink-muted">Setting up your comparison...</p>
         </div>
       </div>
     );
@@ -204,51 +194,47 @@ export function ChatInterface() {
   if (!session) return null;
 
   const currentStep = session.current_question?.step ?? TOTAL_STEPS;
-  const progress = session.is_complete ? 100 : ((currentStep - 1) / TOTAL_STEPS) * 100;
-  const stepperQuestions = schema ?? [];
   const activeQuestion = editingQuestion ?? session.current_question;
-  const showInput = activeQuestion && (!session.is_complete || editingQuestion);
+  const showFreeTextInput =
+    activeQuestion &&
+    (!session.is_complete || editingQuestion) &&
+    activeQuestion.type !== "single_choice";
+  const showInlineChips =
+    activeQuestion &&
+    (!session.is_complete || editingQuestion) &&
+    activeQuestion.type === "single_choice";
 
   return (
     <div className="flex h-[calc(100vh-64px)]">
-      <IntakeStepper
-        questions={stepperQuestions}
-        currentQuestionId={activeQuestion?.id ?? null}
+      <ChatSidebar
+        questions={schema ?? []}
         answers={session.answers}
-        onEditStep={isReviseMode || session.is_complete ? handleEditStep : undefined}
+        currentStep={currentStep}
+        totalSteps={TOTAL_STEPS}
+        isComplete={session.is_complete}
       />
 
       <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full">
-        <div className="px-4 pt-4 pb-2">
-          <div className="flex items-center justify-between text-sm text-gray-500 mb-2">
-            <span>
+        {(isReviseMode || session.is_complete || editingQuestion) && (
+          <div className="px-4 pt-4 pb-2 flex items-center justify-between text-sm">
+            <span className="text-ink-muted">
               {editingQuestion
                 ? `Editing: ${editingQuestion.text}`
                 : session.is_complete
                   ? "All done!"
-                  : `Question ${currentStep} of ${TOTAL_STEPS}`}
+                  : ""}
             </span>
-            <div className="flex items-center gap-2">
-              {(isReviseMode || session.is_complete) && (
-                <button
-                  onClick={() => router.push(`/results/${session.session_id}`)}
-                  className="btn-ghost text-xs gap-1"
-                  type="button"
-                >
-                  <ArrowLeft className="w-3.5 h-3.5" /> Back to results
-                </button>
-              )}
+            {(isReviseMode || session.is_complete) && (
               <button
-                onClick={() => setSaveModalOpen(true)}
+                onClick={() => router.push(`/results/${session.session_id}`)}
                 className="btn-ghost text-xs gap-1"
                 type="button"
               >
-                <Save className="w-3.5 h-3.5" /> Save for later
+                <ArrowLeft className="w-3.5 h-3.5" /> Back to results
               </button>
-            </div>
+            )}
           </div>
-          <ProgressBar value={progress} />
-        </div>
+        )}
 
         <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4">
           {session.message_history.map((msg, idx) => (
@@ -256,14 +242,14 @@ export function ChatInterface() {
           ))}
 
           {editingQuestion && (
-            <div className="rounded-lg border border-brand-200 bg-brand-50 px-4 py-3 text-sm text-brand-900">
+            <div className="rounded-lg border border-purple/30 bg-purple/5 px-4 py-3 text-sm text-navy">
               <p className="font-medium">{editingQuestion.text}</p>
               {editingQuestion.hint && (
-                <p className="text-xs text-brand-700 mt-1">{editingQuestion.hint}</p>
+                <p className="text-xs text-ink-muted mt-1">{editingQuestion.hint}</p>
               )}
               <button
                 onClick={() => setEditingQuestion(null)}
-                className="text-xs text-brand-700 underline mt-1"
+                className="text-xs text-purple underline mt-1"
                 type="button"
               >
                 Cancel edit
@@ -271,8 +257,18 @@ export function ChatInterface() {
             </div>
           )}
 
+          {showInlineChips && activeQuestion && (
+            <div className="pt-1">
+              <OptionChips
+                options={activeQuestion.options ?? []}
+                onSelect={(value) => handleAnswer(value)}
+                disabled={submitting}
+              />
+            </div>
+          )}
+
           {submitting && (
-            <div className="flex items-center gap-2 text-gray-400 text-sm pl-2">
+            <div className="flex items-center gap-2 text-ink-muted text-sm pl-2">
               <Loader2 className="w-4 h-4 animate-spin" />
               <span>Processing...</span>
             </div>
@@ -281,15 +277,8 @@ export function ChatInterface() {
           <div ref={messagesEndRef} />
         </div>
 
-        {showInput && activeQuestion && (
+        {showFreeTextInput && activeQuestion && (
           <div className="border-t border-gray-200 bg-white px-4 py-4">
-            {activeQuestion.type === "single_choice" && (
-              <OptionChips
-                options={activeQuestion.options ?? []}
-                onSelect={(value) => handleAnswer(value)}
-                disabled={submitting}
-              />
-            )}
             {activeQuestion.type === "postcode" && (
               <PropertyPostcode
                 placeholder={activeQuestion.placeholder}
@@ -312,6 +301,33 @@ export function ChatInterface() {
             )}
           </div>
         )}
+
+        <div className="border-t border-gray-200 bg-white px-4 py-3 flex items-center justify-end gap-5 text-sm">
+          <button
+            onClick={() => {
+              if (
+                typeof window !== "undefined" &&
+                window.confirm("Start a fresh chat? Your current answers will be lost.")
+              ) {
+                router.push("/chat");
+                router.refresh();
+              }
+            }}
+            className="inline-flex items-center gap-1.5 text-navy hover:text-purple transition-colors"
+            type="button"
+          >
+            <ArrowUpRight className="w-3.5 h-3.5 text-purple" />
+            Start new chat
+          </button>
+          <button
+            onClick={() => setSaveModalOpen(true)}
+            className="inline-flex items-center gap-1.5 text-navy hover:text-purple transition-colors"
+            type="button"
+          >
+            <ArrowUpRight className="w-3.5 h-3.5 text-purple" />
+            Save for later
+          </button>
+        </div>
       </div>
 
       {saveModalOpen && session && (

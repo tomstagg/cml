@@ -11,6 +11,17 @@ import {
   Star,
 } from "lucide-react";
 import { HeroSearch } from "@/components/marketing/HeroSearch";
+import { WhyChooseUsDemo } from "@/components/marketing/WhyChooseUsDemo";
+
+// Placeholder portraits for the hero social-proof strip — swap for licensed shots
+// before launch.
+const heroAvatars = [
+  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&h=120&q=80",
+  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&h=120&q=80",
+  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=120&h=120&q=80",
+  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80",
+  "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=120&h=120&q=80",
+];
 
 export const metadata: Metadata = {
   title: "Choose My Lawyer — Find a conveyancing solicitor",
@@ -134,15 +145,15 @@ export default function HomePage() {
           className="absolute inset-0 -z-10 opacity-70 [background-image:radial-gradient(ellipse_at_top,rgba(151,71,255,0.55),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(10,229,246,0.25),transparent_45%)]"
         />
         <div aria-hidden className="absolute inset-0 -z-10 decorative-lines opacity-30" />
-        <div className="section-container py-24 sm:py-32">
+        <div className="section-container pt-24 sm:pt-32 pb-20 sm:pb-24">
           <div className="max-w-3xl mx-auto text-center">
             <span className="eyebrow text-teal mb-5">
               West Midlands · Conveyancing solicitors
             </span>
             <h1 className="font-bold mt-4 mb-5">
-              The smarter way to{" "}
+              The smarter way to find, compare &amp;{" "}
               <span className="bg-gradient-to-r from-teal to-purple bg-clip-text text-transparent">
-                find your lawyer
+                appoint lawyers
               </span>
               .
             </h1>
@@ -157,9 +168,67 @@ export default function HomePage() {
               list of SRA-authorised solicitors with transparent quotes — in under three minutes.
             </p>
             <HeroSearch />
-            <p className="mt-8 text-white/60 text-sm">
+            <p className="mt-7 text-white/60 text-sm">
               Free to use · No obligation · 100% independent
             </p>
+
+            {/* Social proof: avatars + stars */}
+            <div className="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-5">
+              <div className="flex -space-x-3">
+                {heroAvatars.map((src, i) => (
+                  <span
+                    key={src}
+                    className="relative w-10 h-10 rounded-full ring-2 ring-navy overflow-hidden bg-white/10"
+                    style={{ zIndex: heroAvatars.length - i }}
+                  >
+                    <Image
+                      src={src}
+                      alt=""
+                      fill
+                      sizes="40px"
+                      className="object-cover"
+                    />
+                  </span>
+                ))}
+              </div>
+              <div className="flex flex-col items-center sm:items-start gap-1">
+                <div className="flex items-center gap-1 text-teal">
+                  {[...Array(5)].map((_, i) => (
+                    <Star key={i} className="w-4 h-4 fill-current" />
+                  ))}
+                </div>
+                <p className="text-sm text-white/80">
+                  Trusted by movers across the West Midlands
+                </p>
+              </div>
+            </div>
+
+            {/* Inline testimonial quote */}
+            <figure className="mt-10 mx-auto max-w-2xl rounded-2xl border border-white/15 bg-white/5 backdrop-blur px-6 py-5 text-left">
+              <blockquote className="text-white/90 leading-relaxed">
+                &ldquo;I found and instructed my conveyancing solicitor in minutes, and
+                saved £450 compared to local quotes.&rdquo;
+              </blockquote>
+              <figcaption className="mt-3 text-sm text-white/60">
+                Hannah W. · Birmingham
+              </figcaption>
+            </figure>
+          </div>
+
+          {/* In-hero USP cards */}
+          <div className="mt-16 grid grid-cols-1 md:grid-cols-3 gap-5 max-w-5xl mx-auto">
+            {valueProps.map(({ icon: Icon, title, body }) => (
+              <div
+                key={title}
+                className="rounded-2xl border border-white/15 bg-white/5 backdrop-blur p-6 text-left"
+              >
+                <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-purple to-teal flex items-center justify-center mb-4 shadow-soft">
+                  <Icon className="w-5 h-5 text-white" />
+                </div>
+                <h3 className="font-bold text-white mb-1.5 text-lg">{title}</h3>
+                <p className="text-white/70 text-sm leading-relaxed">{body}</p>
+              </div>
+            ))}
           </div>
         </div>
       </section>
@@ -201,31 +270,6 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Simplifying access to legal help */}
-      <section className="py-20 bg-white">
-        <div className="section-container">
-          <div className="text-center mb-14 max-w-2xl mx-auto">
-            <span className="eyebrow mb-3">What you get</span>
-            <h2 className="font-bold text-navy mt-3">Simplifying access to legal help</h2>
-            <p className="text-ink-muted mt-4">
-              No opaque pricing, no pay-to-rank, no endless phone calls. Conveyancing made
-              comparable.
-            </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {valueProps.map(({ icon: Icon, title, body }) => (
-              <div key={title} className="card p-7">
-                <div className="w-14 h-14 rounded-2xl bg-gradient-hero flex items-center justify-center mb-5 shadow-soft">
-                  <Icon className="w-7 h-7 text-white" />
-                </div>
-                <h3 className="font-bold text-navy mb-2">{title}</h3>
-                <p className="text-ink-muted leading-relaxed">{body}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Why our customers trust us */}
       <section className="py-20 bg-surface-muted">
         <div className="section-container">
@@ -237,7 +281,7 @@ export default function HomePage() {
                 <Star key={i} className="w-5 h-5 fill-current" />
               ))}
               <span className="ml-2 text-sm text-ink-muted">
-                Trusted by movers across the West Midlands
+                Real West Midlands clients, in their own words
               </span>
             </div>
           </div>
@@ -259,45 +303,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Your trusted source for clear legal guidance */}
-      <section className="py-24 bg-white">
-        <div className="section-container">
-          <div className="grid lg:grid-cols-2 gap-10 lg:gap-16 items-center">
-            <div className="relative rounded-3xl overflow-hidden aspect-[16/10] lg:aspect-[4/5] shadow-soft order-first">
-              <Image
-                src="https://images.unsplash.com/photo-1521791136064-7986c2920216?auto=format&fit=crop&w=1200&q=70"
-                alt="Two people discussing legal paperwork"
-                fill
-                className="object-cover"
-                sizes="(min-width: 1024px) 50vw, 100vw"
-              />
-              <div className="absolute inset-0 bg-navy/10" />
-            </div>
-            <div>
-              <span className="eyebrow mb-3">Independent &amp; transparent</span>
-              <h2 className="font-bold text-navy mt-3 mb-5">
-                Your trusted source for clear legal guidance
-              </h2>
-              <p className="text-ink-muted leading-relaxed mb-4">
-                Every firm we list is authorised by the Solicitors Regulation Authority and ranked
-                against publicly available data — Legal Ombudsman complaints decisions, SRA and SDT
-                regulatory outcomes, Google reviews, and each firm's own published prices.
-              </p>
-              <p className="text-ink-muted leading-relaxed mb-6">
-                You see the full picture. We make our methodology public, and identical inputs
-                always produce identical rankings.
-              </p>
-              <Link
-                href="/how-it-works"
-                className="inline-flex items-center gap-2 font-semibold text-purple hover:text-navy transition-colors"
-              >
-                How we rank firms
-                <ArrowRight className="w-4 h-4" />
-              </Link>
-            </div>
-          </div>
-        </div>
-      </section>
+      <WhyChooseUsDemo />
 
       {/* Making legal choice clearer and faster */}
       <section className="relative py-24 overflow-hidden bg-gradient-footer text-white">

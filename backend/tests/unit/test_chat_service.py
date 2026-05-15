@@ -86,26 +86,6 @@ def test_validate_postcode_rejects_garbage():
     assert ok is False
 
 
-def test_validate_email_accepts_valid_address():
-    ok, _ = validate_answer("email", "jane@example.com")
-    assert ok
-
-
-def test_validate_email_rejects_invalid_address():
-    ok, _ = validate_answer("email", "not-an-email")
-    assert ok is False
-
-
-def test_validate_phone_accepts_uk_mobile():
-    ok, _ = validate_answer("phone", "07700900123")
-    assert ok
-
-
-def test_validate_phone_rejects_too_short():
-    ok, _ = validate_answer("phone", "12345")
-    assert ok is False
-
-
 def test_validate_single_choice_rejects_invalid_option():
     ok, _ = validate_answer("tenure", "haunted_house")
     assert ok is False
@@ -158,4 +138,4 @@ def test_get_intake_flags_extracts_all_conveyancing_fields():
     assert flags["mortgage"] is True
     assert flags["help_to_buy_isa"] is True
     assert flags["scorecard_preference"] == "balanced"
-    assert flags["email"] == "jane@example.com"
+    assert flags["include_distance"] is True
