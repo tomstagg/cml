@@ -140,11 +140,8 @@ def upgrade() -> None:
     op.create_index("ix_price_cards_org_id", "price_cards", ["org_id"])
 
     # ── chat_sessions ────────────────────────────────────────────────────────
-    op.execute(
-        "CREATE TYPE scorecard_preference AS ENUM ("
-        "'balanced','reputation','price','complaints','regulatory','distance','offices')"
-    )
-
+    # Scorecard preference + distance inclusion are NOT stored on the session —
+    # they are post-intake URL query params on /api/public/search.
     op.create_table(
         "chat_sessions",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
@@ -164,23 +161,6 @@ def upgrade() -> None:
             server_default="[]",
         ),
         sa.Column("results_cache", postgresql.JSONB(astext_type=sa.Text()), nullable=True),
-        sa.Column(
-            "scorecard_preference",
-            postgresql.ENUM(
-                "balanced",
-                "reputation",
-                "price",
-                "complaints",
-                "regulatory",
-                "distance",
-                "offices",
-                name="scorecard_preference",
-                create_type=False,
-            ),
-            nullable=False,
-            server_default="balanced",
-        ),
-        sa.Column("include_distance", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("save_email", sa.String(255), nullable=True),
         sa.Column("expires_at", sa.DateTime(timezone=True), nullable=False),
         sa.Column(
@@ -442,7 +422,6 @@ def downgrade() -> None:
     op.execute("DROP TYPE IF EXISTS appointment_status")
     op.execute("DROP TYPE IF EXISTS appointment_type")
     op.drop_table("chat_sessions")
-    op.execute("DROP TYPE IF EXISTS scorecard_preference")
     op.drop_table("price_cards")
     op.execute("DROP TYPE IF EXISTS price_type")
     op.drop_table("offices")

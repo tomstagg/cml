@@ -1,19 +1,7 @@
 import uuid
 from datetime import datetime
-from typing import Literal
 
 from pydantic import BaseModel, Field
-
-
-ScorecardPreferenceLiteral = Literal[
-    "balanced",
-    "reputation",
-    "price",
-    "complaints",
-    "regulatory",
-    "distance",
-    "offices",
-]
 
 
 class SessionCreate(BaseModel):
@@ -22,21 +10,27 @@ class SessionCreate(BaseModel):
 
 class AnswerSubmit(BaseModel):
     question_id: str
-    answer: str | list[str]
+    # Accepted shapes per question type:
+    #   single_choice / tenure_with_unsure / optional_postcode → str
+    #   currency → int | float | str
+    #   checkbox_group → list[str]
+    #   dual_property_block → dict[str, str | float]
+    answer: str | int | float | list[str] | dict
 
 
 class QuestionOption(BaseModel):
     value: str
     label: str
     description: str | None = None
-    hint: str | None = None
 
 
 class QuestionResponse(BaseModel):
     id: str
     step: int
+    section: str | None = None
     text: str
     type: str
+    pathways: list[str] | None = None
     options: list[QuestionOption] | None = None
     placeholder: str | None = None
     hint: str | None = None
@@ -52,19 +46,13 @@ class MessageItem(BaseModel):
 class SessionResponse(BaseModel):
     session_id: uuid.UUID
     practice_area: str
+    pathway: str | None
     current_question: QuestionResponse | None
     message_history: list[dict]
     answers: dict
-    scorecard_preference: ScorecardPreferenceLiteral = "balanced"
-    include_distance: bool = False
     is_complete: bool
     expires_at: datetime
 
 
 class SessionSaveRequest(BaseModel):
     email: str = Field(..., min_length=5, max_length=255)
-
-
-class ScorecardPreferenceUpdate(BaseModel):
-    scorecard_preference: ScorecardPreferenceLiteral
-    include_distance: bool = False

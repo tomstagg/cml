@@ -1,0 +1,328 @@
+- generic [active] [ref=e1]:
+  - banner [ref=e2]:
+    - generic [ref=e4]:
+      - link "Choose My Lawyer home" [ref=e5] [cursor=pointer]:
+        - /url: /
+        - img "Choose My Lawyer" [ref=e6]
+      - navigation [ref=e7]:
+        - link "How it works" [ref=e8] [cursor=pointer]:
+          - /url: /how-it-works
+        - link "FAQs" [ref=e9] [cursor=pointer]:
+          - /url: /how-it-works#faqs
+      - link "Find a lawyer" [ref=e11] [cursor=pointer]:
+        - /url: /chat
+  - main [ref=e12]:
+    - generic [ref=e16]:
+      - generic [ref=e17]:
+        - generic [ref=e18]: West Midlands · Conveyancing solicitors
+        - heading "The smarter way to find, compare & appoint lawyers." [level=1] [ref=e19]
+        - generic [ref=e21]:
+          - img [ref=e22]
+          - text: Powered by specialist AI
+        - paragraph [ref=e24]: Answer a few simple questions about your property purchase or sale and get a ranked list of SRA-authorised solicitors with transparent quotes — in under three minutes.
+        - generic [ref=e25]:
+          - generic [ref=e26]:
+            - generic [ref=e27]: What can we help you with today?
+            - textbox "What can we help you with today?" [ref=e28]
+            - button "Find a lawyer" [ref=e29] [cursor=pointer]:
+              - text: Find a lawyer
+              - img [ref=e30]
+          - generic [ref=e32]:
+            - button "I'm buying a property" [ref=e33] [cursor=pointer]
+            - button "I'm selling" [ref=e34] [cursor=pointer]
+            - button "Remortgage" [ref=e35] [cursor=pointer]
+            - button "Talk to a real solicitor" [ref=e36] [cursor=pointer]
+        - paragraph [ref=e37]: Free to use · No obligation · 100% independent
+        - generic [ref=e45]:
+          - generic [ref=e46]:
+            - img [ref=e47]
+            - img [ref=e49]
+            - img [ref=e51]
+            - img [ref=e53]
+            - img [ref=e55]
+          - paragraph [ref=e57]: Trusted by movers across the West Midlands
+        - figure "Hannah W. · Birmingham" [ref=e58]:
+          - blockquote [ref=e59]: “I found and instructed my conveyancing solicitor in minutes, and saved £450 compared to local quotes.”
+          - generic [ref=e60]: Hannah W. · Birmingham
+      - generic [ref=e61]:
+        - generic [ref=e62]:
+          - img [ref=e64]
+          - heading "Whole-of-market ranking" [level=3] [ref=e68]
+          - paragraph [ref=e69]: Every in-scope SRA-authorised firm appears in your results — not just the ones who pay us.
+        - generic [ref=e70]:
+          - img [ref=e72]
+          - heading "Six-factor scorecard" [level=3] [ref=e75]
+          - paragraph [ref=e76]: Price, reputation, complaints, regulation, distance and offices — same inputs, same ranking, every time.
+        - generic [ref=e77]:
+          - img [ref=e79]
+          - heading "Introductions in your name" [level=3] [ref=e83]
+          - paragraph [ref=e84]: Proceed or request a callback and the firm emails you directly — no cold leads, no hard sell.
+    - generic [ref=e86]:
+      - generic [ref=e87]:
+        - generic [ref=e88]: How it works
+        - heading "From question to quote in three minutes" [level=2] [ref=e89]
+        - paragraph [ref=e90]: No phone tag, no opaque pricing. Three short steps from a guided intake to a ranked shortlist of regulated solicitors.
+      - generic [ref=e91]:
+        - generic [ref=e92]:
+          - generic [ref=e93]: "01"
+          - img [ref=e95]
+          - heading "Tell us about your property" [level=3] [ref=e98]
+          - paragraph [ref=e99]: Answer a short, guided chat about your purchase or sale — price, tenure, postcode, mortgage. Takes about three minutes.
+        - generic [ref=e100]:
+          - generic [ref=e101]: "02"
+          - img [ref=e103]
+          - heading "Compare regulated firms" [level=3] [ref=e106]
+          - paragraph [ref=e107]: Every in-scope SRA-authorised firm is ranked side-by-side on price, reputation, complaints, regulation, distance and offices.
+        - generic [ref=e108]:
+          - generic [ref=e109]: "03"
+          - img [ref=e111]
+          - heading "Proceed or request a callback" [level=3] [ref=e115]
+          - paragraph [ref=e116]: Instruct a single firm, or ask up to five for a callback. The firm hears from you directly — no cold leads, no hard sell.
+      - link "Read the full methodology" [ref=e118] [cursor=pointer]:
+        - /url: /how-it-works
+        - text: Read the full methodology
+        - img [ref=e119]
+    - generic [ref=e122]:
+      - generic [ref=e123]:
+        - generic [ref=e124]: Customer stories
+        - heading "Why our customers trust us" [level=2] [ref=e125]
+        - generic [ref=e126]:
+          - img [ref=e127]
+          - img [ref=e129]
+          - img [ref=e131]
+          - img [ref=e133]
+          - img [ref=e135]
+          - generic [ref=e137]: Real West Midlands clients, in their own words
+      - generic [ref=e138]:
+        - generic [ref=e139]:
+          - generic [ref=e140]:
+            - img [ref=e141]
+            - img [ref=e143]
+            - img [ref=e145]
+            - img [ref=e147]
+            - img [ref=e149]
+          - paragraph [ref=e151]: “I had quotes side-by-side in minutes — no chasing firms for prices. The breakdown of disbursements was the clearest I'd seen.”
+          - paragraph [ref=e152]:
+            - text: Hannah W.
+            - generic [ref=e153]: · Birmingham
+        - generic [ref=e154]:
+          - generic [ref=e155]:
+            - img [ref=e156]
+            - img [ref=e158]
+            - img [ref=e160]
+            - img [ref=e162]
+            - img [ref=e164]
+          - paragraph [ref=e166]: “Being able to filter by complaints and regulatory history was the bit that sold me. I'd never have spotted that on a comparison site.”
+          - paragraph [ref=e167]:
+            - text: Marcus J.
+            - generic [ref=e168]: · Coventry
+        - generic [ref=e169]:
+          - generic [ref=e170]:
+            - img [ref=e171]
+            - img [ref=e173]
+            - img [ref=e175]
+            - img [ref=e177]
+            - img [ref=e179]
+          - paragraph [ref=e181]: “Picked a firm on a Saturday morning and they called me back on Monday. Genuinely smoother than I expected.”
+          - paragraph [ref=e182]:
+            - text: Priya S.
+            - generic [ref=e183]: · Wolverhampton
+    - generic [ref=e186]:
+      - generic [ref=e187]:
+        - generic [ref=e188]: See it in action
+        - heading "Instant solicitor comparison" [level=2] [ref=e189]
+        - paragraph [ref=e190]: Every SRA-authorised conveyancing firm in your area, ranked side-by-side on price, reputation, complaints history, regulatory record, distance and number of offices. Same inputs, same ranking, every time.
+        - paragraph [ref=e191]: Pick a firm and we’ll introduce you in your own name — no cold leads, no hard sell, no pay-to-rank.
+        - link "Try the comparison" [ref=e192] [cursor=pointer]:
+          - /url: /chat
+          - text: Try the comparison
+          - img [ref=e193]
+      - generic [ref=e195]:
+        - generic [ref=e196]:
+          - generic [ref=e197]:
+            - generic [ref=e198]:
+              - paragraph [ref=e199]: 5 results
+              - paragraph [ref=e200]: £350,000 purchase · Birmingham B15 · Freehold
+            - generic [ref=e201]: Whole-of-market
+          - list [ref=e202]:
+            - listitem [ref=e203]:
+              - generic [ref=e204]: "1"
+              - generic [ref=e205]:
+                - paragraph [ref=e206]: Whitfield & Hart
+                - paragraph [ref=e207]: Birmingham · B15
+              - generic [ref=e208]:
+                - img [ref=e209]
+                - img [ref=e211]
+                - img [ref=e213]
+                - img [ref=e215]
+                - img [ref=e217]
+              - generic [ref=e219]:
+                - paragraph [ref=e220]: £985
+                - paragraph [ref=e221]: Score 92
+            - listitem [ref=e222]:
+              - generic [ref=e223]: "2"
+              - generic [ref=e224]:
+                - paragraph [ref=e225]: Caldwell Lyon
+                - paragraph [ref=e226]: Coventry · CV1
+              - generic [ref=e227]:
+                - img [ref=e228]
+                - img [ref=e230]
+                - img [ref=e232]
+                - img [ref=e234]
+                - img [ref=e236]
+              - generic [ref=e238]:
+                - paragraph [ref=e239]: £1,095
+                - paragraph [ref=e240]: Score 88
+            - listitem [ref=e241]:
+              - generic [ref=e242]: "3"
+              - generic [ref=e243]:
+                - paragraph [ref=e244]: Greenhalgh Legal
+                - paragraph [ref=e245]: Wolverhampton · WV1
+              - generic [ref=e246]:
+                - img [ref=e247]
+                - img [ref=e249]
+                - img [ref=e251]
+                - img [ref=e253]
+                - img [ref=e255]
+              - generic [ref=e257]:
+                - paragraph [ref=e258]: £1,145
+                - paragraph [ref=e259]: Score 84
+        - generic [ref=e260]: Sorted by score
+        - generic [ref=e261]:
+          - text: Click to proceed
+          - img [ref=e262]
+    - generic [ref=e267]:
+      - img "A couple receiving the keys to their new home" [ref=e269]
+      - generic [ref=e271]:
+        - generic [ref=e272]: Our methodology
+        - heading "Making legal choice clearer and faster" [level=2] [ref=e273]
+        - paragraph [ref=e274]: Six factors, weighted to a hundred. Reputation and price share the heaviest weights, with complaints and regulatory history giving you the safety net that other comparison sites quietly skip.
+        - paragraph [ref=e275]: Pick a different priority — say, price first or regulatory record first — and the weights rescale around it. No black-box AI, no surprise fees, no pay-to-rank.
+        - link "See the methodology" [ref=e276] [cursor=pointer]:
+          - /url: /how-it-works#ranking
+          - text: See the methodology
+          - img [ref=e277]
+    - generic [ref=e280]:
+      - generic [ref=e281]:
+        - generic [ref=e282]:
+          - generic [ref=e283]: Knowledge hub
+          - heading "Legal knowledge that empowers you" [level=2] [ref=e284]
+        - link "Browse all articles" [ref=e285] [cursor=pointer]:
+          - /url: "#"
+          - text: Browse all articles
+          - img [ref=e286]
+      - generic [ref=e288]:
+        - link "Buying What to expect when buying a house in the West Midlands CML Editorial · 6 min read" [ref=e289] [cursor=pointer]:
+          - /url: "#"
+          - generic [ref=e291]: Buying
+          - generic [ref=e292]:
+            - heading "What to expect when buying a house in the West Midlands" [level=3] [ref=e293]
+            - paragraph [ref=e294]: CML Editorial · 6 min read
+        - 'link "Pricing Disbursements, demystified: what''s really in your conveyancing quote CML Editorial · 4 min read" [ref=e295] [cursor=pointer]':
+          - /url: "#"
+          - generic [ref=e297]: Pricing
+          - generic [ref=e298]:
+            - 'heading "Disbursements, demystified: what''s really in your conveyancing quote" [level=3] [ref=e299]'
+            - paragraph [ref=e300]: CML Editorial · 4 min read
+        - link "Regulation How the SRA and the Legal Ombudsman protect you CML Editorial · 5 min read" [ref=e301] [cursor=pointer]:
+          - /url: "#"
+          - generic [ref=e303]: Regulation
+          - generic [ref=e304]:
+            - heading "How the SRA and the Legal Ombudsman protect you" [level=3] [ref=e305]
+            - paragraph [ref=e306]: CML Editorial · 5 min read
+    - generic [ref=e308]:
+      - generic [ref=e309]:
+        - generic [ref=e310]: FAQs
+        - heading "Frequently asked questions" [level=2] [ref=e311]
+      - generic [ref=e312]:
+        - group [ref=e313]:
+          - generic "Is it free to use? +" [ref=e314] [cursor=pointer]:
+            - text: Is it free to use?
+            - generic [ref=e315]: +
+        - group [ref=e316]:
+          - generic "How accurate are the quotes? +" [ref=e317] [cursor=pointer]:
+            - text: How accurate are the quotes?
+            - generic [ref=e318]: +
+        - group [ref=e319]:
+          - generic "Are all the firms regulated? +" [ref=e320] [cursor=pointer]:
+            - text: Are all the firms regulated?
+            - generic [ref=e321]: +
+        - group [ref=e322]:
+          - generic "How are firms ranked? +" [ref=e323] [cursor=pointer]:
+            - text: How are firms ranked?
+            - generic [ref=e324]: +
+        - group [ref=e325]:
+          - generic "Which areas do you cover? +" [ref=e326] [cursor=pointer]:
+            - text: Which areas do you cover?
+            - generic [ref=e327]: +
+        - group [ref=e328]:
+          - generic "Can I save my comparison and come back later? +" [ref=e329] [cursor=pointer]:
+            - text: Can I save my comparison and come back later?
+            - generic [ref=e330]: +
+    - generic [ref=e336]:
+      - heading "Ready to find your conveyancer?" [level=2] [ref=e337]
+      - paragraph [ref=e338]: Free, no obligation. Get quotes from regulated West Midlands solicitors in under three minutes.
+      - generic [ref=e339]:
+        - link "Get your free quote" [ref=e340] [cursor=pointer]:
+          - /url: /chat
+          - text: Get your free quote
+          - img [ref=e341]
+        - link "How it works" [ref=e343] [cursor=pointer]:
+          - /url: /how-it-works
+  - contentinfo [ref=e344]:
+    - generic [ref=e345]:
+      - generic [ref=e346]:
+        - generic [ref=e347]:
+          - link "Choose My Lawyer home" [ref=e348] [cursor=pointer]:
+            - /url: /
+            - img "Choose My Lawyer" [ref=e349]
+          - paragraph [ref=e350]: We connect consumers with legal experts. Independent, transparent comparison for residential conveyancing across the West Midlands.
+        - generic [ref=e351]:
+          - generic [ref=e352]:
+            - heading "Explore" [level=4] [ref=e353]
+            - list [ref=e354]:
+              - listitem [ref=e355]:
+                - link "How it works" [ref=e356] [cursor=pointer]:
+                  - /url: /how-it-works
+              - listitem [ref=e357]:
+                - link "FAQs" [ref=e358] [cursor=pointer]:
+                  - /url: /how-it-works#faqs
+              - listitem [ref=e359]:
+                - link "Conveyancing" [ref=e360] [cursor=pointer]:
+                  - /url: /conveyancing
+          - generic [ref=e361]:
+            - heading "For firms" [level=4] [ref=e362]
+            - list [ref=e363]:
+              - listitem [ref=e364]:
+                - link "Why list with us" [ref=e365] [cursor=pointer]:
+                  - /url: /for-firms
+              - listitem [ref=e366]:
+                - link "Contact us" [ref=e367] [cursor=pointer]:
+                  - /url: /contact
+        - generic [ref=e368]:
+          - heading "Follow us" [level=4] [ref=e369]
+          - generic [ref=e370]:
+            - link "Instagram" [ref=e371] [cursor=pointer]:
+              - /url: https://instagram.com
+              - img [ref=e372]
+            - link "YouTube" [ref=e375] [cursor=pointer]:
+              - /url: https://youtube.com
+              - img [ref=e376]
+            - link "LinkedIn" [ref=e379] [cursor=pointer]:
+              - /url: https://linkedin.com
+              - img [ref=e380]
+      - generic [ref=e384]:
+        - paragraph [ref=e385]: © 2026 Choose My Lawyer. All rights reserved.
+        - list [ref=e386]:
+          - listitem [ref=e387]:
+            - link "Website Terms" [ref=e388] [cursor=pointer]:
+              - /url: /terms
+          - listitem [ref=e389]:
+            - link "Privacy Policy" [ref=e390] [cursor=pointer]:
+              - /url: /privacy
+          - listitem [ref=e391]:
+            - link "Cookie Policy" [ref=e392] [cursor=pointer]:
+              - /url: /cookies
+      - paragraph [ref=e393]: Choose My Lawyer is an independent comparison service and is not regulated by the Solicitors Regulation Authority.
+      - paragraph [ref=e394]: However, we're not a legal firm and we don't offer legal advice. We provide helpful guides on our site, to give you an understanding of different services, but these can't be considered legal advice.
+  - region "Notifications alt+T"

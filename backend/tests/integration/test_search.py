@@ -10,7 +10,7 @@ async def test_search_on_incomplete_session_returns_400(client):
     session_id = create.json()["session_id"]
     await client.post(
         f"/api/public/sessions/{session_id}/answer",
-        json={"question_id": "purchase_price", "answer": "275000"},
+        json={"question_id": "transaction_type", "answer": "buying"},
     )
 
     response = await client.get(f"/api/public/search/{session_id}")

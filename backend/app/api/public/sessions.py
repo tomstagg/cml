@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.database import get_db
 from app.models.chat_session import ChatSession
 from app.schemas.chat import (
@@ -16,17 +17,17 @@ from app.schemas.chat import (
     SessionResponse,
     SessionSaveRequest,
 )
-from app.models.chat_session import ScorecardPreference
 from app.services.chat import (
-    QUESTION_INDEX,
-    get_first_question,
-    get_next_question,
-    get_question,
+    QUESTIONS,
+    dynamic_options,
+    find_question,
+    first_question,
+    get_pathway,
     is_flow_complete,
+    next_question,
     validate_answer,
 )
 from app.services.email import send_session_save_email
-from app.config import settings
 
 router = APIRouter(prefix="/sessions", tags=["sessions"])
 
@@ -35,12 +36,10 @@ SESSION_EXPIRY_DAYS = 30
 
 @router.get("/schema")
 async def get_intake_schema():
-    """Return the full conveyancing intake schema so the stepper can render
-    every step (answered, active, pending) before the user has reached it,
-    and so revise-mode can render any step's input without round-tripping.
+    """Return the full conveyancing intake schema with pathway metadata so the
+    frontend stepper can render the pathway-specific step sequence once the
+    user picks Q1.
     """
-    from app.services.chat import CONVEYANCING_QUESTIONS
-
     return {
         "practice_area": "residential_conveyancing",
         "questions": [
@@ -50,50 +49,55 @@ async def get_intake_schema():
                 "section": q.get("section"),
                 "text": q["text"],
                 "type": q["type"],
+                "pathways": q["pathways"],
                 "options": q.get("options"),
+                "tenure_options": q.get("tenure_options"),
                 "placeholder": q.get("placeholder"),
                 "hint": q.get("hint"),
             }
-            for q in CONVEYANCING_QUESTIONS
+            for q in QUESTIONS
         ],
     }
 
 
-def _format_question(q: dict | None) -> QuestionResponse | None:
+def _format_question(q: dict | None, answers: dict) -> QuestionResponse | None:
     if q is None:
         return None
+    options = q.get("options")
+    if q["type"] == "checkbox_group":
+        options = dynamic_options(q["id"], answers)
     return QuestionResponse(
         id=q["id"],
         step=q["step"],
+        section=q.get("section"),
         text=q["text"],
         type=q["type"],
-        options=q.get("options"),
+        pathways=q["pathways"],
+        options=options,
         placeholder=q.get("placeholder"),
         hint=q.get("hint"),
     )
 
 
 def _build_session_response(session: ChatSession, current_question: dict | None) -> SessionResponse:
+    answers = session.answers or {}
     return SessionResponse(
         session_id=session.id,
         practice_area=session.practice_area,
-        current_question=_format_question(current_question),
+        pathway=get_pathway(answers),
+        current_question=_format_question(current_question, answers),
         message_history=session.message_history or [],
-        answers=session.answers or {},
-        scorecard_preference=session.scorecard_preference.value
-        if session.scorecard_preference
-        else "balanced",
-        include_distance=bool(session.include_distance),
-        is_complete=is_flow_complete(session.answers or {}),
+        answers=answers,
+        is_complete=is_flow_complete(answers),
         expires_at=session.expires_at,
     )
 
 
 @router.post("", response_model=SessionResponse, status_code=status.HTTP_201_CREATED)
 async def create_session(body: SessionCreate, db: AsyncSession = Depends(get_db)):
-    """Create a new chat session and return the first question."""
+    """Create a new chat session and return Q1."""
     expires_at = datetime.now(timezone.utc) + timedelta(days=SESSION_EXPIRY_DAYS)
-    first_q = get_first_question()
+    first_q = first_question()
 
     session = ChatSession(
         id=uuid.uuid4(),
@@ -119,17 +123,7 @@ async def create_session(body: SessionCreate, db: AsyncSession = Depends(get_db)
 async def get_session(session_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
     """Resume a saved session."""
     session = await _get_valid_session(db, session_id)
-
-    # Determine current question
-    answered_ids = list((session.answers or {}).keys())
-    if not answered_ids:
-        current_q = get_first_question()
-    elif is_flow_complete(session.answers):
-        current_q = None
-    else:
-        last_answered = answered_ids[-1]
-        current_q = get_next_question(last_answered, session.answers)
-
+    current_q = next_question(session.answers or {})
     return _build_session_response(session, current_q)
 
 
@@ -139,51 +133,31 @@ async def submit_answer(
     body: AnswerSubmit,
     db: AsyncSession = Depends(get_db),
 ):
-    """Submit an answer and receive the next question."""
+    """Submit an answer and receive the next question (or null if complete)."""
     session = await _get_valid_session(db, session_id)
 
-    if is_flow_complete(session.answers or {}):
+    answers = dict(session.answers or {})
+
+    if is_flow_complete(answers):
         raise HTTPException(status_code=400, detail="Session is already complete")
 
-    # Validate question exists + answer format (numeric purchase price, valid
-    # postcode / email / phone — requirements §5.1.3).
-    if body.question_id not in QUESTION_INDEX:
-        raise HTTPException(status_code=400, detail=f"Unknown question: {body.question_id}")
-
-    ok, error = validate_answer(body.question_id, body.answer)
+    ok, error = validate_answer(body.question_id, body.answer, answers)
     if not ok:
         raise HTTPException(status_code=400, detail=error)
 
-    # Record answer
-    answers = dict(session.answers or {})
-    answer_value = body.answer if isinstance(body.answer, str) else body.answer
-    answers[body.question_id] = answer_value
+    answers[body.question_id] = body.answer
 
-    # Mirror scorecard answers into typed columns so search / ranker can
-    # consume them without re-parsing the JSONB.
-    if body.question_id == "scorecard_preference" and isinstance(answer_value, str):
-        try:
-            session.scorecard_preference = ScorecardPreference(answer_value)
-        except ValueError:
-            session.scorecard_preference = ScorecardPreference.balanced
-    elif body.question_id == "include_distance" and isinstance(answer_value, str):
-        session.include_distance = answer_value.lower() in {"yes", "true", "1"}
-
-    # Append to message history
     history = list(session.message_history or [])
     history.append(
         {
             "role": "user",
-            "content": str(answer_value)
-            if isinstance(answer_value, str)
-            else ", ".join(answer_value),
+            "content": _format_answer_for_history(body.answer),
             "question_id": body.question_id,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         }
     )
 
-    # Determine next question
-    next_q = get_next_question(body.question_id, answers)
+    next_q = next_question(answers)
     if next_q:
         history.append(
             {
@@ -196,7 +170,7 @@ async def submit_answer(
 
     session.answers = answers
     session.message_history = history
-    session.results_cache = None  # Invalidate cache on new answer
+    session.results_cache = None
     db.add(session)
 
     return _build_session_response(session, next_q)
@@ -208,41 +182,22 @@ async def patch_answer(
     body: AnswerSubmit,
     db: AsyncSession = Depends(get_db),
 ):
-    """Overwrite a single answer in any session (including completed ones).
-
-    Used by revise-mode in the chat UI so the user can edit individual steps
-    without restarting the flow. The cached results are invalidated so the
-    next /search call recomputes against the updated answers.
-    """
+    """Overwrite a single answer (used by revise-mode on the results page)."""
     session = await _get_valid_session(db, session_id)
+    answers = dict(session.answers or {})
 
-    if body.question_id not in QUESTION_INDEX:
-        raise HTTPException(status_code=400, detail=f"Unknown question: {body.question_id}")
-
-    ok, error = validate_answer(body.question_id, body.answer)
+    ok, error = validate_answer(body.question_id, body.answer, answers)
     if not ok:
         raise HTTPException(status_code=400, detail=error)
 
-    answers = dict(session.answers or {})
-    answer_value = body.answer if isinstance(body.answer, str) else body.answer
-    answers[body.question_id] = answer_value
-
-    if body.question_id == "scorecard_preference" and isinstance(answer_value, str):
-        try:
-            session.scorecard_preference = ScorecardPreference(answer_value)
-        except ValueError:
-            session.scorecard_preference = ScorecardPreference.balanced
-    elif body.question_id == "include_distance" and isinstance(answer_value, str):
-        session.include_distance = answer_value.lower() in {"yes", "true", "1"}
-
+    answers[body.question_id] = body.answer
     session.answers = answers
-    session.results_cache = None  # any prior ranking is now stale
+    session.results_cache = None
     db.add(session)
 
-    # Surface the patched question as `current_question` so the UI can show
-    # the user what they just edited, while is_complete still reflects whether
-    # the whole flow is done.
-    return _build_session_response(session, get_question(body.question_id))
+    pathway = get_pathway(answers)
+    patched = find_question(body.question_id, pathway)
+    return _build_session_response(session, patched)
 
 
 @router.post("/{session_id}/save")
@@ -270,3 +225,14 @@ async def _get_valid_session(db: AsyncSession, session_id: uuid.UUID) -> ChatSes
     if session.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=410, detail="Session has expired")
     return session
+
+
+def _format_answer_for_history(answer) -> str:
+    """Render an answer payload as a short string for the chat transcript."""
+    if isinstance(answer, str):
+        return answer
+    if isinstance(answer, list):
+        return ", ".join(answer) if answer else "(none selected)"
+    if isinstance(answer, dict):
+        return "; ".join(f"{k}={v}" for k, v in answer.items())
+    return str(answer)

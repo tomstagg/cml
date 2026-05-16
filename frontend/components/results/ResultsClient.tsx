@@ -10,6 +10,7 @@ import { ComplaintsCell } from "./ComplaintsCell";
 import { RegulatoryCell } from "./RegulatoryCell";
 import { AppointModal } from "./AppointModal";
 import { CallbackModal } from "./CallbackModal";
+import { ReorderControl } from "./ReorderControl";
 import { cn, formatCurrency } from "@/lib/utils";
 
 type SortKey = "rank" | "price" | "reputation" | "complaints" | "regulatory" | "distance" | "offices";
@@ -31,6 +32,7 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
   const router = useRouter();
   const [data, setData] = useState<SearchResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [reordering, setReordering] = useState(false);
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
@@ -42,11 +44,15 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  async function loadResults() {
+  async function loadResults(opts?: { scorecard_preference?: string; include_distance?: boolean }) {
+    const isInitial = !opts;
+    if (!isInitial) setReordering(true);
     try {
-      const res = await searchApi.getResults(sessionId);
+      const res = await searchApi.getResults(sessionId, opts);
       setData(res);
-      trackResultsViewed(sessionId, res.top_five_contactable.length, res.results.length);
+      if (isInitial) {
+        trackResultsViewed(sessionId, res.top_five_contactable.length, res.results.length);
+      }
     } catch (err) {
       const status = (err as { status?: number }).status;
       if (status === 400) {
@@ -57,6 +63,7 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
       }
     } finally {
       setLoading(false);
+      setReordering(false);
     }
   }
 
@@ -123,6 +130,19 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
           {!includeDistance && " · Distance excluded"}
         </p>
       </div>
+
+      <ReorderControl
+        scorecard={data.scorecard_preference}
+        includeDistance={includeDistance}
+        hasPostcode={Boolean(data.postcode)}
+        disabled={reordering}
+        onChange={({ scorecard, includeDistance: nextIncludeDistance }) =>
+          loadResults({
+            scorecard_preference: scorecard,
+            include_distance: nextIncludeDistance,
+          })
+        }
+      />
 
       {data.total === 0 ? (
         <div className="text-center py-16 card">
