@@ -46,6 +46,12 @@ export class ApiError extends Error {
 }
 
 // --- Public: Chat sessions ---
+export type AnswerValue =
+  | string
+  | number
+  | string[]
+  | Record<string, string | number>;
+
 export const sessionsApi = {
   create: (practiceArea = "residential_conveyancing") =>
     request("/api/public/sessions", { method: "POST", body: { practice_area: practiceArea } }),
@@ -54,13 +60,13 @@ export const sessionsApi = {
 
   get: (sessionId: string) => request(`/api/public/sessions/${sessionId}`),
 
-  answer: (sessionId: string, questionId: string, answer: string | string[]) =>
+  answer: (sessionId: string, questionId: string, answer: AnswerValue) =>
     request(`/api/public/sessions/${sessionId}/answer`, {
       method: "POST",
       body: { question_id: questionId, answer },
     }),
 
-  updateAnswer: (sessionId: string, questionId: string, answer: string | string[]) =>
+  updateAnswer: (sessionId: string, questionId: string, answer: AnswerValue) =>
     request(`/api/public/sessions/${sessionId}/answer`, {
       method: "PATCH",
       body: { question_id: questionId, answer },
@@ -128,8 +134,19 @@ export type SearchResponse = {
 };
 
 export const searchApi = {
-  getResults: (sessionId: string) =>
-    request<SearchResponse>(`/api/public/search/${sessionId}`),
+  getResults: (
+    sessionId: string,
+    opts: { scorecard_preference?: string; include_distance?: boolean } = {},
+  ) => {
+    const params = new URLSearchParams();
+    if (opts.scorecard_preference) params.set("scorecard_preference", opts.scorecard_preference);
+    if (opts.include_distance !== undefined)
+      params.set("include_distance", String(opts.include_distance));
+    const qs = params.toString();
+    return request<SearchResponse>(
+      `/api/public/search/${sessionId}${qs ? `?${qs}` : ""}`,
+    );
+  },
 };
 
 // --- Public: Appointments ---

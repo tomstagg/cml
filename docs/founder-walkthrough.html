@@ -1,0 +1,1278 @@
+<!doctype html>
+<html lang="en-GB">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Choose My Lawyer — Founder Walkthrough</title>
+<style>
+  :root {
+    --teal: #0AE5F6;
+    --navy: #080C64;
+    --mint: #69E4B5;
+    --purple: #9747FF;
+    --ink: #0a1027;
+    --paper: #fafbff;
+    --line: #e3e6f4;
+    --muted: #5b6485;
+    --warn: #ff8a3d;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Inter, system-ui, sans-serif;
+    color: var(--ink);
+    background: var(--paper);
+    line-height: 1.55;
+    font-size: 15px;
+  }
+  a { color: var(--purple); }
+  code, pre {
+    font-family: "SF Mono", Menlo, Consolas, "JetBrains Mono", monospace;
+    font-size: 13px;
+  }
+  pre {
+    background: #0d1233;
+    color: #e7ebff;
+    padding: 14px 16px;
+    border-radius: 10px;
+    overflow-x: auto;
+  }
+  code:not(pre code) {
+    background: #eef0fa;
+    padding: 1px 6px;
+    border-radius: 4px;
+    color: var(--navy);
+  }
+
+  /* layout */
+  .shell { display: grid; grid-template-columns: 240px 1fr; min-height: 100vh; }
+  nav.side {
+    background: var(--navy);
+    color: #fff;
+    padding: 24px 18px;
+    position: sticky; top: 0; align-self: start;
+    height: 100vh; overflow-y: auto;
+  }
+  nav.side .brand {
+    font-weight: 800; font-size: 18px;
+    background: linear-gradient(135deg, var(--teal), var(--mint));
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    margin-bottom: 4px;
+  }
+  nav.side .strap {
+    font-size: 12px; color: #b8c0ea;
+    margin-bottom: 22px;
+  }
+  nav.side a {
+    display: block; color: #cfd5fb;
+    padding: 7px 10px; border-radius: 8px;
+    text-decoration: none; font-size: 13.5px;
+    margin: 2px 0;
+  }
+  nav.side a:hover { background: rgba(255,255,255,0.06); color: #fff; }
+  nav.side a.active { background: rgba(10,229,246,0.12); color: var(--teal); }
+  nav.side .group { margin-top: 18px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: #8c95c2; padding: 0 10px; }
+
+  main { padding: 40px 56px 120px; max-width: 1080px; }
+  section { margin-bottom: 72px; scroll-margin-top: 24px; }
+  h1, h2, h3, h4 { color: var(--navy); margin-top: 0; line-height: 1.2; }
+  h1 { font-size: 34px; letter-spacing: -0.01em; }
+  h2 { font-size: 26px; margin-bottom: 6px; }
+  h3 { font-size: 18px; margin: 18px 0 6px; }
+  h4 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+  p { margin: 8px 0; }
+  .lede { font-size: 17px; color: var(--muted); margin-top: 4px; }
+  .pill {
+    display: inline-block; padding: 3px 10px; border-radius: 999px;
+    font-size: 11px; font-weight: 600; letter-spacing: 0.04em; text-transform: uppercase;
+  }
+  .pill.teal { background: #d5f8fb; color: #036c75; }
+  .pill.mint { background: #ddf6ea; color: #146d4a; }
+  .pill.purple { background: #ece1ff; color: #5e2db8; }
+  .pill.navy { background: #d8dbf0; color: var(--navy); }
+  .pill.warn { background: #ffe7d6; color: #a14b14; }
+
+  .card {
+    background: #fff;
+    border: 1px solid var(--line);
+    border-radius: 14px;
+    padding: 22px 24px;
+    box-shadow: 0 1px 0 rgba(8,12,100,0.02);
+  }
+  .card + .card { margin-top: 12px; }
+
+  .grid { display: grid; gap: 14px; }
+  .grid.cols-2 { grid-template-columns: 1fr 1fr; }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+
+  /* tabs */
+  .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin-bottom: 16px; flex-wrap: wrap; }
+  .tab {
+    border: 0; background: transparent; cursor: pointer;
+    padding: 10px 14px; font-size: 13.5px; font-weight: 600;
+    color: var(--muted); border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+  }
+  .tab.active { color: var(--navy); border-bottom-color: var(--teal); }
+  .tab:hover { color: var(--navy); }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+
+  /* timeline */
+  .timeline { position: relative; padding-left: 30px; }
+  .timeline::before {
+    content: ''; position: absolute; left: 9px; top: 6px; bottom: 6px;
+    width: 2px; background: linear-gradient(var(--teal), var(--purple));
+  }
+  .step {
+    position: relative; padding: 10px 16px 14px;
+    border-left: 0; margin-bottom: 6px;
+  }
+  .step::before {
+    content: attr(data-n); position: absolute; left: -30px; top: 10px;
+    width: 22px; height: 22px; background: var(--navy); color: #fff;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; border: 3px solid var(--paper);
+  }
+  .step.click {
+    cursor: pointer; border-radius: 10px;
+  }
+  .step.click:hover { background: #f0f3ff; }
+  .step .title { font-weight: 700; color: var(--navy); }
+  .step .meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .step .detail {
+    display: none; margin-top: 10px;
+    background: #f6f8ff; border-radius: 10px; padding: 12px 14px;
+    font-size: 13.5px;
+  }
+  .step.open .detail { display: block; }
+  .step .detail ul { margin: 6px 0; padding-left: 20px; }
+  .step .detail li { margin: 2px 0; }
+
+  /* scorecard explorer */
+  .scorecard-explorer { display: grid; grid-template-columns: 240px 1fr; gap: 24px; }
+  .preferences { display: flex; flex-direction: column; gap: 4px; }
+  .preferences button {
+    text-align: left; padding: 10px 12px; border: 1px solid var(--line);
+    background: #fff; border-radius: 10px; cursor: pointer; font-size: 13px;
+    font-weight: 600; color: var(--ink);
+  }
+  .preferences button.active { background: var(--navy); color: #fff; border-color: var(--navy); }
+  .preferences button:hover:not(.active) { background: #f0f3ff; }
+  .toggle-distance {
+    margin-top: 12px; padding: 10px 12px; border-radius: 10px;
+    background: #f4f6ff; font-size: 12.5px;
+  }
+  .toggle-distance label { display: flex; align-items: center; gap: 8px; cursor: pointer; }
+  .weights-vis { padding: 6px 0; }
+  .weight-row {
+    display: grid; grid-template-columns: 130px 1fr 40px;
+    align-items: center; gap: 12px; margin: 8px 0;
+  }
+  .weight-label { font-size: 13px; font-weight: 600; }
+  .weight-bar { background: #eef0fa; height: 18px; border-radius: 9px; overflow: hidden; position: relative; }
+  .weight-bar > span {
+    display: block; height: 100%;
+    background: linear-gradient(90deg, var(--teal), var(--purple));
+    transition: width 220ms ease;
+  }
+  .weight-value { font-variant-numeric: tabular-nums; font-size: 12px; color: var(--muted); text-align: right; }
+
+  /* email matrix */
+  table.matrix {
+    width: 100%; border-collapse: collapse; font-size: 13px;
+  }
+  table.matrix th, table.matrix td {
+    padding: 10px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top;
+  }
+  table.matrix th { background: #f5f7ff; color: var(--navy); font-weight: 700; }
+  table.matrix tr:hover td { background: #fafbff; }
+  .from-firm { color: var(--purple); font-weight: 600; }
+  .from-cml { color: var(--navy); font-weight: 600; }
+
+  /* data model entity */
+  .entity-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+  .entity {
+    background: #fff; border: 1px solid var(--line); border-radius: 12px;
+    padding: 14px 16px; font-size: 13px; position: relative;
+  }
+  .entity h4 {
+    margin: 0 0 6px; font-size: 13.5px; text-transform: none; letter-spacing: 0;
+    color: var(--navy); display: flex; align-items: center; justify-content: space-between;
+  }
+  .entity .field { display: flex; justify-content: space-between; padding: 3px 0; border-top: 1px dotted #e8ebf6; font-size: 12.5px; }
+  .entity .field:first-of-type { border-top: 0; }
+  .entity .field .ftype { color: var(--muted); font-family: "SF Mono", monospace; font-size: 11px; }
+  .entity .badge { background: #ece1ff; color: var(--purple); font-size: 10px; padding: 1px 8px; border-radius: 999px; font-weight: 700; }
+
+  /* CSV mapping */
+  .csv-card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px 20px; }
+  .csv-cols { display: flex; flex-wrap: wrap; gap: 6px; margin: 8px 0 14px; }
+  .csv-col {
+    background: #f0f3ff; color: var(--navy); font-family: monospace;
+    font-size: 12px; padding: 4px 10px; border-radius: 6px; cursor: help;
+    border: 1px solid #dde1f3;
+  }
+  .csv-col:hover { background: var(--teal); color: var(--navy); }
+  .csv-arrow { color: var(--purple); font-weight: 800; }
+  .csv-target { font-family: monospace; font-size: 12.5px; }
+
+  .callout {
+    background: #fff8ee;
+    border-left: 4px solid var(--warn);
+    border-radius: 10px;
+    padding: 12px 16px;
+    margin: 14px 0;
+    font-size: 13.5px;
+  }
+  .callout strong { color: #a14b14; }
+  .callout.purple { background: #f5edff; border-left-color: var(--purple); }
+  .callout.purple strong { color: var(--purple); }
+  .callout.teal { background: #e9fafd; border-left-color: var(--teal); }
+  .callout.teal strong { color: #036c75; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .dot { width: 10px; height: 10px; border-radius: 50%; }
+
+  details summary {
+    cursor: pointer; font-weight: 600; color: var(--navy);
+    padding: 8px 0; user-select: none;
+  }
+  details summary::-webkit-details-marker { display: none; }
+  details summary::before { content: '▸ '; color: var(--purple); display: inline-block; transition: transform 200ms; }
+  details[open] summary::before { transform: rotate(90deg); }
+  details + details { border-top: 1px solid var(--line); }
+
+  .kbd {
+    font-family: monospace; font-size: 11.5px; background: #eef0fa;
+    border: 1px solid var(--line); padding: 1px 6px; border-radius: 4px;
+  }
+
+  hr.soft { border: 0; border-top: 1px dashed var(--line); margin: 22px 0; }
+</style>
+</head>
+<body>
+<div class="shell">
+
+<nav class="side">
+  <div class="brand">Choose My Lawyer</div>
+  <div class="strap">Founder walkthrough · MVP build</div>
+  <a href="#overview">1 · Overview</a>
+  <a href="#architecture">2 · Architecture</a>
+  <div class="group">User flows</div>
+  <a href="#consumer">3 · Consumer journey</a>
+  <a href="#firm">4 · Firm journey</a>
+  <a href="#admin">5 · Admin / internal</a>
+  <a href="#scheduled">6 · Scheduled jobs</a>
+  <div class="group">How ranking works</div>
+  <a href="#ranking">7 · Six-factor ranking</a>
+  <a href="#scorecards">8 · Scorecard explorer</a>
+  <a href="#pricing">9 · Pricing</a>
+  <div class="group">Data</div>
+  <a href="#data-model">10 · Data model</a>
+  <a href="#csvs">11 · CSV ingestion</a>
+  <a href="#emails">12 · Email matrix</a>
+  <div class="group">Discussion</div>
+  <a href="#open">13 · Open questions</a>
+</nav>
+
+<main>
+
+<!-- 1. OVERVIEW -->
+<section id="overview">
+  <span class="pill teal">MVP · Conveyancing · WMCA</span>
+  <span class="pill navy">Go-live 1 June 2026</span>
+  <h1 style="margin-top:14px;">Choose My Lawyer — what we've built so far</h1>
+  <p class="lede">A walkthrough of the pilot: what a consumer experiences, how data flows, what the firm sees, and how ranking and pricing actually work under the hood.</p>
+
+  <div class="grid cols-3" style="margin-top:24px;">
+    <div class="card">
+      <h4>The product in one line</h4>
+      <p style="margin:0;">A guided intake chat that turns a home-buyer's situation into a ranked, priced list of WMCA conveyancing solicitors — with one click to instruct or request a callback.</p>
+    </div>
+    <div class="card">
+      <h4>What's commercially novel</h4>
+      <p style="margin:0;">Ranking is deterministic, rules-based, and runs across the <em>whole market</em> — enrolled firms aren't promoted into the ranking, they're just the ones we can contact. That preserves the "independent comparison" position.</p>
+    </div>
+    <div class="card">
+      <h4>What the pilot is testing</h4>
+      <p style="margin:0;">Commercial validation, not feature completeness. Can ~90 days of PPC into the WMCA produce enough Proceed / Callback volume from a manually-priced firm panel to justify rollout?</p>
+    </div>
+  </div>
+</section>
+
+<!-- 2. ARCHITECTURE -->
+<section id="architecture">
+  <h2>2 · The pieces</h2>
+  <p class="lede">Three runtime surfaces, one shared database, one in-process scheduler.</p>
+
+  <div class="grid cols-2" style="margin-top:20px;">
+    <div class="card">
+      <span class="pill purple">Frontend</span>
+      <h3>Next.js 15 · TypeScript · Tailwind</h3>
+      <ul style="margin:6px 0 0; padding-left:18px;">
+        <li><strong>Marketing</strong> — landing, how-it-works, FAQs.</li>
+        <li><strong>Public consumer flow</strong> — chat, results, Proceed/Callback forms, review page.</li>
+        <li><strong>Firm portal</strong> — login, profile, price card editor, reviews, dashboard.</li>
+      </ul>
+    </div>
+    <div class="card">
+      <span class="pill teal">Backend</span>
+      <h3>FastAPI · SQLAlchemy async · PostgreSQL</h3>
+      <ul style="margin:6px 0 0; padding-left:18px;">
+        <li><strong>Public API</strong> (unauthenticated): chat sessions, search, appointments, reviews, events.</li>
+        <li><strong>Firm API</strong> (JWT): pricing, profile, reviews, dashboard stats.</li>
+        <li><strong>Admin API</strong>: enrol firms, conflict-check outcomes, analytics CSV export.</li>
+        <li><strong>APScheduler</strong> in-process for Google reviews sync + follow-up jobs.</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h4>Third-party services</h4>
+    <div class="grid cols-4" style="margin-top:8px;">
+      <div><strong>Sparkpost</strong><div style="color:var(--muted); font-size:12.5px;">All transactional email</div></div>
+      <div><strong>Google Places API</strong><div style="color:var(--muted); font-size:12.5px;">Weekly reviews sync per firm</div></div>
+      <div><strong>Fetchify</strong><div style="color:var(--muted); font-size:12.5px;">UK postcode → lat/lng</div></div>
+      <div><strong>Meta Pixel</strong><div style="color:var(--muted); font-size:12.5px;">Funnel + retargeting; mirrored to our DB so we have an export if Meta is unreliable.</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- 3. CONSUMER JOURNEY -->
+<section id="consumer">
+  <h2>3 · The consumer journey</h2>
+  <p class="lede">Click any step to see what gets written, sent, or calculated.</p>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="timeline">
+
+      <div class="step click" data-n="1">
+        <div class="title">Land on marketing site → click "Find a solicitor"</div>
+        <div class="meta"><span class="pill mint">Frontend</span> &nbsp;Meta Pixel fires <code>PageView</code>; mirrored to <code>analytics_events</code>.</div>
+        <div class="detail">
+          The marketing pages live under <code>frontend/app/(marketing)</code>. Pricing, "How it works", FAQ etc.
+          All Pixel events are also POSTed to <code>/api/public/events</code> so we have an internal copy of every funnel hit.
+        </div>
+      </div>
+
+      <div class="step click" data-n="2">
+        <div class="title">Start the chat → POST /api/public/sessions</div>
+        <div class="meta"><span class="pill teal">Backend</span> &nbsp;Creates a row in <code>chat_sessions</code> with a UUID; the URL becomes <code>/chat/{uuid}</code> so the session can be saved and resumed.</div>
+        <div class="detail">
+          Sessions live in PostgreSQL (no Redis). Two JSONB columns: <code>answers</code> (the structured intake) and <code>message_history</code> (the rendered transcript). An <code>expires_at</code> column lets us garbage-collect abandoned sessions.
+        </div>
+      </div>
+
+      <div class="step click" data-n="3">
+        <div class="title">13-step intake (conveyancing)</div>
+        <div class="meta"><span class="pill teal">Backend</span> &nbsp;Each answer → POST /api/public/sessions/{id}/answer · server validates per question type · stores into <code>chat_sessions.answers</code> JSONB.</div>
+        <div class="detail">
+          The full schema lives in <code>backend/app/services/chat.py</code>. Sections:
+          <ol>
+            <li><strong>About your case</strong> — purchase price, freehold/leasehold, postcode, mortgage, new build, Help to Buy ISA, shared ownership.</li>
+            <li><strong>Ranking preference</strong> — one of 7 scorecard preferences; whether to include distance.</li>
+            <li><strong>Your details</strong> — first name, last name, email, phone (used for Proceed/Callback dispatch later).</li>
+          </ol>
+          The backend validates every answer (postcode regex, currency parse, email/phone shape) so a malformed payload can't get past the API.
+        </div>
+      </div>
+
+      <div class="step click" data-n="4">
+        <div class="title">Reveal results → GET /api/public/search/{session_id}</div>
+        <div class="meta"><span class="pill teal">Backend</span> &nbsp;The ranker runs against the <em>whole WMCA market</em>, not just enrolled firms (see §7).</div>
+        <div class="detail">
+          What happens server-side, in order:
+          <ol>
+            <li><strong>Load</strong> every non-intervened organisation, eager-loading offices, price cards, complaints decisions, regulatory decisions.</li>
+            <li><strong>Filter</strong> to firms with an active conveyancing price card AND a fee band that matches the purchase price (otherwise we can't quote them → exclude in pilot).</li>
+            <li><strong>Score</strong> each firm across 6 factors (reputation, price, complaints, regulatory, distance if opted-in, offices).</li>
+            <li><strong>Weight + rank</strong> by the user's chosen scorecard.</li>
+            <li><strong>Extract</strong> the top-5 contactable (enrolled) firms from the ranked list.</li>
+          </ol>
+          The result payload contains the full ranked market (so the user can scroll past the top 5) plus the top-5-contactable subset with rank/score/quote/factor breakdown.
+        </div>
+      </div>
+
+      <div class="step click" data-n="5">
+        <div class="title">Inspect a firm → "View breakdown"</div>
+        <div class="meta"><span class="pill purple">Frontend</span> &nbsp;Modal shows itemised quote + factor scores + links to source LeO/SRA decisions.</div>
+        <div class="detail">
+          Every results row carries the <em>full</em> quote breakdown (base fee + conditional adjustments + VAT + included disbursements) and the per-factor 0–100 scores. We also surface the source URLs of every complaints / regulatory decision so the user can see our working.
+        </div>
+      </div>
+
+      <div class="step click" data-n="6">
+        <div class="title">"Proceed" with a firm — POST /api/public/appointments (type=appoint)</div>
+        <div class="meta"><span class="pill mint">Email</span> &nbsp;Three emails fire: to firm (in user's name, reply-to = user), copy to user, BCC to CML.</div>
+        <div class="detail">
+          Server records:
+          <ul>
+            <li>An <code>appointments</code> row: type <code>appoint</code>, status <code>pending</code>, quoted price snapshot, conflict_check_outcome <code>pending</code>.</li>
+            <li>Consent flags (contacted + terms) captured from the form.</li>
+          </ul>
+          The firm email uses the user's name as <code>from_name</code> with their email as <code>reply_to</code> — the firm replies directly to the consumer, not to a CML relay. CML is BCC'd for audit.
+          <div class="callout teal" style="margin-top:8px;"><strong>Why this matters:</strong> regulators / firms prefer direct client contact; we just introduce.</div>
+        </div>
+      </div>
+
+      <div class="step click" data-n="7">
+        <div class="title">"Request a callback" (up to 5 firms)</div>
+        <div class="meta"><span class="pill mint">Email</span> &nbsp;Same dispatch pattern as Proceed; includes phone + preferred-time window. Type = <code>callback</code>.</div>
+        <div class="detail">
+          A callback row carries client_name, client_email, client_phone, preferred_time (e.g. "Tuesday morning"). End-of-day a cron job emails the user asking whether the firm got in touch (see §6).
+        </div>
+      </div>
+
+      <div class="step click" data-n="8">
+        <div class="title">Follow-ups (scheduled, asynchronous)</div>
+        <div class="meta"><span class="pill purple">APScheduler</span> &nbsp;Three daily cron jobs — see §6 for timings.</div>
+        <div class="detail">
+          <ul>
+            <li><strong>Callback follow-up</strong> — same working day, 17:00. Binary yes/no email; click writes <code>appointments.firm_contact_made</code>.</li>
+            <li><strong>Proceed follow-up</strong> — 5 working days later. Quote-drift reminder + binary check-in.</li>
+            <li><strong>Feedback request</strong> — 2 months later. Issues a <code>review_invitations</code> token; click goes to /review/{token}.</li>
+          </ul>
+        </div>
+      </div>
+
+      <div class="step click" data-n="9">
+        <div class="title">Conflict-check failure (rare)</div>
+        <div class="meta"><span class="pill warn">Admin</span> &nbsp;Firm tells us privately they can't act; CML marks <code>conflict_check_outcome=conflict</code>; user emailed with a link back to their results.</div>
+        <div class="detail">
+          Endpoint: <code>POST /api/admin/appointments/{id}/conflict-check</code>. The user can pick a different firm from their original ranked list — the session is still alive.
+        </div>
+      </div>
+
+      <div class="step click" data-n="10">
+        <div class="title">Review (post-matter)</div>
+        <div class="meta"><span class="pill teal">Backend</span> &nbsp;Consumer opens token URL → submits rating + text → row in <code>reviews</code>, source=<code>cml</code>.</div>
+        <div class="detail">
+          CML reviews are weighted 2× vs Google reviews when computing the cached <code>aggregate_rating</code> on the organisation. Firms can respond once per review and report inappropriate ones (the flagged ones queue for manual moderation; we don't have a moderation UI in MVP).
+        </div>
+      </div>
+
+    </div>
+  </div>
+</section>
+
+<!-- 4. FIRM JOURNEY -->
+<section id="firm">
+  <h2>4 · The firm journey</h2>
+  <p class="lede">Firms are invited manually for the pilot. No self-serve onboarding yet.</p>
+
+  <div class="card" style="margin-top:16px;">
+    <div class="timeline">
+
+      <div class="step click" data-n="1">
+        <div class="title">Admin issues an enrolment invitation</div>
+        <div class="meta"><span class="pill warn">Admin</span> &nbsp;POST /api/admin/organisations/{org_id}/invite-enrollment → generates an <code>enrollment_token</code> UUID, emails the firm.</div>
+        <div class="detail">
+          Organisation rows for every WMCA SRA-authorised firm <em>already exist</em> from the SRA CSV import. The invitation just attaches a token + sends a Sparkpost email containing the enrol link.
+        </div>
+      </div>
+
+      <div class="step click" data-n="2">
+        <div class="title">Firm clicks link → completes /enroll → creates account</div>
+        <div class="meta"><span class="pill teal">Backend</span> &nbsp;POST /api/firm/auth/register: validates the token, hashes the password, marks <code>enrolled=true</code> and <code>enrollment_token_used=true</code>, creates a <code>firm_users</code> row.</div>
+        <div class="detail">
+          We use JWT bearer tokens in localStorage (not HTTP-only cookies) — simpler for Next.js client components, acceptable for the firm portal which is non-public anyway.
+        </div>
+      </div>
+
+      <div class="step click" data-n="3">
+        <div class="title">Firm logs in → JWT issued</div>
+        <div class="meta"><span class="pill teal">Backend</span> &nbsp;POST /api/firm/auth/login → returns access token. Frontend stores it; all <code>/api/firm/*</code> calls send it as <code>Authorization: Bearer ...</code>.</div>
+        <div class="detail">
+          A single FirmUser per organisation in MVP (admin role). Multi-seat is deferred.
+        </div>
+      </div>
+
+      <div class="step click" data-n="4">
+        <div class="title">Profile setup — /firm/profile</div>
+        <div class="meta"><span class="pill purple">Frontend</span> &nbsp;PATCH /api/firm/profile — website, phone, public email. SRA number and name are read-only (sourced from the regulator).</div>
+        <div class="detail">
+          The firm can also paste their Google Place ID, which the admin can then sync (see §6) to start pulling reviews.
+        </div>
+      </div>
+
+      <div class="step click" data-n="5">
+        <div class="title">Price card editor — /firm/pricing</div>
+        <div class="meta"><span class="pill teal">Backend</span> &nbsp;POST/PUT /api/firm/pricing — stores the structured price card as JSONB on <code>price_cards</code>.</div>
+        <div class="detail">
+          The editor captures fee bands by purchase price, conditional adjustments (e.g. leasehold supplement), VAT treatment, and included disbursements. The same JSON shape is used by the ranker's price calculator at runtime — see §9.
+          <p style="margin-top:8px;">There's a "preview quote" endpoint that lets the firm see what their price card would output for a sample matter before they publish it.</p>
+        </div>
+      </div>
+
+      <div class="step click" data-n="6">
+        <div class="title">Dashboard — /firm/dashboard</div>
+        <div class="meta"><span class="pill teal">Backend</span> &nbsp;GET /api/firm/dashboard/stats — counts of Proceeds, Callbacks, average rating, etc.</div>
+        <div class="detail">
+          No PII-rich lead list yet — appointments are private and the firm gets the lead by email directly (in the user's name). The dashboard exists to show the firm volume / pipeline at a glance.
+        </div>
+      </div>
+
+      <div class="step click" data-n="7">
+        <div class="title">Reviews management — /firm/reviews</div>
+        <div class="meta"><span class="pill teal">Backend</span> &nbsp;GET /api/firm/reviews · POST /respond · POST /report.</div>
+        <div class="detail">
+          Firms can reply once per review and flag obviously-bogus ones. Flagged reviews go into a queue but there's no in-app moderation tooling for the pilot — it's a human review by us.
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="callout">
+    <strong>Pilot constraint:</strong> firms are enrolled and priced by hand. We anticipate ~10–25 firms across WMCA at launch. Self-serve onboarding and automated pricing import are explicit non-goals for MVP.
+  </div>
+</section>
+
+<!-- 5. ADMIN -->
+<section id="admin">
+  <h2>5 · Admin / internal operations</h2>
+  <p class="lede">There's no admin UI in MVP. Everything below is API-only — we run it from a tool like Postman / curl.</p>
+
+  <div class="grid cols-2" style="margin-top:14px;">
+    <div class="card">
+      <h4>POST /api/admin/organisations/{id}/invite-enrollment</h4>
+      <p>Generate enrolment token; email firm a join link.</p>
+    </div>
+    <div class="card">
+      <h4>POST /api/admin/organisations/{id}/sync-google-place</h4>
+      <p>Manually pull Google reviews + place rating for an org (also runs weekly in cron).</p>
+    </div>
+    <div class="card">
+      <h4>POST /api/admin/appointments/{id}/conflict-check</h4>
+      <p>Mark a Proceed as failed due to firm-side conflict; triggers the consumer "pick another solicitor" email.</p>
+    </div>
+    <div class="card">
+      <h4>GET /api/admin/analytics/export</h4>
+      <p>CSV of every captured event (funnel, conversions). For founder-side analysis without depending on Meta.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6. SCHEDULED JOBS -->
+<section id="scheduled">
+  <h2>6 · Scheduled jobs</h2>
+  <p class="lede">All four jobs run in-process inside the FastAPI app via APScheduler. No separate worker.</p>
+
+  <table class="matrix" style="margin-top:14px;">
+    <thead>
+      <tr><th>Job</th><th>Cadence</th><th>What it does</th><th>Why</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Google reviews sync</strong></td>
+        <td>Mondays · 03:00</td>
+        <td>For every enrolled firm with a Google Place ID, fetch latest reviews + rating, upsert into <code>reviews</code> (source=google), recompute <code>aggregate_rating</code>.</td>
+        <td>Reputation factor depends on this data being current.</td>
+      </tr>
+      <tr>
+        <td><strong>Callback follow-up</strong></td>
+        <td>Daily · 17:00</td>
+        <td>For callbacks created today, email user "did the firm call you back?" with yes/no buttons.</td>
+        <td>Holds firms accountable; populates <code>firm_contact_made</code>.</td>
+      </tr>
+      <tr>
+        <td><strong>Proceed follow-up</strong></td>
+        <td>Daily · 09:00</td>
+        <td>For Proceeds made 5 working days ago, email user quote-drift reminder + binary check-in.</td>
+        <td>Catches stalled instructions; price-staleness disclaimer.</td>
+      </tr>
+      <tr>
+        <td><strong>Feedback request</strong></td>
+        <td>Daily · 09:30</td>
+        <td>For Proceeds made ~2 months ago, issue a <code>review_invitations</code> token and email the consumer.</td>
+        <td>Source of CML-native reviews; replaces the old 90-day cron.</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout">
+    <strong>Failure mode to consider:</strong> APScheduler is in-process. If we run multiple backend instances, the same job runs once per instance. For pilot scale (one Railway service) this is fine. Post-pilot we'd extract to a single worker or use Railway cron.
+  </div>
+</section>
+
+<!-- 7. RANKING -->
+<section id="ranking">
+  <h2>7 · The six-factor ranking, plain English</h2>
+  <p class="lede">Deterministic. Identical inputs always produce identical outputs. No runtime AI.</p>
+
+  <div class="grid cols-2" style="margin-top:14px;">
+    <div class="card">
+      <h3 style="margin-top:0;">The six factors</h3>
+      <ol style="margin:6px 0; padding-left:20px;">
+        <li><strong>Reputation</strong> — rating × confidence weighting based on review count. Normalised across the result set.</li>
+        <li><strong>Price</strong> — Total Effective Price (fees + VAT + included disbursements). Normalised across the result set — cheapest gets 100.</li>
+        <li><strong>Complaints history</strong> — Legal Ombudsman decisions. Base 100, deductions per decision.</li>
+        <li><strong>Regulatory history</strong> — SRA + SDT decisions. Base 100, larger deductions per outcome.</li>
+        <li><strong>Distance</strong> — optional. Geodesic distance from user's postcode to nearest office. Normalised — closer wins.</li>
+        <li><strong>Number of offices</strong> — banded absolute score (1 office → 70 ... 21+ offices → 100).</li>
+      </ol>
+    </div>
+    <div class="card">
+      <h3 style="margin-top:0;">Sequencing — the key trick</h3>
+      <ol style="margin:6px 0; padding-left:20px;">
+        <li>Rank <strong>all in-scope WMCA firms</strong> (signed up or not).</li>
+        <li>Extract the <strong>top-5 contactable</strong> (= enrolled) firms from that ranking.</li>
+      </ol>
+      <p>We never rank enrolled firms separately. This preserves the "whole of market" positioning — the rankings are the same whether a firm pays or not; enrolment just unlocks the "contact" action.</p>
+    </div>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h3 style="margin-top:0;">Two binary eligibility rules</h3>
+    <ul>
+      <li><strong>SRA Intervention</strong> on a firm → removed from results entirely (not a deduction — a hard exclusion).</li>
+      <li>No active conveyancing price card matching the purchase-price band → excluded from this pilot. Post-pilot, the "Estimated Price" path (normalised from public transparency statements) lifts this restriction.</li>
+    </ul>
+  </div>
+
+  <div class="card" style="margin-top:14px;">
+    <h3 style="margin-top:0;">Tie-break order</h3>
+    <p style="margin:4px 0;">If two firms have the same overall weighted score:</p>
+    <p style="font-family:monospace; font-size:13px; color:var(--navy); background:#eef0fa; padding:8px 12px; border-radius:8px;">reputation → complaints → regulatory → price → distance → offices → alphabetical</p>
+  </div>
+</section>
+
+<!-- 8. SCORECARDS -->
+<section id="scorecards">
+  <h2>8 · Scorecard explorer</h2>
+  <p class="lede">Pick a user preference to see how the six factor weights shift. Toggling "include distance" off rescales the remaining weights to sum to 100.</p>
+
+  <div class="card" style="margin-top:14px;">
+    <div class="scorecard-explorer">
+      <div>
+        <div class="preferences" id="prefs"></div>
+        <div class="toggle-distance">
+          <label>
+            <input type="checkbox" id="distToggle" />
+            Include distance in ranking
+          </label>
+          <div style="font-size:11.5px; color:var(--muted); margin-top:4px;">If off, the distance weight redistributes to the other five.</div>
+        </div>
+      </div>
+      <div>
+        <div class="weights-vis" id="weights"></div>
+        <div class="legend" style="margin-top:6px;">
+          <span>Total: <strong id="totalWeight">100</strong></span>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 9. PRICING -->
+<section id="pricing">
+  <h2>9 · How a quote is built</h2>
+  <p class="lede">The price the user sees is computed at runtime from the firm's stored price card plus the user's answers — no fuzzy estimation.</p>
+
+  <div class="card" style="margin-top:14px;">
+    <h3 style="margin-top:0;">Total Effective Price formula</h3>
+    <pre>P_legal_effective   = P_quoted                            (pilot: quoted only)
+fees_subtotal       = base_fee + Σ matching adjustments
+vat_on_fees         = fees_subtotal × 0.20                 (if VAT applies)
+disbursements_total = Σ (each disbursement × its VAT flag)
+
+P_effective         = fees_subtotal + vat_on_fees + disbursements_total</pre>
+
+    <h3>What sits in the price card (JSONB)</h3>
+    <pre>{
+  "practice_area": "residential_conveyancing",
+  "pricing_model": "band",
+  "bands": [
+    { "purchase_price_min": 0,      "purchase_price_max": 250000, "fee": 950 },
+    { "purchase_price_min": 250001, "purchase_price_max": 500000, "fee": 1200 }
+  ],
+  "adjustments": [
+    { "name": "Leasehold supplement",   "amount": 250, "condition": "tenure==leasehold" },
+    { "name": "New build supplement",   "amount": 200, "condition": "new_build==true" },
+    { "name": "Help to Buy ISA",        "amount": 50,  "condition": "help_to_buy_isa==true" }
+  ],
+  "vat_applies_to_fees": true,
+  "included_disbursements": [
+    { "name": "Land Registry fee",   "amount": 150, "vat_applies": false },
+    { "name": "Bankruptcy search",   "amount": 6,   "vat_applies": true  }
+  ]
+}</pre>
+  </div>
+
+  <div class="callout purple">
+    <strong>Post-pilot:</strong> add an "Estimated Price" path — we normalise public firm transparency statements into the same structure ahead of time and apply a 7.5% confidence uplift at runtime. Disbursement estimates get a 2% uplift. Excluded disbursements (Stamp Duty etc.) are flagged to the consumer with a link to the CML explainer rather than baked in.
+  </div>
+</section>
+
+<!-- 10. DATA MODEL -->
+<section id="data-model">
+  <h2>10 · Data model</h2>
+  <p class="lede">Eleven tables. Mouse over relationships in the descriptions below.</p>
+
+  <div class="legend" style="margin: 12px 0 18px;">
+    <span><span class="dot" style="background:var(--navy);"></span> Identity / firms</span>
+    <span><span class="dot" style="background:var(--teal);"></span> Consumer session</span>
+    <span><span class="dot" style="background:var(--mint);"></span> Conversion</span>
+    <span><span class="dot" style="background:var(--purple);"></span> Ranking inputs</span>
+    <span><span class="dot" style="background:#999;"></span> Observability</span>
+  </div>
+
+  <div class="entity-grid">
+
+    <div class="entity" style="border-top: 3px solid var(--navy);">
+      <h4>organisations <span class="badge">core</span></h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk</span></div>
+      <div class="field"><span>sra_number</span><span class="ftype">str unique</span></div>
+      <div class="field"><span>name</span><span class="ftype">str</span></div>
+      <div class="field"><span>auth_status</span><span class="ftype">str</span></div>
+      <div class="field"><span>enrolled</span><span class="ftype">bool</span></div>
+      <div class="field"><span>enrollment_token</span><span class="ftype">uuid</span></div>
+      <div class="field"><span>intervened</span><span class="ftype">bool</span></div>
+      <div class="field"><span>google_place_id</span><span class="ftype">str</span></div>
+      <div class="field"><span>google_rating</span><span class="ftype">float</span></div>
+      <div class="field"><span>aggregate_rating</span><span class="ftype">float (cached)</span></div>
+    </div>
+
+    <div class="entity" style="border-top: 3px solid var(--navy);">
+      <h4>offices</h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk</span></div>
+      <div class="field"><span>org_id</span><span class="ftype">→ organisations</span></div>
+      <div class="field"><span>postcode</span><span class="ftype">str</span></div>
+      <div class="field"><span>lat / lng</span><span class="ftype">float</span></div>
+      <div class="field"><span>is_primary</span><span class="ftype">bool</span></div>
+    </div>
+
+    <div class="entity" style="border-top: 3px solid var(--navy);">
+      <h4>firm_users</h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk</span></div>
+      <div class="field"><span>org_id</span><span class="ftype">→ organisations</span></div>
+      <div class="field"><span>email</span><span class="ftype">str unique</span></div>
+      <div class="field"><span>hashed_password</span><span class="ftype">str</span></div>
+      <div class="field"><span>role</span><span class="ftype">enum</span></div>
+    </div>
+
+    <div class="entity" style="border-top: 3px solid var(--purple);">
+      <h4>price_cards <span class="badge">jsonb</span></h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk</span></div>
+      <div class="field"><span>org_id</span><span class="ftype">→ organisations</span></div>
+      <div class="field"><span>practice_area</span><span class="ftype">str</span></div>
+      <div class="field"><span>pricing</span><span class="ftype">JSONB</span></div>
+      <div class="field"><span>confidence</span><span class="ftype">float</span></div>
+      <div class="field"><span>active</span><span class="ftype">bool</span></div>
+    </div>
+
+    <div class="entity" style="border-top: 3px solid var(--purple);">
+      <h4>complaints_decisions</h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk</span></div>
+      <div class="field"><span>org_id</span><span class="ftype">→ organisations</span></div>
+      <div class="field"><span>decision_id</span><span class="ftype">str</span></div>
+      <div class="field"><span>severity_band</span><span class="ftype">int (0-3)</span></div>
+      <div class="field"><span>severity_score</span><span class="ftype">float (pre-computed)</span></div>
+      <div class="field"><span>remedy_amount</span><span class="ftype">decimal</span></div>
+      <div class="field"><span>remedy_amount_score</span><span class="ftype">float</span></div>
+      <div class="field"><span>complaint_handling_penalty</span><span class="ftype">bool</span></div>
+      <div class="field"><span>source_url</span><span class="ftype">str</span></div>
+    </div>
+
+    <div class="entity" style="border-top: 3px solid var(--purple);">
+      <h4>regulatory_decisions</h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk</span></div>
+      <div class="field"><span>org_id</span><span class="ftype">→ organisations</span></div>
+      <div class="field"><span>source</span><span class="ftype">enum(sra | sdt)</span></div>
+      <div class="field"><span>decision_type</span><span class="ftype">enum</span></div>
+      <div class="field"><span>deduction</span><span class="ftype">float (pre-computed)</span></div>
+      <div class="field"><span>sdt_fine_amount</span><span class="ftype">decimal</span></div>
+      <div class="field"><span>source_url</span><span class="ftype">str</span></div>
+    </div>
+
+    <div class="entity" style="border-top: 3px solid var(--purple);">
+      <h4>reviews</h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk</span></div>
+      <div class="field"><span>org_id</span><span class="ftype">→ organisations</span></div>
+      <div class="field"><span>source</span><span class="ftype">enum(cml | google)</span></div>
+      <div class="field"><span>rating</span><span class="ftype">decimal(2,1)</span></div>
+      <div class="field"><span>text</span><span class="ftype">text</span></div>
+      <div class="field"><span>firm_response</span><span class="ftype">text</span></div>
+      <div class="field"><span>reported</span><span class="ftype">bool</span></div>
+      <div class="field"><span>external_id</span><span class="ftype">str (Google ID)</span></div>
+    </div>
+
+    <div class="entity" style="border-top: 3px solid var(--teal);">
+      <h4>chat_sessions</h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk (URL token)</span></div>
+      <div class="field"><span>practice_area</span><span class="ftype">str</span></div>
+      <div class="field"><span>answers</span><span class="ftype">JSONB</span></div>
+      <div class="field"><span>message_history</span><span class="ftype">JSONB</span></div>
+      <div class="field"><span>results_cache</span><span class="ftype">JSONB</span></div>
+      <div class="field"><span>scorecard_preference</span><span class="ftype">enum</span></div>
+      <div class="field"><span>include_distance</span><span class="ftype">bool</span></div>
+      <div class="field"><span>expires_at</span><span class="ftype">timestamp</span></div>
+    </div>
+
+    <div class="entity" style="border-top: 3px solid var(--mint);">
+      <h4>appointments <span class="badge">conversion</span></h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk</span></div>
+      <div class="field"><span>session_id</span><span class="ftype">→ chat_sessions</span></div>
+      <div class="field"><span>org_id</span><span class="ftype">→ organisations</span></div>
+      <div class="field"><span>type</span><span class="ftype">enum(appoint | callback)</span></div>
+      <div class="field"><span>status</span><span class="ftype">enum</span></div>
+      <div class="field"><span>client_name / email / phone</span><span class="ftype">str</span></div>
+      <div class="field"><span>quoted_price</span><span class="ftype">decimal (snapshot)</span></div>
+      <div class="field"><span>conflict_check_outcome</span><span class="ftype">enum</span></div>
+      <div class="field"><span>firm_contact_made</span><span class="ftype">bool nullable</span></div>
+    </div>
+
+    <div class="entity" style="border-top: 3px solid var(--mint);">
+      <h4>review_invitations</h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk</span></div>
+      <div class="field"><span>appointment_id</span><span class="ftype">→ appointments</span></div>
+      <div class="field"><span>email</span><span class="ftype">str</span></div>
+      <div class="field"><span>token</span><span class="ftype">uuid (single-use)</span></div>
+      <div class="field"><span>sent_at / used_at / expires_at</span><span class="ftype">timestamp</span></div>
+    </div>
+
+    <div class="entity" style="border-top: 3px solid #999;">
+      <h4>analytics_events</h4>
+      <div class="field"><span>id</span><span class="ftype">uuid pk</span></div>
+      <div class="field"><span>session_id</span><span class="ftype">uuid nullable</span></div>
+      <div class="field"><span>event_type</span><span class="ftype">str</span></div>
+      <div class="field"><span>metadata</span><span class="ftype">JSONB</span></div>
+      <div class="field"><span>created_at</span><span class="ftype">timestamp</span></div>
+    </div>
+
+  </div>
+
+  <div class="callout teal" style="margin-top:18px;">
+    <strong>Key relationships at a glance:</strong>
+    <ul style="margin:6px 0 0; padding-left:20px;">
+      <li><code>organisations</code> 1-→-N <code>offices</code>, <code>price_cards</code>, <code>firm_users</code>, <code>complaints_decisions</code>, <code>regulatory_decisions</code>, <code>reviews</code>, <code>appointments</code>.</li>
+      <li><code>chat_sessions</code> 1-→-N <code>appointments</code> (one session can Proceed once + Callback up to 5).</li>
+      <li><code>appointments</code> 1-→-1 <code>review_invitations</code> (issued at 2-month follow-up).</li>
+      <li>Per-decision <strong>scores are pre-computed at ingest time</strong>. The runtime ranker only adds numbers — no business-rule branching at query time.</li>
+    </ul>
+  </div>
+</section>
+
+<!-- 11. CSV INGEST -->
+<section id="csvs">
+  <h2>11 · How the CSVs become rankable data</h2>
+  <p class="lede">Three ingest scripts, each idempotent. They populate the structured tables that the runtime ranker consumes.</p>
+
+  <div class="tabs" id="csvTabs">
+    <button class="tab active" data-target="csv-sra">SRA firms</button>
+    <button class="tab" data-target="csv-leo">LeO complaints</button>
+    <button class="tab" data-target="csv-sra-dec">SRA / SDT decisions</button>
+  </div>
+
+  <div class="tab-panel active" id="csv-sra">
+    <div class="csv-card">
+      <h3 style="margin-top:0;">scripts/import_sra_csv.py</h3>
+      <p>Source: SRA "check a solicitor or firm" CSV download. The whole authorised firm register, filtered to our pilot region.</p>
+      <h4>Columns we read</h4>
+      <div class="csv-cols">
+        <span class="csv-col" title="Used to upsert">Organisation name</span>
+        <span class="csv-col" title="Unique key">SRA number</span>
+        <span class="csv-col" title="Filter (only 'authorised')">Status</span>
+        <span class="csv-col">Address line 1 / 2</span>
+        <span class="csv-col">City</span>
+        <span class="csv-col">County</span>
+        <span class="csv-col" title="Region filter + geocoding key">Postcode</span>
+        <span class="csv-col">Website</span>
+        <span class="csv-col">Phone</span>
+        <span class="csv-col">Email</span>
+      </div>
+      <h4>What ends up in the DB</h4>
+      <table class="matrix">
+        <thead><tr><th>CSV field</th><th></th><th>Target column</th></tr></thead>
+        <tbody>
+          <tr><td>Organisation name</td><td class="csv-arrow">→</td><td class="csv-target">organisations.name</td></tr>
+          <tr><td>SRA number</td><td class="csv-arrow">→</td><td class="csv-target">organisations.sra_number</td></tr>
+          <tr><td>Status</td><td class="csv-arrow">→</td><td class="csv-target">organisations.auth_status (filtered to "authorised")</td></tr>
+          <tr><td>Website / Phone / Email</td><td class="csv-arrow">→</td><td class="csv-target">organisations.website_url / phone / email</td></tr>
+          <tr><td>Address / City / County / Postcode</td><td class="csv-arrow">→</td><td class="csv-target">offices.* (primary office row)</td></tr>
+          <tr><td>Postcode → Fetchify (--geocode)</td><td class="csv-arrow">→</td><td class="csv-target">offices.lat / offices.lng</td></tr>
+        </tbody>
+      </table>
+      <h4>Run</h4>
+      <pre>python scripts/import_sra_csv.py --csv sra_firms.csv \
+  --region "West Midlands" --geocode</pre>
+      <div class="callout">
+        <strong>Note:</strong> only firms with <code>status = authorised</code> survive the filter. Multi-office firms get a single primary office row from the CSV; additional offices are out of scope for ingestion right now.
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="csv-leo">
+    <div class="csv-card">
+      <h3 style="margin-top:0;">scripts/import_leo_csv.py</h3>
+      <p>Source: Legal Ombudsman published decisions. Firms are matched to SRA numbers <em>before</em> ingest (one-time entity resolution, done manually for the pilot).</p>
+
+      <h4>Filter rules</h4>
+      <ul>
+        <li><code>provider_type</code> must be <strong>"Firm SRA"</strong> or <strong>"ABS Firm SRA"</strong> (drops barristers / individual practitioners).</li>
+        <li><code>poor_service_found</code> must be truthy.</li>
+        <li><code>sra_number</code> must already exist in <code>organisations</code> (otherwise we drop the row).</li>
+      </ul>
+
+      <h4>Columns we read</h4>
+      <div class="csv-cols">
+        <span class="csv-col">decision_id</span>
+        <span class="csv-col">sra_number</span>
+        <span class="csv-col">decision_date</span>
+        <span class="csv-col" title="filter">provider_type</span>
+        <span class="csv-col" title="filter">poor_service_found</span>
+        <span class="csv-col" title="severity">remedy_type</span>
+        <span class="csv-col" title="scored">remedy_amount</span>
+        <span class="csv-col" title="+4 penalty">complaint_handling</span>
+        <span class="csv-col">source_url</span>
+      </div>
+
+      <h4>What happens at ingest (the key insight)</h4>
+      <p>The script doesn't just dump rows — it pre-computes the <strong>severity_score</strong>, <strong>remedy_amount_score</strong>, and <strong>complaint_handling_penalty</strong> flag. The runtime ranker then just adds numbers.</p>
+
+      <table class="matrix">
+        <thead><tr><th>CSV field</th><th></th><th>How it's mapped</th></tr></thead>
+        <tbody>
+          <tr><td>remedy_type</td><td class="csv-arrow">→</td><td class="csv-target">severity_band (0 = no remedy ... 3 = financial compensation), then severity_score (0.30 / 0.50 / 0.60 / 1.00)</td></tr>
+          <tr><td>remedy_amount</td><td class="csv-arrow">→</td><td class="csv-target">remedy_amount_score via banding table (£0 → 10, ... £50k+ → 62)</td></tr>
+          <tr><td>complaint_handling</td><td class="csv-arrow">→</td><td class="csv-target">complaint_handling_penalty bool (adds +4 to deduction at runtime)</td></tr>
+          <tr><td>source_url</td><td class="csv-arrow">→</td><td class="csv-target">stored verbatim — shown to consumer in results modal</td></tr>
+        </tbody>
+      </table>
+
+      <h4>How the runtime uses this</h4>
+      <pre>per_decision_deduction = severity_score × remedy_amount_score
+                       + (4 if complaint_handling_penalty else 0)
+
+complaints_score       = 100 − Σ per_decision_deduction   (no floor)</pre>
+
+      <h4>Run</h4>
+      <pre>python scripts/import_leo_csv.py --csv leo_decisions.csv</pre>
+    </div>
+  </div>
+
+  <div class="tab-panel" id="csv-sra-dec">
+    <div class="csv-card">
+      <h3 style="margin-top:0;">scripts/import_sra_decisions_csv.py</h3>
+      <p>Source: SRA-published regulatory decisions (rebukes, fines) AND Solicitors Disciplinary Tribunal fines. Same table; <code>source</code> column distinguishes them.</p>
+
+      <h4>Special rule — Intervention</h4>
+      <p>If <code>decision_type = intervention</code>, we <strong>don't</strong> insert a decision row. We flip <code>organisations.intervened = true</code>. That firm is then excluded from results entirely (binary eligibility, not a score deduction).</p>
+
+      <h4>Columns we read</h4>
+      <div class="csv-cols">
+        <span class="csv-col">sra_number</span>
+        <span class="csv-col">decision_id</span>
+        <span class="csv-col">decision_date</span>
+        <span class="csv-col" title="sra | sdt">source</span>
+        <span class="csv-col">decision_type</span>
+        <span class="csv-col" title="SDT only">sdt_fine_amount</span>
+        <span class="csv-col">source_url</span>
+      </div>
+
+      <h4>SRA deduction table (pre-computed)</h4>
+      <table class="matrix">
+        <thead><tr><th>decision_type</th><th>Deduction</th></tr></thead>
+        <tbody>
+          <tr><td>rebuke</td><td>−5</td></tr>
+          <tr><td>fixed_fine</td><td>−6</td></tr>
+          <tr><td>fine_band_a</td><td>−10</td></tr>
+          <tr><td>fine_unbanded</td><td>−12</td></tr>
+          <tr><td>fine_band_b</td><td>−15</td></tr>
+          <tr><td>conditions / control order</td><td>−25</td></tr>
+          <tr><td>fine_band_c</td><td>−40</td></tr>
+          <tr><td>fine_band_d</td><td>−60</td></tr>
+          <tr><td>intervention</td><td><strong>excluded from results</strong></td></tr>
+        </tbody>
+      </table>
+
+      <h4>SDT deduction by fine amount (pre-computed)</h4>
+      <table class="matrix">
+        <thead><tr><th>Fine amount</th><th>Deduction</th></tr></thead>
+        <tbody>
+          <tr><td>£0 – £10,000</td><td>−10</td></tr>
+          <tr><td>£10,001 – £25,000</td><td>−15</td></tr>
+          <tr><td>£25,001 – £75,000</td><td>−25</td></tr>
+          <tr><td>£75,001 – £200,000</td><td>−40</td></tr>
+          <tr><td>£200,001 – £500,000</td><td>−50</td></tr>
+          <tr><td>£500,001+</td><td>−60</td></tr>
+        </tbody>
+      </table>
+
+      <h4>Run</h4>
+      <pre>python scripts/import_sra_decisions_csv.py --csv sra_decisions.csv</pre>
+    </div>
+  </div>
+</section>
+
+<!-- 12. EMAILS -->
+<section id="emails">
+  <h2>12 · Email matrix</h2>
+  <p class="lede">Every transactional email, who it's from, when it fires.</p>
+
+  <table class="matrix" style="margin-top:14px;">
+    <thead>
+      <tr><th>Trigger</th><th>To</th><th>From (display)</th><th>When</th></tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>Consumer clicks "Proceed"</td>
+        <td>Firm</td>
+        <td><span class="from-firm">User's name</span> · reply-to = user · BCC = CML</td>
+        <td>Immediate</td>
+      </tr>
+      <tr>
+        <td>Consumer clicks "Proceed"</td>
+        <td>Consumer (copy)</td>
+        <td><span class="from-cml">Choose My Lawyer</span></td>
+        <td>Immediate</td>
+      </tr>
+      <tr>
+        <td>Consumer clicks "Request callback"</td>
+        <td>Firm</td>
+        <td><span class="from-firm">User's name</span> · reply-to = user · BCC = CML</td>
+        <td>Immediate (sent per selected firm, up to 5)</td>
+      </tr>
+      <tr>
+        <td>Consumer clicks "Request callback"</td>
+        <td>Consumer (copy)</td>
+        <td><span class="from-cml">Choose My Lawyer</span></td>
+        <td>Immediate</td>
+      </tr>
+      <tr>
+        <td>Callback was requested today</td>
+        <td>Consumer</td>
+        <td><span class="from-cml">Choose My Lawyer</span></td>
+        <td>17:00 same working day (cron)</td>
+      </tr>
+      <tr>
+        <td>Proceed made 5 working days ago</td>
+        <td>Consumer</td>
+        <td><span class="from-cml">Choose My Lawyer</span></td>
+        <td>09:00 daily (cron) — includes quote-drift reminder</td>
+      </tr>
+      <tr>
+        <td>Proceed made ~2 months ago</td>
+        <td>Consumer</td>
+        <td><span class="from-cml">Choose My Lawyer</span></td>
+        <td>09:30 daily (cron) — issues review-invitation token</td>
+      </tr>
+      <tr>
+        <td>Firm-side conflict check failed</td>
+        <td>Consumer</td>
+        <td><span class="from-cml">Choose My Lawyer</span></td>
+        <td>Immediate (when admin marks <code>conflict_check_outcome=conflict</code>)</td>
+      </tr>
+      <tr>
+        <td>Admin issues enrolment invitation</td>
+        <td>Firm</td>
+        <td><span class="from-cml">Choose My Lawyer</span></td>
+        <td>Immediate</td>
+      </tr>
+      <tr>
+        <td>Consumer saves chat session</td>
+        <td>Consumer</td>
+        <td><span class="from-cml">Choose My Lawyer</span></td>
+        <td>Immediate — contains the resume link</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="callout purple" style="margin-top:14px;">
+    <strong>Design choice worth highlighting:</strong> Proceed and Callback emails to firms are sent in the <em>consumer's name</em> with their address as <code>reply-to</code>. The firm replies directly to the consumer. CML is BCC'd for audit only. This keeps the introduction natural (firm engages consumer directly) and avoids us becoming a relay we'd have to maintain.
+  </div>
+</section>
+
+<!-- 13. OPEN QUESTIONS -->
+<section id="open">
+  <h2>13 · Open questions / for discussion</h2>
+  <p class="lede">Things to challenge, decide on, or scope before go-live.</p>
+
+  <div style="margin-top:12px;">
+    <details open>
+      <summary>Conflict-check workflow — should this be self-serve for firms?</summary>
+      <p>Today: firm tells us privately a conflict exists; an admin runs <code>POST /admin/appointments/{id}/conflict-check</code>. Could (should?) firms mark this themselves from a firm-portal page? Trade-off is firms having to log in vs CML staff handling exceptions.</p>
+    </details>
+    <details>
+      <summary>Billing — pilot is manual. What's our threshold for automating?</summary>
+      <p>Chargeable events (Proceed, Callback) are recorded but never invoiced from-system. After ~N firms or ~£X/month do we automate? Need a decision on PSP (Stripe? Direct invoice via Xero?) and the dispute window after the chargeable event.</p>
+    </details>
+    <details>
+      <summary>Review moderation — flagged reviews have no UI</summary>
+      <p>Firms can flag reviews as inappropriate but there's no admin moderation screen. Pilot volume is probably zero, but if it's not, what does the workflow look like?</p>
+    </details>
+    <details>
+      <summary>Multi-office firms — only one office gets imported from the SRA CSV</summary>
+      <p>The "number of offices" factor reads <code>org.offices</code> count, which is currently 1 for everyone. We'll need a richer office source (or a manual add-office UI for enrolled firms) for the offices factor to actually do work.</p>
+    </details>
+    <details>
+      <summary>Estimated Price path — deferred, but what's the trigger?</summary>
+      <p>Currently a firm with no quoted price card is excluded from results. Post-pilot, we'd normalise public transparency statements offline and serve those with a confidence uplift. What's the proof point that justifies this work — number of WMCA firms missing from results? Time to enrol N firms?</p>
+    </details>
+    <details>
+      <summary>Funnel telemetry — Meta Pixel + our DB mirror</summary>
+      <p>Every Pixel event is written to <code>analytics_events</code>. Is the founder happy reading CSV exports, or do we need a basic dashboard before launch? GA4 is a possible addition; cost is one more cookie banner and one more vendor.</p>
+    </details>
+    <details>
+      <summary>Pilot exit criteria — what would make us roll out vs iterate?</summary>
+      <p>What's the minimum conversion rate / lead volume / firm satisfaction across the 90-day window for us to declare validation and progress to national rollout / additional practice areas?</p>
+    </details>
+    <details>
+      <summary>Domain &amp; brand at go-live</summary>
+      <p>Cloudflare DNS will point to Railway; Sparkpost domain authentication needed for Proceed/Callback emails to land in firm inboxes. Worth confirming SPF/DKIM are set up well before the go-live date.</p>
+    </details>
+  </div>
+
+  <div class="card" style="margin-top:24px;">
+    <h3 style="margin-top:0;">What's intentionally <em>not</em> built (per spec)</h3>
+    <ul>
+      <li>Practice areas other than residential conveyancing.</li>
+      <li>Geography outside WMCA.</li>
+      <li>Self-serve firm onboarding.</li>
+      <li>Probabilistic / AI pricing at runtime.</li>
+      <li>Case-management integrations.</li>
+      <li>Payments (Stripe / Xero / PSP).</li>
+      <li>Facebook / Trustpilot review aggregation.</li>
+      <li>In-app review moderation tools.</li>
+      <li>Voice input.</li>
+      <li>Welsh language.</li>
+    </ul>
+  </div>
+</section>
+
+</main>
+</div>
+
+<script>
+// ── Scorecard explorer ───────────────────────────────────────────────────────
+const SCORECARDS = {
+  balanced:   { reputation: 25, price: 25, complaints: 15, regulatory: 15, distance: 10, offices: 10 },
+  reputation: { reputation: 40, price: 20, complaints: 12, regulatory: 12, distance: 8,  offices: 8  },
+  price:      { reputation: 20, price: 40, complaints: 12, regulatory: 12, distance: 8,  offices: 8  },
+  complaints: { reputation: 18, price: 18, complaints: 40, regulatory: 10, distance: 7,  offices: 7  },
+  regulatory: { reputation: 18, price: 18, complaints: 10, regulatory: 40, distance: 7,  offices: 7  },
+  distance:   { reputation: 17, price: 17, complaints: 10, regulatory: 10, distance: 40, offices: 6  },
+  offices:    { reputation: 17, price: 17, complaints: 10, regulatory: 10, distance: 6,  offices: 40 },
+};
+
+const LABELS = {
+  balanced: 'Balanced (default)',
+  reputation: 'Reputation first',
+  price: 'Best price',
+  complaints: 'Strong complaints record',
+  regulatory: 'Strong regulatory record',
+  distance: 'Closest to me',
+  offices: 'Larger firms',
+};
+
+const FACTOR_LABELS = {
+  reputation: 'Reputation',
+  price: 'Price',
+  complaints: 'Complaints history',
+  regulatory: 'Regulatory history',
+  distance: 'Distance',
+  offices: 'Number of offices',
+};
+
+const prefs = document.getElementById('prefs');
+const weightsEl = document.getElementById('weights');
+const totalEl = document.getElementById('totalWeight');
+const distToggle = document.getElementById('distToggle');
+let activePref = 'balanced';
+
+function resolveWeights(pref, includeDistance) {
+  const base = SCORECARDS[pref];
+  const w = { ...base };
+  if (!includeDistance) {
+    w.distance = 0;
+    const remaining = Object.entries(w).filter(([k]) => k !== 'distance').reduce((s, [,v]) => s+v, 0);
+    if (remaining > 0) {
+      const scale = 100 / remaining;
+      for (const k of Object.keys(w)) {
+        if (k !== 'distance') w[k] = w[k] * scale;
+      }
+    }
+  }
+  return w;
+}
+
+function renderPrefs() {
+  prefs.innerHTML = '';
+  for (const key of Object.keys(SCORECARDS)) {
+    const btn = document.createElement('button');
+    btn.textContent = LABELS[key];
+    if (key === activePref) btn.classList.add('active');
+    btn.onclick = () => { activePref = key; renderPrefs(); renderWeights(); };
+    prefs.appendChild(btn);
+  }
+}
+
+function renderWeights() {
+  const include = distToggle.checked;
+  const w = resolveWeights(activePref, include);
+  weightsEl.innerHTML = '';
+  for (const k of ['reputation','price','complaints','regulatory','distance','offices']) {
+    const row = document.createElement('div');
+    row.className = 'weight-row';
+    const label = document.createElement('div');
+    label.className = 'weight-label';
+    label.textContent = FACTOR_LABELS[k];
+    const barWrap = document.createElement('div');
+    barWrap.className = 'weight-bar';
+    const bar = document.createElement('span');
+    bar.style.width = Math.max(0, w[k]) + '%';
+    if (k === 'distance' && !include) {
+      bar.style.background = '#cbd0e8';
+    }
+    barWrap.appendChild(bar);
+    const value = document.createElement('div');
+    value.className = 'weight-value';
+    value.textContent = (w[k] || 0).toFixed(1);
+    row.append(label, barWrap, value);
+    weightsEl.appendChild(row);
+  }
+  const total = Object.values(w).reduce((a,b) => a+b, 0);
+  totalEl.textContent = total.toFixed(1);
+}
+
+distToggle.addEventListener('change', renderWeights);
+renderPrefs();
+renderWeights();
+
+// ── Timeline step expand/collapse ────────────────────────────────────────────
+document.querySelectorAll('.step.click').forEach(step => {
+  step.addEventListener('click', e => {
+    if (e.target.tagName === 'A') return;
+    step.classList.toggle('open');
+  });
+});
+
+// ── CSV tabs ─────────────────────────────────────────────────────────────────
+document.querySelectorAll('#csvTabs .tab').forEach(tab => {
+  tab.addEventListener('click', () => {
+    document.querySelectorAll('#csvTabs .tab').forEach(t => t.classList.remove('active'));
+    tab.classList.add('active');
+    const target = tab.dataset.target;
+    document.querySelectorAll('#csv-sra, #csv-leo, #csv-sra-dec').forEach(p => p.classList.remove('active'));
+    document.getElementById(target).classList.add('active');
+  });
+});
+
+// ── Sidebar active highlight on scroll ───────────────────────────────────────
+const sections = document.querySelectorAll('section[id]');
+const navLinks = document.querySelectorAll('nav.side a');
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      const id = entry.target.id;
+      navLinks.forEach(a => a.classList.toggle('active', a.getAttribute('href') === '#' + id));
+    }
+  });
+}, { rootMargin: '-30% 0px -60% 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
+</body>
+</html>

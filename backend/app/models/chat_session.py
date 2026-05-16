@@ -1,22 +1,11 @@
-import enum
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Enum, String, func
+from sqlalchemy import DateTime, String, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base
-
-
-class ScorecardPreference(str, enum.Enum):
-    balanced = "balanced"
-    reputation = "reputation"
-    price = "price"
-    complaints = "complaints"
-    regulatory = "regulatory"
-    distance = "distance"
-    offices = "offices"
 
 
 class ChatSession(Base):
@@ -27,16 +16,13 @@ class ChatSession(Base):
         String(50), nullable=False, default="residential_conveyancing"
     )
 
+    # Free-form JSONB capture of the user's answers, keyed by question id.
+    # Scorecard preference and distance inclusion are *not* captured here —
+    # both are post-intake controls on the results page (URL query parameters
+    # on /api/public/search).
     answers: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     message_history: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     results_cache: Mapped[dict | None] = mapped_column(JSONB)
-
-    scorecard_preference: Mapped[ScorecardPreference] = mapped_column(
-        Enum(ScorecardPreference, name="scorecard_preference"),
-        nullable=False,
-        default=ScorecardPreference.balanced,
-    )
-    include_distance: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     save_email: Mapped[str | None] = mapped_column(String(255))
 

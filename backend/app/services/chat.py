@@ -1,270 +1,483 @@
-"""Conveyancing intake flow — 9 steps with validation per requirements §5.1.3.
+"""Conveyancing intake — pathway-aware question schema per the 14.05.26 spec.
 
-Personal contact details (first/last name, email, phone) are gathered at the
-Proceed / Callback conversion step, not during intake.
+The intake is fully deterministic for MVP:
+- Q1 picks the pathway (Buying / Selling / Both).
+- Each pathway has a different set of follow-up questions.
+- Q4 / Q3S&P shows pathway-specific modifier options.
+- Q5 is an optional postcode for distance ranking.
+
+Variable names match the spec verbatim (purchase_property_value etc.) so the
+pricing engine and ranking code read against the spec without translation.
 """
 
 import re
 from typing import Any
 
-# Conveyancing intake question schema. Step numbers are 1-based and define the
-# canonical order the chat (and Figma stepper) walks the user through.
-CONVEYANCING_QUESTIONS: list[dict] = [
+# ── Pathway types ────────────────────────────────────────────────────────────
+# Q1's three accepted answers, used downstream to gate visible questions and
+# to drive pricing-engine routing.
+PATHWAY_PURCHASE = "purchase"
+PATHWAY_SALE = "sale"
+PATHWAY_COMBINED = "combined"
+
+# Mapping of the user-facing Q1 option values to the internal pathway tokens.
+TRANSACTION_TYPE_TO_PATHWAY = {
+    "buying": PATHWAY_PURCHASE,
+    "selling": PATHWAY_SALE,
+    "selling_and_buying": PATHWAY_COMBINED,
+}
+
+
+# ── Question schema ──────────────────────────────────────────────────────────
+# Every question is tagged with the pathways it belongs to. The active pathway
+# (derived from the user's Q1 answer) decides whether a given question is shown.
+QUESTIONS: list[dict] = [
     {
-        "id": "purchase_price",
+        "id": "transaction_type",
         "step": 1,
-        "section": "About your case",
-        "text": "What is the purchase price of the property?",
-        "type": "currency",
-        "placeholder": "£275,000",
-        "hint": "Enter the agreed price (or your best estimate).",
-    },
-    {
-        "id": "tenure",
-        "step": 2,
-        "section": "About your case",
-        "text": "Is the property freehold or leasehold?",
+        "pathways": [PATHWAY_PURCHASE, PATHWAY_SALE, PATHWAY_COMBINED],
+        "section": "Your move",
+        "text": (
+            "Thank you for using Choose My Lawyer. To start with, please can you "
+            "tell me if you are buying a property, selling a property, or are you "
+            "buying & selling?"
+        ),
         "type": "single_choice",
+        "options": [
+            {"value": "buying", "label": "Buying"},
+            {"value": "selling", "label": "Selling"},
+            {"value": "selling_and_buying", "label": "Selling & buying"},
+        ],
+    },
+    # ── Buying-only pathway ──────────────────────────────────────────────────
+    {
+        "id": "purchase_tenure_type",
+        "step": 2,
+        "pathways": [PATHWAY_PURCHASE],
+        "section": "About the property",
+        "text": "Thank you. Is the property you are buying freehold or leasehold?",
+        "type": "tenure_with_unsure",
         "options": [
             {"value": "freehold", "label": "Freehold"},
             {"value": "leasehold", "label": "Leasehold"},
-            {"value": "unknown", "label": "I'm not sure"},
+            {"value": "unsure", "label": "I'm not sure"},
         ],
     },
     {
-        "id": "property_postcode",
+        "id": "purchase_property_value",
         "step": 3,
-        "section": "About your case",
-        "text": "What is the property's postcode?",
-        "type": "postcode",
-        "placeholder": "e.g. B1 1AA",
-        "hint": "We use this to confirm the property is within our pilot area.",
+        "pathways": [PATHWAY_PURCHASE],
+        "section": "About the property",
+        "text": "Please enter the purchase price of the property.",
+        "type": "currency",
+        "placeholder": "£275,000",
+    },
+    # ── Selling-only pathway ─────────────────────────────────────────────────
+    {
+        "id": "sale_tenure_type",
+        "step": 2,
+        "pathways": [PATHWAY_SALE],
+        "section": "About the property",
+        "text": "Thank you. Is the property you are selling freehold or leasehold?",
+        "type": "tenure_with_unsure",
+        "options": [
+            {"value": "freehold", "label": "Freehold"},
+            {"value": "leasehold", "label": "Leasehold"},
+            {"value": "unsure", "label": "I'm not sure"},
+        ],
     },
     {
-        "id": "mortgage",
+        "id": "sale_property_value",
+        "step": 3,
+        "pathways": [PATHWAY_SALE],
+        "section": "About the property",
+        "text": "Please enter the sale price of the property.",
+        "type": "currency",
+        "placeholder": "£275,000",
+    },
+    # ── Combined pathway ─────────────────────────────────────────────────────
+    # One unified question block captures tenure + price for both the property
+    # being bought and the property being sold. Stored answer is a dict
+    # {"purchase_tenure_type": ..., "purchase_property_value": ...,
+    #  "sale_tenure_type": ..., "sale_property_value": ...} — these keys are
+    # later flattened into the same flag space as the single-pathway flows.
+    {
+        "id": "combined_property_details",
+        "step": 2,
+        "pathways": [PATHWAY_COMBINED],
+        "section": "About the move",
+        "text": "Thank you. Please enter a few details about the properties involved in your move.",
+        "type": "dual_property_block",
+        "tenure_options": [
+            {"value": "freehold", "label": "Freehold"},
+            {"value": "leasehold", "label": "Leasehold"},
+            {"value": "unsure", "label": "I'm not sure"},
+        ],
+    },
+    # ── Shared: transaction details (Q4 / Q3S&P) ─────────────────────────────
+    # Checkbox group, options gated by pathway in `dynamic_options()`.
+    {
+        "id": "transaction_details",
         "step": 4,
-        "section": "About your case",
-        "text": "Will you need a mortgage to fund the purchase?",
-        "type": "single_choice",
-        "options": [
-            {"value": "yes", "label": "Yes"},
-            {"value": "no", "label": "No"},
-        ],
+        "pathways": [PATHWAY_PURCHASE, PATHWAY_SALE],
+        "section": "Transaction details",
+        "text": "A few quick details about the transaction. Please select any that apply.",
+        "type": "checkbox_group",
+        "hint": "You can continue without selecting any options.",
     },
     {
-        "id": "new_build",
+        "id": "transaction_details",
+        "step": 3,
+        "pathways": [PATHWAY_COMBINED],
+        "section": "Transaction details",
+        "text": "A few quick details about the transaction. Please select any that apply.",
+        "type": "checkbox_group",
+        "hint": "You can continue without selecting any options.",
+    },
+    # ── Shared: distance preference (Q5) ─────────────────────────────────────
+    {
+        "id": "distance_preference",
         "step": 5,
-        "section": "About your case",
-        "text": "Is the property a new build?",
-        "type": "single_choice",
-        "options": [
-            {"value": "yes", "label": "Yes"},
-            {"value": "no", "label": "No"},
-        ],
+        "pathways": [PATHWAY_PURCHASE, PATHWAY_SALE],
+        "section": "Your area",
+        "text": (
+            "Would you like distance to each firm's nearest office included in your "
+            "results? This may help if you want to see your lawyer in person. If so, "
+            "please enter your postcode below. Otherwise, you can continue straight "
+            "to your results."
+        ),
+        "type": "optional_postcode",
+        "placeholder": "e.g. B1 1AA",
     },
     {
-        "id": "help_to_buy_isa",
-        "step": 6,
-        "section": "About your case",
-        "text": "Are you using a Help to Buy ISA?",
-        "type": "single_choice",
-        "options": [
-            {"value": "yes", "label": "Yes"},
-            {"value": "no", "label": "No"},
-        ],
-    },
-    {
-        "id": "shared_ownership",
-        "step": 7,
-        "section": "About your case",
-        "text": "Is this a shared ownership purchase?",
-        "type": "single_choice",
-        "options": [
-            {"value": "yes", "label": "Yes"},
-            {"value": "no", "label": "No"},
-        ],
-    },
-    {
-        "id": "scorecard_preference",
-        "step": 8,
-        "section": "Ranking preference",
-        "text": "How would you like firms to be ranked?",
-        "type": "single_choice",
-        "options": [
-            {
-                "value": "balanced",
-                "label": "Balanced recommendation",
-                "description": "A blend of reputation, price, complaints, regulatory record, distance and number of offices.",
-            },
-            {
-                "value": "reputation",
-                "label": "Reputation first",
-                "description": "Prioritise firms with the best reviews.",
-            },
-            {
-                "value": "price",
-                "label": "Best price",
-                "description": "Prioritise firms with the lowest total quoted cost.",
-            },
-            {
-                "value": "complaints",
-                "label": "Strong complaints record",
-                "description": "Prioritise firms with the fewest Legal Ombudsman decisions.",
-            },
-            {
-                "value": "regulatory",
-                "label": "Strong regulatory record",
-                "description": "Prioritise firms with the cleanest SRA / SDT history.",
-            },
-            {
-                "value": "distance",
-                "label": "Closest to me",
-                "description": "Prioritise firms nearest to your postcode.",
-            },
-            {
-                "value": "offices",
-                "label": "Larger firms",
-                "description": "Prioritise firms with more offices.",
-            },
-        ],
-    },
-    {
-        "id": "include_distance",
-        "step": 9,
-        "section": "Ranking preference",
-        "text": "Should distance to a firm's nearest office be factored into the ranking?",
-        "type": "single_choice",
-        "options": [
-            {
-                "value": "yes",
-                "label": "Yes — include distance",
-                "description": "We'll ask for your postcode next.",
-            },
-            {
-                "value": "no",
-                "label": "No — exclude distance",
-                "description": "Other factors will be re-balanced to compensate.",
-            },
-        ],
+        "id": "distance_preference",
+        "step": 4,
+        "pathways": [PATHWAY_COMBINED],
+        "section": "Your area",
+        "text": (
+            "Would you like distance to each firm's nearest office included in your "
+            "results? This may help if you want to see your lawyer in person. If so, "
+            "please enter your postcode below. Otherwise, you can continue straight "
+            "to your results."
+        ),
+        "type": "optional_postcode",
+        "placeholder": "e.g. B1 1AA",
     },
 ]
 
-QUESTION_INDEX: dict[str, int] = {q["id"]: i for i, q in enumerate(CONVEYANCING_QUESTIONS)}
 
-# UK postcode (matches frontend regex).
+# All checkbox-group flag IDs the intake can produce. The same set is sent to
+# the frontend (via `dynamic_options`) and consumed by `get_intake_flags`.
+MODIFIER_OPTIONS_BUYING: list[dict] = [
+    {
+        "value": "mortgage_required",
+        "label": "I'm buying with a mortgage",
+    },
+    {
+        "value": "new_build",
+        "label": "The property is a new build",
+        "pathways": [PATHWAY_PURCHASE, PATHWAY_COMBINED],
+        "tenures": ["freehold"],
+    },
+    {
+        "value": "new_lease",
+        "label": "This is a new lease",
+        "pathways": [PATHWAY_PURCHASE, PATHWAY_COMBINED],
+        "tenures": ["leasehold"],
+    },
+    {
+        "value": "shared_ownership_or_help_to_buy",
+        "label": "I'm using shared ownership or Help to Buy",
+    },
+    {
+        "value": "gifted_deposit",
+        "label": "Part of the deposit is being gifted",
+    },
+    {
+        "value": "unregistered_title_purchase",
+        "label": "The property I am buying is unregistered",
+    },
+]
+
+MODIFIER_OPTIONS_SELLING: list[dict] = [
+    {
+        "value": "additional_mortgage_redemption",
+        "label": "There is more than one mortgage or secured loan against the property I'm selling",
+    },
+    {
+        "value": "unregistered_title_sale",
+        "label": "The property I'm selling is unregistered",
+    },
+]
+
+
+# ── Validation regex ─────────────────────────────────────────────────────────
 POSTCODE_REGEX = re.compile(r"^[A-Z]{1,2}[0-9][0-9A-Z]?\s*[0-9][A-Z]{2}$", re.IGNORECASE)
-EMAIL_REGEX = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
-# Permissive UK phone — allow +, spaces, digits, and require at least 10 digits.
-PHONE_REGEX = re.compile(r"^[+\d][\d\s]{8,}$")
 
 
-def get_first_question() -> dict:
-    return CONVEYANCING_QUESTIONS[0]
+def get_pathway(answers: dict) -> str | None:
+    """Resolve the active pathway from Q1's answer, or None if unanswered."""
+    raw = answers.get("transaction_type")
+    if not isinstance(raw, str):
+        return None
+    return TRANSACTION_TYPE_TO_PATHWAY.get(raw)
 
 
-def get_question(question_id: str) -> dict | None:
-    idx = QUESTION_INDEX.get(question_id)
-    return CONVEYANCING_QUESTIONS[idx] if idx is not None else None
+def visible_questions(pathway: str | None) -> list[dict]:
+    """Return the ordered question list for the given pathway."""
+    if pathway is None:
+        # Pre-Q1: only Q1 is visible.
+        return [q for q in QUESTIONS if q["id"] == "transaction_type"]
+    return [q for q in QUESTIONS if pathway in q["pathways"]]
 
 
-def get_next_question(current_question_id: str, answers: dict) -> dict | None:
-    """Return the next question; skip step 9's follow-up postcode if user
-    chose to exclude distance, or vice-versa.
-
-    With the current 13-step schema there are no conditional skips — but this
-    function is the natural place to add them later (e.g. distance follow-up).
+def dynamic_options(question_id: str, answers: dict) -> list[dict]:
+    """Resolve the visible modifier options for the transaction_details step
+    based on the active pathway and tenures recorded so far.
     """
-    current_idx = QUESTION_INDEX.get(current_question_id)
-    if current_idx is None:
-        return None
+    if question_id != "transaction_details":
+        return []
+    pathway = get_pathway(answers)
+    if pathway is None:
+        return []
 
-    next_idx = current_idx + 1
-    if next_idx >= len(CONVEYANCING_QUESTIONS):
-        return None
+    purchase_tenure = _resolve_tenure(answers, "purchase")
+    sale_tenure = _resolve_tenure(answers, "sale")
 
-    return CONVEYANCING_QUESTIONS[next_idx]
+    out: list[dict] = []
+    if pathway in (PATHWAY_PURCHASE, PATHWAY_COMBINED):
+        for opt in MODIFIER_OPTIONS_BUYING:
+            allowed_pathways = opt.get("pathways") or [PATHWAY_PURCHASE, PATHWAY_COMBINED]
+            if pathway not in allowed_pathways:
+                continue
+            allowed_tenures = opt.get("tenures")
+            if allowed_tenures and (purchase_tenure not in allowed_tenures):
+                continue
+            out.append({"value": opt["value"], "label": opt["label"]})
+    if pathway in (PATHWAY_SALE, PATHWAY_COMBINED):
+        for opt in MODIFIER_OPTIONS_SELLING:
+            allowed_tenures = opt.get("tenures")
+            if allowed_tenures and (sale_tenure not in allowed_tenures):
+                continue
+            out.append({"value": opt["value"], "label": opt["label"]})
+    return out
+
+
+def _resolve_tenure(answers: dict, side: str) -> str | None:
+    """Look up the tenure for the given side ('purchase' or 'sale')."""
+    direct_key = f"{side}_tenure_type"
+    if direct_key in answers:
+        return answers[direct_key]
+    combined = answers.get("combined_property_details")
+    if isinstance(combined, dict):
+        return combined.get(direct_key)
+    return None
+
+
+def first_question(answers: dict | None = None) -> dict:
+    """Return the question the user should see first (always Q1 today)."""
+    answers = answers or {}
+    pathway = get_pathway(answers)
+    return visible_questions(pathway)[0]
+
+
+def next_question(answers: dict) -> dict | None:
+    """Return the next unanswered question in the current pathway, or None
+    if the flow is complete.
+
+    Treats "I'm not sure" tenure answers as non-progressing — the same
+    question is re-shown until a definitive freehold/leasehold value is given.
+    """
+    pathway = get_pathway(answers)
+    if pathway is None:
+        # No transaction_type yet → show Q1.
+        return next((q for q in QUESTIONS if q["id"] == "transaction_type"), None)
+
+    for q in visible_questions(pathway):
+        qid = q["id"]
+        if not _is_answered(qid, answers, pathway):
+            return q
+    return None
+
+
+def _is_answered(question_id: str, answers: dict, pathway: str) -> bool:
+    """Has the user supplied a usable (non-pause) answer for this question?"""
+    if question_id == "transaction_details":
+        # Optional — counts as answered once present in the dict, even if the
+        # user selected nothing.
+        return question_id in answers
+    if question_id == "distance_preference":
+        return question_id in answers
+    if question_id == "combined_property_details":
+        block = answers.get(question_id)
+        if not isinstance(block, dict):
+            return False
+        tenures_ok = block.get("purchase_tenure_type") in ("freehold", "leasehold") and block.get(
+            "sale_tenure_type"
+        ) in ("freehold", "leasehold")
+        prices_ok = _is_positive_number(block.get("purchase_property_value")) and (
+            _is_positive_number(block.get("sale_property_value"))
+        )
+        return tenures_ok and prices_ok
+    if question_id in ("purchase_tenure_type", "sale_tenure_type"):
+        return answers.get(question_id) in ("freehold", "leasehold")
+    if question_id in ("purchase_property_value", "sale_property_value"):
+        return _is_positive_number(answers.get(question_id))
+    return question_id in answers
+
+
+def _is_positive_number(value: Any) -> bool:
+    try:
+        return float(value) > 0
+    except (TypeError, ValueError):
+        return False
 
 
 def is_flow_complete(answers: dict) -> bool:
-    """All required questions answered."""
-    last_question = CONVEYANCING_QUESTIONS[-1]
-    return last_question["id"] in answers
+    return next_question(answers) is None
 
 
-def validate_answer(question_id: str, answer: Any) -> tuple[bool, str | None]:
-    """Return (ok, error_message) for the given answer.
+def find_question(question_id: str, pathway: str | None) -> dict | None:
+    """Look up a question definition for editing / revise mode."""
+    if pathway is None:
+        candidates = [q for q in QUESTIONS if q["id"] == question_id]
+    else:
+        candidates = [q for q in QUESTIONS if q["id"] == question_id and pathway in q["pathways"]]
+    return candidates[0] if candidates else None
 
-    Backend mirrors the frontend's per-step validation so malformed payloads
-    are rejected with a friendly 400 rather than silently stored.
+
+# ── Answer validation ────────────────────────────────────────────────────────
+def validate_answer(question_id: str, answer: Any, answers: dict) -> tuple[bool, str | None]:
+    """Validate a submitted answer against its question definition.
+
+    Combined-pathway dual_property_block expects a dict payload; checkbox_group
+    accepts a list (possibly empty); single_choice and currency follow their
+    usual rules.
     """
-    question = get_question(question_id)
+    pathway = get_pathway(answers)
+    question = find_question(question_id, pathway)
     if question is None:
         return False, f"Unknown question: {question_id}"
 
     qtype = question["type"]
-    answer_str = answer if isinstance(answer, str) else str(answer)
 
-    if qtype == "single_choice":
-        valid_values = {opt["value"] for opt in question.get("options", [])}
-        if answer_str not in valid_values:
-            return False, f"'{answer_str}' is not a valid option for {question_id}"
+    if qtype == "single_choice" or qtype == "tenure_with_unsure":
+        if not isinstance(answer, str):
+            return False, "Please pick one of the options."
+        valid = {opt["value"] for opt in question.get("options", [])}
+        if answer not in valid:
+            return False, f"'{answer}' is not a valid option for {question_id}."
+        return True, None
 
-    elif qtype == "currency":
-        cleaned = answer_str.replace(",", "").replace("£", "").strip()
-        try:
-            value = float(cleaned)
-        except ValueError:
-            return False, "Please enter a numeric purchase price."
-        if value <= 0:
-            return False, "Purchase price must be greater than zero."
+    if qtype == "currency":
+        return (
+            (True, None)
+            if _is_positive_number(answer)
+            else (
+                False,
+                "Please enter a numeric amount greater than zero.",
+            )
+        )
 
-    elif qtype == "postcode":
-        if not POSTCODE_REGEX.match(answer_str.strip()):
-            return False, "Please enter a valid UK postcode."
+    if qtype == "dual_property_block":
+        if not isinstance(answer, dict):
+            return False, "Combined property details must be a dict."
+        required_tenure_keys = ("purchase_tenure_type", "sale_tenure_type")
+        for key in required_tenure_keys:
+            if answer.get(key) not in ("freehold", "leasehold", "unsure"):
+                return False, f"Please pick a tenure for {key}."
+        for key in ("purchase_property_value", "sale_property_value"):
+            if not _is_positive_number(answer.get(key)):
+                return False, f"Please enter a numeric amount for {key}."
+        return True, None
 
-    elif qtype == "text":
-        if not answer_str.strip():
-            return False, "This field is required."
+    if qtype == "checkbox_group":
+        if answer is None:
+            return True, None  # Optional — empty selection allowed.
+        if not isinstance(answer, list):
+            return False, "Transaction details must be a list of selected flags."
+        valid = {opt["value"] for opt in dynamic_options(question_id, answers)}
+        for selected in answer:
+            if selected not in valid:
+                return False, f"'{selected}' is not available for this transaction."
+        return True, None
 
-    elif qtype == "email":
-        if not EMAIL_REGEX.match(answer_str.strip()):
-            return False, "Please enter a valid email address."
+    if qtype == "optional_postcode":
+        if answer in (None, ""):
+            return True, None
+        if not isinstance(answer, str) or not POSTCODE_REGEX.match(answer.strip()):
+            return False, "Please enter a valid UK postcode (or leave blank)."
+        return True, None
 
-    elif qtype == "tel":
-        cleaned = answer_str.replace(" ", "")
-        if not PHONE_REGEX.match(cleaned):
-            return False, "Please enter a valid phone number."
+    return False, f"Unsupported question type: {qtype}"
 
-    return True, None
+
+# ── Intake → pricing/ranking flags ───────────────────────────────────────────
+_TRUTHY = {"true", "yes", "1"}
+
+
+def _flag(values: list[str] | None, name: str) -> bool:
+    if not values:
+        return False
+    return name in values
 
 
 def get_intake_flags(answers: dict) -> dict[str, Any]:
-    """Normalise raw chat answers into a flat dict consumed by the price
-    calculator and the ranker.
-
-    `purchase_price` is coerced to a float; yes/no answers to bool;
-    `scorecard_preference` defaults to balanced; `include_distance` defaults
-    to False.
+    """Project raw chat answers into the flat dict consumed by the price
+    calculator and the search/ranking layer.
     """
+    pathway = get_pathway(answers) or PATHWAY_PURCHASE
 
-    def _yn(value: str | None) -> bool:
-        return str(value).lower() in {"yes", "true", "1"}
+    # Combined-pathway answers are nested in a sub-dict; flatten here.
+    combined = (
+        answers.get("combined_property_details")
+        if isinstance(answers.get("combined_property_details"), dict)
+        else {}
+    )
 
-    raw_price = str(answers.get("purchase_price", "0")).replace(",", "").replace("£", "").strip()
-    try:
-        purchase_price = float(raw_price)
-    except ValueError:
-        purchase_price = 0.0
+    def _coerce_price(value: Any) -> float:
+        try:
+            return float(value)
+        except (TypeError, ValueError):
+            return 0.0
+
+    purchase_tenure = (
+        answers.get("purchase_tenure_type") or combined.get("purchase_tenure_type") or None
+    )
+    sale_tenure = answers.get("sale_tenure_type") or combined.get("sale_tenure_type") or None
+    purchase_value = _coerce_price(
+        answers.get("purchase_property_value") or combined.get("purchase_property_value")
+    )
+    sale_value = _coerce_price(
+        answers.get("sale_property_value") or combined.get("sale_property_value")
+    )
+
+    modifiers = answers.get("transaction_details") or []
+    if not isinstance(modifiers, list):
+        modifiers = []
+
+    user_postcode_raw = answers.get("distance_preference") or ""
+    user_postcode = user_postcode_raw.strip() if isinstance(user_postcode_raw, str) else ""
 
     return {
-        "purchase_price": purchase_price,
-        "tenure": answers.get("tenure", "freehold"),
-        "transaction_type": answers.get("transaction_type", "purchase"),
-        "property_postcode": answers.get("property_postcode", ""),
-        "mortgage": _yn(answers.get("mortgage")),
-        "new_build": _yn(answers.get("new_build")),
-        "help_to_buy_isa": _yn(answers.get("help_to_buy_isa")),
-        "shared_ownership": _yn(answers.get("shared_ownership")),
-        "scorecard_preference": answers.get("scorecard_preference", "balanced"),
-        "include_distance": _yn(answers.get("include_distance")),
+        "pathway": pathway,
+        "transaction_type": answers.get("transaction_type", ""),
+        # Purchase side (None / 0 if pathway is sale-only)
+        "purchase_tenure_type": purchase_tenure,
+        "purchase_property_value": purchase_value,
+        # Sale side
+        "sale_tenure_type": sale_tenure,
+        "sale_property_value": sale_value,
+        # Modifier flags — boolean per individual trigger.
+        "mortgage_required": _flag(modifiers, "mortgage_required"),
+        "new_build": _flag(modifiers, "new_build"),
+        "new_lease": _flag(modifiers, "new_lease"),
+        "shared_ownership_or_help_to_buy": _flag(modifiers, "shared_ownership_or_help_to_buy"),
+        "gifted_deposit": _flag(modifiers, "gifted_deposit"),
+        "unregistered_title_purchase": _flag(modifiers, "unregistered_title_purchase"),
+        "unregistered_title_sale": _flag(modifiers, "unregistered_title_sale"),
+        "additional_mortgage_redemption": _flag(modifiers, "additional_mortgage_redemption"),
+        # Distance
+        "user_postcode": user_postcode,
+        "distance_included": bool(user_postcode),
     }

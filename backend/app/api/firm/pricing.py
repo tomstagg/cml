@@ -67,16 +67,13 @@ async def preview_price_card(
         return {"quote": None, "sample_inputs": None}
 
     sample_answers = {
-        "purchase_price": "275000",
-        "tenure": "leasehold",
-        "transaction_type": "purchase",
-        "property_postcode": "B1 1AA",
-        "mortgage": "yes",
-        "new_build": "no",
-        "help_to_buy_isa": "no",
-        "shared_ownership": "no",
+        "transaction_type": "buying",
+        "purchase_tenure_type": "leasehold",
+        "purchase_property_value": 275_000,
+        "transaction_details": ["mortgage_required"],
+        "distance_preference": "B1 1AA",
     }
     flags = get_intake_flags(sample_answers)
-    quote = calculate_total_effective_price(card.pricing, flags)
+    quote = calculate_total_effective_price(card.pricing, flags, card.price_type)
 
     return {"sample_inputs": sample_answers, "quote": quote}

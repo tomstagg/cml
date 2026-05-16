@@ -4,20 +4,17 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, ArrowUpRight, Loader2 } from "lucide-react";
 import { toast } from "sonner";
-import { sessionsApi } from "@/lib/api";
-import {
-  trackIntakeStarted,
-  trackIntakeCompleted,
-  trackScorecardChosen,
-} from "@/lib/analytics";
+import { sessionsApi, type AnswerValue } from "@/lib/api";
+import { trackIntakeStarted, trackIntakeCompleted } from "@/lib/analytics";
 import { MessageBubble } from "./MessageBubble";
 import { OptionChips } from "./OptionChips";
-import { PropertyPostcode } from "./PropertyPostcode";
+import { TenureWithUnsure } from "./TenureWithUnsure";
+import { CheckboxGroup } from "./CheckboxGroup";
+import { DualPropertyBlock } from "./DualPropertyBlock";
+import { OptionalPostcode } from "./OptionalPostcode";
 import { TextInput } from "./TextInput";
 import { ChatSidebar } from "./ChatSidebar";
 import { SaveModal } from "./SaveModal";
-
-const TOTAL_STEPS = 9;
 
 type Message = {
   role: "system" | "user";
@@ -32,7 +29,9 @@ type Question = {
   section?: string;
   text: string;
   type: string;
+  pathways?: string[];
   options?: { value: string; label: string; description?: string }[];
+  tenure_options?: { value: string; label: string }[];
   placeholder?: string;
   hint?: string;
 };
@@ -40,11 +39,10 @@ type Question = {
 type Session = {
   session_id: string;
   practice_area: string;
+  pathway: string | null;
   current_question: Question | null;
   message_history: Message[];
-  answers: Record<string, string | string[]>;
-  scorecard_preference?: string;
-  include_distance?: boolean;
+  answers: Record<string, unknown>;
   is_complete: boolean;
   expires_at: string;
 };
@@ -126,7 +124,7 @@ export function ChatInterface() {
     }
   }
 
-  async function handleAnswer(answer: string | string[]) {
+  async function handleAnswer(answer: AnswerValue) {
     if (submitting) return;
 
     if (editingQuestion) {
@@ -135,7 +133,7 @@ export function ChatInterface() {
         const data = await sessionsApi.updateAnswer(
           session!.session_id,
           editingQuestion.id,
-          answer as string,
+          answer,
         );
         setSession(data as Session);
         setEditingQuestion(null);
@@ -157,14 +155,10 @@ export function ChatInterface() {
       const data = await sessionsApi.answer(
         session.session_id,
         submittedQuestionId,
-        answer as string,
+        answer,
       );
       const updated = data as Session;
       setSession(updated);
-
-      if (submittedQuestionId === "scorecard_preference" && typeof answer === "string") {
-        trackScorecardChosen(session.session_id, answer);
-      }
 
       if (updated.is_complete) {
         trackIntakeCompleted(session.session_id);
@@ -193,24 +187,16 @@ export function ChatInterface() {
 
   if (!session) return null;
 
-  const currentStep = session.current_question?.step ?? TOTAL_STEPS;
   const activeQuestion = editingQuestion ?? session.current_question;
-  const showFreeTextInput =
-    activeQuestion &&
-    (!session.is_complete || editingQuestion) &&
-    activeQuestion.type !== "single_choice";
-  const showInlineChips =
-    activeQuestion &&
-    (!session.is_complete || editingQuestion) &&
-    activeQuestion.type === "single_choice";
+  const showInput = activeQuestion && (!session.is_complete || editingQuestion);
 
   return (
     <div className="flex h-[calc(100vh-64px)]">
       <ChatSidebar
         questions={schema ?? []}
         answers={session.answers}
-        currentStep={currentStep}
-        totalSteps={TOTAL_STEPS}
+        pathway={session.pathway}
+        currentStep={session.current_question?.step ?? 5}
         isComplete={session.is_complete}
       />
 
@@ -257,11 +243,11 @@ export function ChatInterface() {
             </div>
           )}
 
-          {showInlineChips && activeQuestion && (
+          {showInput && activeQuestion && (
             <div className="pt-1">
-              <OptionChips
-                options={activeQuestion.options ?? []}
-                onSelect={(value) => handleAnswer(value)}
+              <QuestionInput
+                question={activeQuestion}
+                onAnswer={handleAnswer}
                 disabled={submitting}
               />
             </div>
@@ -276,31 +262,6 @@ export function ChatInterface() {
 
           <div ref={messagesEndRef} />
         </div>
-
-        {showFreeTextInput && activeQuestion && (
-          <div className="border-t border-gray-200 bg-white px-4 py-4">
-            {activeQuestion.type === "postcode" && (
-              <PropertyPostcode
-                placeholder={activeQuestion.placeholder}
-                hint={activeQuestion.hint}
-                onSubmit={(value) => handleAnswer(value)}
-                disabled={submitting}
-              />
-            )}
-            {(activeQuestion.type === "currency" ||
-              activeQuestion.type === "text" ||
-              activeQuestion.type === "email" ||
-              activeQuestion.type === "tel") && (
-              <TextInput
-                type={activeQuestion.type as "currency" | "text" | "email" | "tel"}
-                placeholder={activeQuestion.placeholder}
-                hint={activeQuestion.hint}
-                onSubmit={(value) => handleAnswer(value)}
-                disabled={submitting}
-              />
-            )}
-          </div>
-        )}
 
         <div className="border-t border-gray-200 bg-white px-4 py-3 flex items-center justify-end gap-5 text-sm">
           <button
@@ -331,11 +292,77 @@ export function ChatInterface() {
       </div>
 
       {saveModalOpen && session && (
-        <SaveModal
-          sessionId={session.session_id}
-          onClose={() => setSaveModalOpen(false)}
-        />
+        <SaveModal sessionId={session.session_id} onClose={() => setSaveModalOpen(false)} />
       )}
     </div>
   );
+}
+
+
+function QuestionInput({
+  question,
+  onAnswer,
+  disabled,
+}: {
+  question: Question;
+  onAnswer: (a: AnswerValue) => void;
+  disabled?: boolean;
+}) {
+  switch (question.type) {
+    case "single_choice":
+      return (
+        <OptionChips
+          options={question.options ?? []}
+          onSelect={(value) => onAnswer(value)}
+          disabled={disabled}
+        />
+      );
+    case "tenure_with_unsure":
+      return (
+        <TenureWithUnsure
+          options={question.options ?? []}
+          onSelect={(value) => onAnswer(value)}
+          disabled={disabled}
+        />
+      );
+    case "currency":
+      return (
+        <TextInput
+          type="currency"
+          placeholder={question.placeholder}
+          hint={question.hint}
+          onSubmit={(value) => onAnswer(Number(value))}
+          disabled={disabled}
+        />
+      );
+    case "checkbox_group":
+      return (
+        <CheckboxGroup
+          options={question.options ?? []}
+          hint={question.hint}
+          onSubmit={(selected) => onAnswer(selected)}
+          disabled={disabled}
+        />
+      );
+    case "dual_property_block":
+      return (
+        <DualPropertyBlock
+          tenureOptions={question.tenure_options ?? []}
+          onSubmit={(block) => onAnswer(block)}
+          disabled={disabled}
+        />
+      );
+    case "optional_postcode":
+      return (
+        <OptionalPostcode
+          placeholder={question.placeholder}
+          hint={question.hint}
+          onSubmit={(postcode) => onAnswer(postcode)}
+          onSkip={() => onAnswer("")}
+          disabled={disabled}
+        />
+      );
+    default:
+      return null;
+  }
 }

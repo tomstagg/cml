@@ -85,20 +85,15 @@ TRUNCATE_SQL = text(
     "analytics_events CASCADE"
 )
 
-# Canonical conveyancing intake answers — the value for each step is exactly
-# what the chat API would receive over the wire (strings). Contact details
-# (name/email/phone) are captured at Proceed/Callback, not during intake.
+# Canonical conveyancing intake answers for the new pathway-aware schema.
+# Represents a Buying-only journey through the chat. Contact details are
+# captured at Proceed/Callback, not during intake.
 CONVEYANCING_ANSWERS = {
-    "purchase_price": "275000",
-    "tenure": "leasehold",
-    "transaction_type": "purchase",
-    "property_postcode": "B1 1AA",
-    "mortgage": "yes",
-    "new_build": "no",
-    "help_to_buy_isa": "yes",
-    "shared_ownership": "no",
-    "scorecard_preference": "balanced",
-    "include_distance": "yes",
+    "transaction_type": "buying",
+    "purchase_tenure_type": "leasehold",
+    "purchase_property_value": 275_000,
+    "transaction_details": ["mortgage_required", "shared_ownership_or_help_to_buy"],
+    "distance_preference": "B1 1AA",
 }
 
 ALL_ANSWERS = CONVEYANCING_ANSWERS

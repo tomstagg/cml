@@ -47,12 +47,24 @@ def haversine_km(lat1: float, lon1: float, lat2: float, lon2: float) -> float:
     return R * 2 * math.atan2(math.sqrt(a), math.sqrt(1 - a))
 
 
-async def search_firms(db: AsyncSession, answers: dict) -> dict:
-    """Return ``{"results": full_market, "top_five_contactable": top5}``."""
+async def search_firms(
+    db: AsyncSession,
+    answers: dict,
+    *,
+    scorecard_preference: str = "balanced",
+    include_distance: bool | None = None,
+) -> dict:
+    """Return ``{"results": full_market, "top_five_contactable": top5}``.
+
+    Scorecard preference and distance inclusion are no longer captured in the
+    intake — they're applied here as post-intake controls. If `include_distance`
+    is None we derive it from the presence of a user postcode in the intake.
+    """
     flags = get_intake_flags(answers)
-    postcode = flags.get("property_postcode") or ""
-    preference = flags.get("scorecard_preference", "balanced")
-    include_distance = bool(flags.get("include_distance", False))
+    postcode = flags.get("user_postcode") or ""
+    preference = scorecard_preference or "balanced"
+    if include_distance is None:
+        include_distance = bool(postcode)
 
     consumer_coords = None
     if include_distance and postcode:
@@ -76,7 +88,7 @@ async def search_firms(db: AsyncSession, answers: dict) -> dict:
         if card is None or card.price_type == PriceType.no_data:
             continue
 
-        quote = calculate_total_effective_price(card.pricing, flags)
+        quote = calculate_total_effective_price(card.pricing, flags, card.price_type)
         if quote is None:
             continue
 

@@ -1,6 +1,6 @@
 from app.models.analytics_event import AnalyticsEvent
 from app.models.appointment import Appointment, ConflictCheckOutcome
-from app.models.chat_session import ChatSession, ScorecardPreference
+from app.models.chat_session import ChatSession
 from app.models.complaints_summary import ComplaintsSummary
 from app.models.firm_user import FirmUser
 from app.models.office import Office, OfficeType
@@ -24,5 +24,4 @@ __all__ = [
     "RegulatorySummary",
     "Review",
     "ReviewInvitation",
-    "ScorecardPreference",
 ]
