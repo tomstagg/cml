@@ -1,19 +1,18 @@
 "use client";
 
-import type { DecisionSource } from "@/lib/api";
 import { SeverityCell } from "./SeverityCell";
 
 type Props = {
   score: number;
-  sources: DecisionSource[];
+  sourceUrl: string | null;
   compact?: boolean;
 };
 
-export function RegulatoryCell({ score, sources, compact }: Props) {
+export function RegulatoryCell({ score, sourceUrl, compact }: Props) {
   return (
     <SeverityCell
       score={score}
-      sources={sources}
+      sourceUrl={sourceUrl}
       ariaLabel="regulatory history"
       compact={compact}
     />

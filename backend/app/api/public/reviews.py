@@ -11,7 +11,6 @@ from app.database import get_db
 from app.models.review import Review, ReviewInvitation, ReviewSource
 from app.models.organisation import Organisation
 from app.schemas.review import ReviewSubmit, ReviewResponse
-from app.services.reviews import recalculate_aggregate_rating
 
 router = APIRouter(prefix="/reviews", tags=["reviews"])
 
@@ -28,7 +27,6 @@ async def get_review_invitation(token: uuid.UUID, db: AsyncSession = Depends(get
     if invitation.expires_at < datetime.now(timezone.utc):
         raise HTTPException(status_code=410, detail="This review link has expired")
 
-    # Load org via appointment
     from app.models.appointment import Appointment
 
     appt_result = await db.execute(
@@ -43,7 +41,7 @@ async def get_review_invitation(token: uuid.UUID, db: AsyncSession = Depends(get
 
     return {
         "token": token,
-        "firm_name": org.name if org else "Your solicitor",
+        "firm_name": org.trading_name if org else "Your solicitor",
         "expires_at": invitation.expires_at,
     }
 
@@ -84,11 +82,4 @@ async def submit_review(body: ReviewSubmit, db: AsyncSession = Depends(get_db)):
     db.add(invitation)
 
     await db.flush()
-
-    # Recalculate aggregate
-    org_result = await db.execute(select(Organisation).where(Organisation.id == appt.org_id))
-    org = org_result.scalar_one_or_none()
-    if org:
-        await recalculate_aggregate_rating(db, org)
-
     return review

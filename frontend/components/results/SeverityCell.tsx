@@ -1,21 +1,19 @@
 "use client";
 
 import { Star, ExternalLink } from "lucide-react";
-import type { DecisionSource } from "@/lib/api";
 import { cn, severityBand } from "@/lib/utils";
 
 type Props = {
   score: number;
-  sources: DecisionSource[];
+  sourceUrl: string | null;
   /** Used for the "View source" link's accessible name, e.g. "complaints history". */
   ariaLabel: string;
   /** Compact variant tightens the layout for the full results table. */
   compact?: boolean;
 };
 
-export function SeverityCell({ score, sources, ariaLabel, compact }: Props) {
+export function SeverityCell({ score, sourceUrl, ariaLabel, compact }: Props) {
   const { stars, label } = severityBand(score);
-  const latest = sources[0];
 
   return (
     <div className={cn("flex flex-col items-start gap-0.5", compact && "gap-0")}>
@@ -37,9 +35,9 @@ export function SeverityCell({ score, sources, ariaLabel, compact }: Props) {
       <span className={cn("font-medium text-navy", compact ? "text-xs" : "text-sm")}>
         {label}
       </span>
-      {latest && (
+      {sourceUrl && (
         <a
-          href={latest.url}
+          href={sourceUrl}
           target="_blank"
           rel="noopener noreferrer"
           className="text-xs text-purple hover:underline inline-flex items-center gap-0.5"

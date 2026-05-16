@@ -280,20 +280,10 @@ function ResultsTable({
               >
                 <td className="py-3 px-3 font-semibold text-navy">{firm.rank}</td>
                 <td className="py-3 px-3">
-                  <div className="font-medium text-navy">{firm.name}</div>
+                  <div className="font-medium text-navy">{firm.trading_name}</div>
                   <div className="text-xs text-gray-500 mt-0.5">
                     {firm.city || firm.postcode || "—"}
                   </div>
-                  {firm.website_url && (
-                    <a
-                      href={firm.website_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-xs text-purple hover:underline"
-                    >
-                      Website
-                    </a>
-                  )}
                 </td>
                 <td className="py-3 px-3">
                   <ReputationCell firm={firm} />
@@ -301,14 +291,14 @@ function ResultsTable({
                 <td className="py-3 px-3">
                   <ComplaintsCell
                     score={firm.factor_scores?.complaints ?? 100}
-                    sources={firm.complaints_sources}
+                    sourceUrl={firm.complaints_url}
                     compact
                   />
                 </td>
                 <td className="py-3 px-3">
                   <RegulatoryCell
                     score={firm.factor_scores?.regulatory ?? 100}
-                    sources={firm.regulatory_sources}
+                    sourceUrl={firm.regulatory_url}
                     compact
                   />
                 </td>
@@ -406,20 +396,32 @@ function Th({
 }
 
 function ReputationCell({ firm }: { firm: FirmResult }) {
-  if (firm.aggregate_rating === null || firm.aggregate_rating === undefined) {
+  if (firm.google_rating === null || firm.google_rating === undefined) {
     return <span className="text-xs text-gray-400">No reviews</span>;
   }
+  const ratingNode = (
+    <div className="flex items-center gap-1">
+      <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+      <span className="text-sm font-medium text-navy">{firm.google_rating.toFixed(1)}</span>
+    </div>
+  );
   return (
     <div className="flex flex-col items-start gap-0.5">
-      <div className="flex items-center gap-1">
-        <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
-        <span className="text-sm font-medium text-navy">
-          {firm.aggregate_rating.toFixed(1)}
-        </span>
-      </div>
-      {firm.aggregate_review_count !== null && (
+      {firm.google_reviews_url ? (
+        <a
+          href={firm.google_reviews_url}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="hover:underline"
+        >
+          {ratingNode}
+        </a>
+      ) : (
+        ratingNode
+      )}
+      {firm.google_review_count !== null && (
         <span className="text-xs text-gray-500">
-          {firm.aggregate_review_count} review{firm.aggregate_review_count === 1 ? "" : "s"}
+          {firm.google_review_count} review{firm.google_review_count === 1 ? "" : "s"}
         </span>
       )}
     </div>

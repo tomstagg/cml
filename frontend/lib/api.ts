@@ -95,29 +95,25 @@ export type FactorScores = {
   offices: number;
 };
 
-export type DecisionSource = {
-  decision_date: string | null;
-  url: string;
-};
-
 export type FirmResult = {
   rank: number;
   org_id: string;
+  cml_firm_id: string;
   name: string;
+  trading_name: string;
   sra_number: string;
-  auth_status: string;
   enrolled: boolean;
-  website_url: string | null;
-  aggregate_rating: number | null;
-  aggregate_review_count: number | null;
+  google_rating: number | null;
+  google_review_count: number | null;
+  google_reviews_url: string | null;
   postcode: string | null;
   city: string | null;
   distance_km: number | null;
   office_count: number;
   quote: QuoteBreakdown | null;
   factor_scores: FactorScores | null;
-  complaints_sources: DecisionSource[];
-  regulatory_sources: DecisionSource[];
+  complaints_url: string | null;
+  regulatory_url: string | null;
   score: number;
 };
 
@@ -179,21 +175,36 @@ export const firmAuthApi = {
 // --- Firm: Profile ---
 export const firmProfileApi = {
   get: (token: string) => request("/api/firm/profile", { token }),
-  update: (token: string, data: { website_url?: string; phone?: string; email?: string }) =>
+  update: (token: string, data: { phone?: string; referral_email?: string }) =>
     request("/api/firm/profile", { method: "PATCH", body: data, token }),
 };
 
 // --- Firm: Pricing ---
+// Master Export anchor-point shape — see backend/app/schemas/firm.py::PriceCardData.
+export type AnchorPrices = Record<string, number | null>;
+
+export type PriceCardData = {
+  freehold: { purchase: AnchorPrices; sale: AnchorPrices };
+  leasehold: { purchase: AnchorPrices; sale: AnchorPrices };
+  modifiers: { name: string; amount: number }[];
+  additional_costs: { name: string; amount: number }[];
+  disbursements: { name: string; amount: number }[];
+};
+
+export type PriceCard = {
+  id: string;
+  org_id: string;
+  price_type: "estimated" | "verified" | "no_data";
+  pricing: PriceCardData;
+  updated_at: string;
+};
+
 export const firmPricingApi = {
-  list: (token: string) => request("/api/firm/pricing", { token }),
-  create: (token: string, data: unknown) =>
-    request("/api/firm/pricing", { method: "POST", body: data, token }),
-  update: (token: string, cardId: string, data: unknown) =>
-    request(`/api/firm/pricing/${cardId}`, { method: "PUT", body: data, token }),
-  delete: (token: string, cardId: string) =>
-    request(`/api/firm/pricing/${cardId}`, { method: "DELETE", token }),
-  preview: (token: string, cardId: string) =>
-    request(`/api/firm/pricing/${cardId}/preview`, { method: "POST", token }),
+  get: (token: string) => request<PriceCard | null>("/api/firm/pricing", { token }),
+  upsert: (token: string, data: PriceCardData) =>
+    request<PriceCard>("/api/firm/pricing", { method: "PUT", body: data, token }),
+  preview: (token: string) =>
+    request("/api/firm/pricing/preview", { method: "POST", token }),
 };
 
 // --- Firm: Dashboard ---

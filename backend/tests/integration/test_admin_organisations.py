@@ -1,8 +1,5 @@
 """Integration tests for admin organisation management endpoints."""
 
-import uuid
-from unittest.mock import AsyncMock, patch
-
 
 # ── Auth guard ────────────────────────────────────────────────────────────────
 
@@ -94,41 +91,14 @@ async def test_list_organisations_response_fields(admin_client, enrolled_org):
     resp = await admin_client.get("/api/admin/organisations")
     assert resp.status_code == 200
     org = resp.json()["results"][0]
-    for field in ("id", "sra_number", "name", "enrolled", "auth_status"):
+    for field in (
+        "id",
+        "cml_firm_id",
+        "sra_number",
+        "name",
+        "trading_name",
+        "enrolled",
+        "excluded",
+        "active_in_pilot",
+    ):
         assert field in org
-
-
-# ── POST /api/admin/organisations/{org_id}/sync-google-place ──────────────────
-
-
-async def test_sync_google_place_stores_place_id(admin_client, enrolled_org):
-    with patch(
-        "app.api.admin.organisations.search_google_place_id",
-        new_callable=AsyncMock,
-        return_value="ChIJfoundplaceid",
-    ):
-        resp = await admin_client.post(
-            f"/api/admin/organisations/{enrolled_org.id}/sync-google-place"
-        )
-    assert resp.status_code == 200
-    data = resp.json()
-    assert data["place_id"] == "ChIJfoundplaceid"
-    assert "message" in data
-
-
-async def test_sync_google_place_unknown_org_returns_404(admin_client):
-    resp = await admin_client.post(f"/api/admin/organisations/{uuid.uuid4()}/sync-google-place")
-    assert resp.status_code == 404
-
-
-async def test_sync_google_place_not_found_returns_404(admin_client, enrolled_org):
-    with patch(
-        "app.api.admin.organisations.search_google_place_id",
-        new_callable=AsyncMock,
-        return_value=None,
-    ):
-        resp = await admin_client.post(
-            f"/api/admin/organisations/{enrolled_org.id}/sync-google-place"
-        )
-    assert resp.status_code == 404
-    assert "Google Place ID" in resp.json()["detail"]

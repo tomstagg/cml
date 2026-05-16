@@ -27,93 +27,124 @@ class FirmRegisterRequest(BaseModel):
 
 
 class OrganisationUpdate(BaseModel):
-    website_url: str | None = Field(None, max_length=500)
     phone: str | None = Field(None, max_length=30)
-    email: str | None = Field(None, max_length=255)
+    referral_email: str | None = Field(None, max_length=255)
 
 
 class OfficeResponse(BaseModel):
     id: uuid.UUID
     address_line1: str | None
-    address_line2: str | None
     city: str | None
-    county: str | None
     postcode: str
     is_primary: bool
+    office_type: str | None
 
     model_config = {"from_attributes": True}
 
 
 class OrganisationResponse(BaseModel):
     id: uuid.UUID
+    cml_firm_id: str
     sra_number: str
     name: str
-    auth_status: str
-    website_url: str | None
+    trading_name: str
     phone: str | None
-    email: str | None
+    referral_email: str | None
     enrolled: bool
-    aggregate_rating: float | None
-    aggregate_review_count: int | None
+    excluded: bool
+    exclusion_reason: str | None
+    conveyancing_confirmed: bool
+    transparency_statement_captured: bool
+    proceed_enabled: bool
+    callback_enabled: bool
+    active_in_pilot: bool
+    google_rating: float | None
+    google_review_count: int | None
+    google_reviews_url: str | None
+    adjusted_reputation_value: float | None
     offices: list[OfficeResponse]
 
     model_config = {"from_attributes": True}
 
 
 # ── Conveyancing price card ───────────────────────────────────────────────────
-class PriceCardBand(BaseModel):
-    """Fee band keyed off purchase price (Annex One §10 / requirements §5.2)."""
+#
+# Mirrors the Master Export "Price" tab verbatim. Anchor prices are keyed by
+# the seven CML-determined purchase-price anchors (£150k, £250k, £500k, £750k,
+# £1m, £1.25m, £1.5m). `null` indicates "MISSING DATA" in the upstream sheet.
 
-    purchase_price_min: float = 0
-    purchase_price_max: float | None = None
-    fee: float
-    currency: str = "GBP"
-
-
-class PriceCardAdjustment(BaseModel):
-    """Conditional supplement applied when an answer evaluates truthy.
-
-    Supported `condition` strings (matched in price_calc):
-      tenure==leasehold | new_build==true | help_to_buy_isa==true |
-      shared_ownership==true | mortgage==true
-    """
-
-    name: str
-    amount: float
-    condition: str | None = None
+AnchorPrices = dict[int, float | None]
 
 
-class PriceCardDisbursement(BaseModel):
-    """Included disbursement, stored exclusive of VAT with a per-row VAT flag."""
+class TransactionPrices(BaseModel):
+    purchase: AnchorPrices = {}
+    sale: AnchorPrices = {}
+
+
+class PriceModifier(BaseModel):
+    """A transaction-specific adjustment applied when the matter qualifies."""
 
     name: str
     amount: float
-    vat_applies: bool = False
+
+
+class AdditionalCost(BaseModel):
+    """Standing additional fee charged for a specific administrative task."""
+
+    name: str
+    amount: float
+
+
+class Disbursement(BaseModel):
+    """Disbursement passed through to the client; VAT handled separately."""
+
+    name: str
+    amount: float
 
 
 class PriceCardData(BaseModel):
-    practice_area: str = "residential_conveyancing"
-    matter_types: list[str] = ["purchase", "sale", "purchase_and_sale", "remortgage"]
-    pricing_model: str = Field("band", pattern="^(fixed|band)$")
-    bands: list[PriceCardBand] = []
-    adjustments: list[PriceCardAdjustment] = []
-    included_disbursements: list[PriceCardDisbursement] = []
-    excluded_disbursements_note: str | None = None
-    vat_applies_to_fees: bool = True
-
-
-class PriceCardCreate(BaseModel):
-    practice_area: str = "residential_conveyancing"
-    pricing: PriceCardData
+    freehold: TransactionPrices = TransactionPrices()
+    leasehold: TransactionPrices = TransactionPrices()
+    modifiers: list[PriceModifier] = []
+    additional_costs: list[AdditionalCost] = []
+    disbursements: list[Disbursement] = []
 
 
 class PriceCardResponse(BaseModel):
     id: uuid.UUID
     org_id: uuid.UUID
-    practice_area: str
+    price_type: str
     pricing: dict
-    active: bool
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class ComplaintsSummaryResponse(BaseModel):
+    score: float
+    stars: int
+    display_text: str
+    decision_count_text: str | None
+    scale_context: str | None
+    issue_one: str | None
+    issue_two: str | None
+    issue_three: str | None
+    external_url: str | None
+    last_updated: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class RegulatorySummaryResponse(BaseModel):
+    score: float
+    stars: int
+    display_text: str
+    decision_count_text: str | None
+    outcome_one: str | None
+    outcome_two: str | None
+    outcome_three: str | None
+    external_url: str | None
+    last_updated: datetime
 
     model_config = {"from_attributes": True}
 

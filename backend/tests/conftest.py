@@ -30,7 +30,6 @@ from sqlalchemy import text
 from sqlalchemy.pool import NullPool
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 
-# Absolute path to backend/ — used for alembic cwd (works locally and in Docker)
 BACKEND_DIR = Path(__file__).parent.parent
 
 # ── 1. Override env vars BEFORE any app module is imported ──────────────────
@@ -38,14 +37,11 @@ os.environ.setdefault("ADMIN_API_KEY", "test-admin-key")
 
 _main_url = os.environ.get(
     "DATABASE_URL",
-    # Fallback uses localhost — Docker always sets DATABASE_URL explicitly,
-    # so this fallback only applies when running tests locally.
     "postgresql+asyncpg://cml:cml_dev_password@localhost:5432/cml_db",
 )
 TEST_DATABASE_URL = re.sub(r"/([^/?]+)(\?.*)?$", r"/test_cml_db\2", _main_url)
 os.environ["DATABASE_URL"] = TEST_DATABASE_URL
 
-# asyncpg admin URL — used to create/drop the test database itself
 _ASYNCPG_ADMIN = re.sub(
     r"postgresql\+asyncpg://",
     "postgresql://",
@@ -59,18 +55,15 @@ from app.models.chat_session import ChatSession  # noqa: E402
 from app.models.firm_user import FirmUser, FirmUserRole  # noqa: E402
 from app.models.office import Office  # noqa: E402
 from app.models.organisation import Organisation  # noqa: E402
-from app.models.price_card import PriceCard  # noqa: E402
+from app.models.price_card import PriceCard, PriceType  # noqa: E402
 from app.services.auth import create_access_token, hash_password  # noqa: E402
 
 # ── 3. NullPool test engine ───────────────────────────────────────────────────
-# NullPool = no connection reuse; each operation gets a fresh connection in the
-# current event loop.  This makes tests safe with per-function event loops.
 _test_engine = create_async_engine(TEST_DATABASE_URL, poolclass=NullPool)
 _test_session_factory = async_sessionmaker(_test_engine, expire_on_commit=False)
 
 
 async def _test_get_db():
-    """Drop-in replacement for app.database.get_db using the NullPool engine."""
     async with _test_session_factory() as session:
         try:
             yield session
@@ -82,14 +75,14 @@ async def _test_get_db():
             await session.close()
 
 
-# Override FastAPI's DB dependency globally for the entire test session
 app.dependency_overrides[get_db] = _test_get_db
 
 # ── Constants ────────────────────────────────────────────────────────────────
 TRUNCATE_SQL = text(
     "TRUNCATE TABLE appointments, review_invitations, reviews, "
-    "price_cards, firm_users, offices, chat_sessions, organisations, "
-    "complaints_decisions, regulatory_decisions, analytics_events CASCADE"
+    "price_cards, firm_users, offices, chat_sessions, "
+    "complaints_summary, regulatory_summary, organisations, "
+    "analytics_events CASCADE"
 )
 
 # Canonical conveyancing intake answers — the value for each step is exactly
@@ -98,6 +91,7 @@ TRUNCATE_SQL = text(
 CONVEYANCING_ANSWERS = {
     "purchase_price": "275000",
     "tenure": "leasehold",
+    "transaction_type": "purchase",
     "property_postcode": "B1 1AA",
     "mortgage": "yes",
     "new_build": "no",
@@ -109,37 +103,51 @@ CONVEYANCING_ANSWERS = {
 
 ALL_ANSWERS = CONVEYANCING_ANSWERS
 
+# Sample price card in the new Master Export verbatim shape.
 SAMPLE_CONVEYANCING_PRICE_CARD = {
-    "practice_area": "residential_conveyancing",
-    "matter_types": ["purchase", "sale", "purchase_and_sale", "remortgage"],
-    "pricing_model": "band",
-    "bands": [
-        {"purchase_price_min": 0, "purchase_price_max": 250_000, "fee": 950},
-        {"purchase_price_min": 250_000, "purchase_price_max": 500_000, "fee": 1_250},
-        {"purchase_price_min": 500_000, "purchase_price_max": None, "fee": 1_750},
-    ],
-    "adjustments": [
-        {"name": "Leasehold supplement", "amount": 250, "condition": "tenure==leasehold"},
-        {"name": "New build supplement", "amount": 200, "condition": "new_build==true"},
-        {"name": "Help to Buy ISA admin", "amount": 75, "condition": "help_to_buy_isa==true"},
-        {
-            "name": "Shared ownership supplement",
-            "amount": 250,
-            "condition": "shared_ownership==true",
+    "freehold": {
+        "purchase": {
+            150000: 950,
+            250000: 1150,
+            500000: 1450,
+            750000: 1750,
+            1000000: 2000,
+            1250000: 2300,
+            1500000: 2600,
         },
-        {"name": "Mortgage handling", "amount": 150, "condition": "mortgage==true"},
-    ],
-    "included_disbursements": [
-        {"name": "Local authority search", "amount": 180, "vat_applies": True},
-        {"name": "Drainage & water search", "amount": 65, "vat_applies": True},
-        {"name": "Bankruptcy search", "amount": 6, "vat_applies": False},
-        {"name": "Land Registry registration fee", "amount": 150, "vat_applies": False},
-    ],
-    "excluded_disbursements_note": (
-        "Stamp Duty Land Tax, leasehold notice fees, ground rent apportionment, "
-        "indemnity policies — see CML disbursement classification page."
-    ),
-    "vat_applies_to_fees": True,
+        "sale": {
+            150000: 900,
+            250000: 1100,
+            500000: 1400,
+            750000: 1700,
+            1000000: 1950,
+            1250000: 2250,
+            1500000: 2550,
+        },
+    },
+    "leasehold": {
+        "purchase": {
+            150000: 1050,
+            250000: 1250,
+            500000: 1550,
+            750000: 1850,
+            1000000: 2100,
+            1250000: 2400,
+            1500000: 2700,
+        },
+        "sale": {
+            150000: 1000,
+            250000: 1200,
+            500000: 1500,
+            750000: 1800,
+            1000000: 2050,
+            1250000: 2350,
+            1500000: 2650,
+        },
+    },
+    "modifiers": [],
+    "additional_costs": [],
+    "disbursements": [{"name": "Searches (CML standard pack)", "amount": 350}],
 }
 
 
@@ -174,22 +182,19 @@ def setup_test_db():
     yield
 
 
-# ── Per-test table truncation ────────────────────────────────────────────────
 @pytest_asyncio.fixture(autouse=True)
 async def clean_tables(setup_test_db):
-    """Truncate all application tables after each test."""
     yield
     async with _test_engine.begin() as conn:
         await conn.execute(TRUNCATE_SQL)
 
 
-# ── Unauthenticated HTTP client ──────────────────────────────────────────────
 @pytest_asyncio.fixture
 async def client(setup_test_db):
     """httpx AsyncClient backed by the FastAPI ASGI app (scheduler mocked out)."""
     with (
-        patch("app.tasks.review_sync.start_scheduler", return_value=None),
-        patch("app.tasks.review_sync.stop_scheduler", return_value=None),
+        patch("app.tasks.scheduler.start_scheduler", return_value=None),
+        patch("app.tasks.scheduler.stop_scheduler", return_value=None),
     ):
         async with AsyncClient(
             transport=ASGITransport(app=app),
@@ -198,22 +203,14 @@ async def client(setup_test_db):
             yield ac
 
 
-# ── DB session for seeding ───────────────────────────────────────────────────
 @pytest_asyncio.fixture
 async def db_session():
-    """Yield an async session for seeding test data (uses NullPool test engine)."""
     async with _test_session_factory() as session:
         yield session
 
 
 @pytest_asyncio.fixture
 async def verify_session():
-    """Fresh session for asserting on writes a FastAPI request just committed.
-
-    Distinct from ``db_session`` — that one is used to seed before the request
-    runs; this one opens after, so it sees committed state without sharing
-    identity-map state with the request's session.
-    """
     async with _test_session_factory() as session:
         yield session
 
@@ -223,11 +220,15 @@ async def verify_session():
 async def test_org(db_session):
     """Unenrolled organisation with a fresh enrollment token (for auth tests)."""
     org = Organisation(
+        cml_firm_id="CML-T01",
         sra_number="SRA999001",
-        name="Test Law Firm",
+        name="Test Law Firm Ltd",
+        trading_name="Test Law Firm",
         enrollment_token=uuid.uuid4(),
         enrolled=False,
         enrollment_token_used=False,
+        conveyancing_confirmed=True,
+        transparency_statement_captured=False,
     )
     db_session.add(org)
     await db_session.commit()
@@ -239,11 +240,19 @@ async def test_org(db_session):
 async def enrolled_org(db_session):
     """Enrolled organisation with a primary office (for profile/pricing tests)."""
     org = Organisation(
+        cml_firm_id="CML-T02",
         sra_number="SRA999002",
-        name="Enrolled Law Firm",
+        name="Enrolled Law Firm Ltd",
+        trading_name="Enrolled Law Firm",
         enrolled=True,
         enrollment_token=uuid.uuid4(),
         enrollment_token_used=True,
+        conveyancing_confirmed=True,
+        transparency_statement_captured=True,
+        proceed_enabled=True,
+        callback_enabled=True,
+        active_in_pilot=True,
+        referral_email="referrals@enrolledfirm.com",
     )
     db_session.add(org)
     await db_session.flush()
@@ -264,7 +273,6 @@ async def enrolled_org(db_session):
 # ── User / auth fixtures ─────────────────────────────────────────────────────
 @pytest_asyncio.fixture
 async def test_user(db_session, enrolled_org):
-    """Admin FirmUser for enrolled_org."""
     user = FirmUser(
         org_id=enrolled_org.id,
         email="admin@testfirm.com",
@@ -280,20 +288,17 @@ async def test_user(db_session, enrolled_org):
 
 @pytest.fixture
 def auth_token(test_user, enrolled_org):
-    """Valid JWT for test_user."""
     return create_access_token(str(test_user.id), str(enrolled_org.id))
 
 
 @pytest_asyncio.fixture
 async def auth_client(client, auth_token):
-    """Client pre-configured with a valid Bearer token."""
     client.headers["Authorization"] = f"Bearer {auth_token}"
     yield client
 
 
 @pytest_asyncio.fixture
 async def admin_client(client):
-    """Client pre-configured with the admin API key header."""
     client.headers["X-Admin-Key"] = "test-admin-key"
     yield client
 
@@ -301,12 +306,11 @@ async def admin_client(client):
 # ── Price card fixture ────────────────────────────────────────────────────────
 @pytest_asyncio.fixture
 async def test_price_card(db_session, enrolled_org):
-    """Active conveyancing price card for enrolled_org."""
+    """Verified conveyancing price card for enrolled_org."""
     card = PriceCard(
         org_id=enrolled_org.id,
-        practice_area="residential_conveyancing",
+        price_type=PriceType.verified,
         pricing=SAMPLE_CONVEYANCING_PRICE_CARD,
-        active=True,
     )
     db_session.add(card)
     await db_session.commit()
@@ -317,7 +321,6 @@ async def test_price_card(db_session, enrolled_org):
 # ── Chat session fixture ──────────────────────────────────────────────────────
 @pytest_asyncio.fixture
 async def completed_session(db_session):
-    """ChatSession with all 13 answers completed."""
     session = ChatSession(
         id=uuid.uuid4(),
         practice_area="residential_conveyancing",

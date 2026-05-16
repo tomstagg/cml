@@ -26,29 +26,25 @@ class FactorScores(BaseModel):
     offices: float
 
 
-class DecisionSource(BaseModel):
-    decision_date: str | None
-    url: str
-
-
 class FirmResult(BaseModel):
     rank: int
     org_id: uuid.UUID
+    cml_firm_id: str
     name: str
+    trading_name: str
     sra_number: str
-    auth_status: str
     enrolled: bool
-    website_url: str | None
-    aggregate_rating: float | None
-    aggregate_review_count: int | None
+    google_rating: float | None
+    google_review_count: int | None
+    google_reviews_url: str | None
     postcode: str | None
     city: str | None
     distance_km: float | None
     office_count: int = 1
     quote: QuoteBreakdown | None
     factor_scores: FactorScores | None = None
-    complaints_sources: list[DecisionSource] = []
-    regulatory_sources: list[DecisionSource] = []
+    complaints_url: str | None = None
+    regulatory_url: str | None = None
     score: float
 
 
@@ -62,9 +58,6 @@ class SearchResponse(BaseModel):
 
     session_id: uuid.UUID
     results: list[FirmResult]
-    # Populated in Phase D when the 6-factor ranker lands. Until then, the
-    # legacy search service returns the empty list and clients fall back to
-    # `results`.
     top_five_contactable: list[FirmResult] = []
     total: int
     postcode: str | None

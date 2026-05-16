@@ -1,9 +1,13 @@
-"""Initial schema — conveyancing pilot (residential conveyancing, WMCA)
+"""Initial schema — conveyancing pilot (residential conveyancing, WMCA).
+
+Schema is aligned to the Master Export workbook (Firms / Reputation / Price /
+Complaints history / Regulatory history / Distance / Number of offices tabs).
+Reputation, complaints and regulatory scores arrive pre-computed; the
+runtime ranker consumes them directly.
 
 Revision ID: 0001
 Revises:
 Create Date: 2026-05-04
-
 """
 
 from alembic import op
@@ -21,22 +25,32 @@ def upgrade() -> None:
     op.create_table(
         "organisations",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("cml_firm_id", sa.String(10), nullable=False),
         sa.Column("sra_number", sa.String(20), nullable=False),
         sa.Column("name", sa.String(255), nullable=False),
-        sa.Column("auth_status", sa.String(50), nullable=False, server_default="authorised"),
-        sa.Column("website_url", sa.String(500), nullable=True),
+        sa.Column("trading_name", sa.String(255), nullable=False),
         sa.Column("phone", sa.String(30), nullable=True),
-        sa.Column("email", sa.String(255), nullable=True),
+        sa.Column("referral_email", sa.String(255), nullable=True),
+        sa.Column("excluded", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("exclusion_reason", sa.Text(), nullable=True),
+        sa.Column("conveyancing_confirmed", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column(
+            "transparency_statement_captured",
+            sa.Boolean(),
+            nullable=False,
+            server_default="false",
+        ),
         sa.Column("enrolled", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("proceed_enabled", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("callback_enabled", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("active_in_pilot", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("enrollment_token", postgresql.UUID(as_uuid=True), nullable=True),
         sa.Column("enrollment_token_used", sa.Boolean(), nullable=False, server_default="false"),
-        # SRA Intervention removes a firm from results entirely (Annex One §8.13).
-        sa.Column("intervened", sa.Boolean(), nullable=False, server_default="false"),
-        sa.Column("google_place_id", sa.String(255), nullable=True),
         sa.Column("google_rating", sa.Float(), nullable=True),
         sa.Column("google_review_count", sa.Integer(), nullable=True),
-        sa.Column("aggregate_rating", sa.Float(), nullable=True),
-        sa.Column("aggregate_review_count", sa.Integer(), nullable=True),
+        sa.Column("google_reviews_url", sa.String(500), nullable=True),
+        sa.Column("adjusted_reputation_value", sa.Float(), nullable=True),
+        sa.Column("master_export_updated_at", sa.DateTime(timezone=True), nullable=True),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -50,27 +64,33 @@ def upgrade() -> None:
             nullable=False,
         ),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("cml_firm_id"),
         sa.UniqueConstraint("sra_number"),
         sa.UniqueConstraint("enrollment_token"),
     )
+    op.create_index("ix_organisations_cml_firm_id", "organisations", ["cml_firm_id"])
     op.create_index("ix_organisations_sra_number", "organisations", ["sra_number"])
     op.create_index("ix_organisations_enrolled", "organisations", ["enrolled"])
-    op.create_index("ix_organisations_intervened", "organisations", ["intervened"])
+    op.create_index("ix_organisations_excluded", "organisations", ["excluded"])
 
     # ── offices ──────────────────────────────────────────────────────────────
+    op.execute("CREATE TYPE office_type AS ENUM ('BRANCH', 'HO')")
+
     op.create_table(
         "offices",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("org_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("address_line1", sa.String(255), nullable=True),
-        sa.Column("address_line2", sa.String(255), nullable=True),
         sa.Column("city", sa.String(100), nullable=True),
-        sa.Column("county", sa.String(100), nullable=True),
         sa.Column("postcode", sa.String(10), nullable=False),
-        sa.Column("country", sa.String(50), nullable=False, server_default="England and Wales"),
         sa.Column("lat", sa.Float(), nullable=True),
         sa.Column("lng", sa.Float(), nullable=True),
         sa.Column("is_primary", sa.Boolean(), nullable=False, server_default="true"),
+        sa.Column(
+            "office_type",
+            postgresql.ENUM("BRANCH", "HO", name="office_type", create_type=False),
+            nullable=True,
+        ),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -84,21 +104,23 @@ def upgrade() -> None:
     op.create_index("ix_offices_postcode", "offices", ["postcode"])
 
     # ── price_cards ──────────────────────────────────────────────────────────
+    op.execute("CREATE TYPE price_type AS ENUM ('estimated', 'verified', 'no_data')")
+
     op.create_table(
         "price_cards",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("org_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column(
-            "practice_area",
-            sa.String(50),
+            "price_type",
+            postgresql.ENUM(
+                "estimated", "verified", "no_data", name="price_type", create_type=False
+            ),
             nullable=False,
-            server_default="residential_conveyancing",
+            server_default="no_data",
         ),
         sa.Column(
             "pricing", postgresql.JSONB(astext_type=sa.Text()), nullable=False, server_default="{}"
         ),
-        sa.Column("confidence", sa.Float(), nullable=False, server_default="1.0"),
-        sa.Column("active", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column(
             "created_at",
             sa.DateTime(timezone=True),
@@ -113,13 +135,11 @@ def upgrade() -> None:
         ),
         sa.ForeignKeyConstraint(["org_id"], ["organisations.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("org_id"),
     )
     op.create_index("ix_price_cards_org_id", "price_cards", ["org_id"])
-    op.create_index("ix_price_cards_practice_area", "price_cards", ["practice_area"])
-    op.create_index("ix_price_cards_active", "price_cards", ["active"])
 
     # ── chat_sessions ────────────────────────────────────────────────────────
-    # Scorecard preference enum: balanced (default) + 6 prioritised variants.
     op.execute(
         "CREATE TYPE scorecard_preference AS ENUM ("
         "'balanced','reputation','price','complaints','regulatory','distance','offices')"
@@ -217,9 +237,7 @@ def upgrade() -> None:
         sa.Column("quote_breakdown", sa.Text(), nullable=True),
         sa.Column("consent_contacted", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("consent_terms", sa.Boolean(), nullable=False, server_default="false"),
-        # End-of-day callback follow-up answer (binary: did the firm contact you?)
         sa.Column("firm_contact_made", sa.Boolean(), nullable=True),
-        # Firm-side conflict-check result; default pending until an admin marks it.
         sa.Column(
             "conflict_check_outcome",
             postgresql.ENUM(
@@ -336,101 +354,53 @@ def upgrade() -> None:
     op.create_index("ix_firm_users_email", "firm_users", ["email"])
     op.create_index("ix_firm_users_org_id", "firm_users", ["org_id"])
 
-    # ── complaints_decisions (Legal Ombudsman) ──────────────────────────────
-    # Severity band 1-5 + Remedy Amount band drive the per-decision deduction
-    # in the Complaints History factor (Annex One §6).
-    op.execute(
-        "CREATE TYPE leo_severity AS ENUM "
-        "('limited_action','financial_award','rectification','apology','no_action')"
-    )
-
+    # ── complaints_summary (pre-computed from Master Export) ────────────────
     op.create_table(
-        "complaints_decisions",
+        "complaints_summary",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("org_id", postgresql.UUID(as_uuid=True), nullable=False),
-        sa.Column("decision_id", sa.String(50), nullable=True),
-        sa.Column("decision_date", sa.Date(), nullable=True),
-        sa.Column("remedy_type", sa.String(100), nullable=True),
-        # Severity band (1 = most severe, 5 = least), per Annex One §6.10–§6.14.
-        sa.Column("severity_band", sa.Integer(), nullable=False),
-        sa.Column("severity_score", sa.Float(), nullable=False),
-        # Remedy amount in £ and resulting score band (5 highest → 1 lowest).
-        sa.Column("remedy_amount", sa.Numeric(10, 2), nullable=True),
-        sa.Column("remedy_amount_score", sa.Float(), nullable=False),
-        # Penalty when the firm's complaint handling is unreasonable (Annex One §6.16).
+        sa.Column("score", sa.Float(), nullable=False),
+        sa.Column("stars", sa.Integer(), nullable=False),
+        sa.Column("display_text", sa.String(255), nullable=False),
+        sa.Column("decision_count_text", sa.String(255), nullable=True),
+        sa.Column("scale_context", sa.String(255), nullable=True),
+        sa.Column("issue_one", sa.String(255), nullable=True),
+        sa.Column("issue_two", sa.String(255), nullable=True),
+        sa.Column("issue_three", sa.String(255), nullable=True),
+        sa.Column("external_url", sa.String(500), nullable=True),
         sa.Column(
-            "complaint_handling_penalty",
-            sa.Boolean(),
-            nullable=False,
-            server_default="false",
-        ),
-        sa.Column("source_url", sa.String(500), nullable=True),
-        sa.Column(
-            "created_at",
+            "last_updated",
             sa.DateTime(timezone=True),
             server_default=sa.text("now()"),
             nullable=False,
         ),
         sa.ForeignKeyConstraint(["org_id"], ["organisations.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("ix_complaints_decisions_org_id", "complaints_decisions", ["org_id"])
-
-    # ── regulatory_decisions (SRA + SDT) ─────────────────────────────────────
-    op.execute("CREATE TYPE regulatory_source AS ENUM ('sra','sdt')")
-    op.execute(
-        "CREATE TYPE sra_decision_type AS ENUM ("
-        "'rebuke','fine_band_a','fine_band_b','fine_band_c','fine_band_d',"
-        "'control_order','disqualification','strike_off','intervention')"
+        sa.UniqueConstraint("org_id"),
     )
 
+    # ── regulatory_summary (pre-computed from Master Export) ────────────────
     op.create_table(
-        "regulatory_decisions",
+        "regulatory_summary",
         sa.Column("id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column("org_id", postgresql.UUID(as_uuid=True), nullable=False),
+        sa.Column("score", sa.Float(), nullable=False),
+        sa.Column("stars", sa.Integer(), nullable=False),
+        sa.Column("display_text", sa.String(255), nullable=False),
+        sa.Column("decision_count_text", sa.String(255), nullable=True),
+        sa.Column("outcome_one", sa.String(255), nullable=True),
+        sa.Column("outcome_two", sa.String(255), nullable=True),
+        sa.Column("outcome_three", sa.String(255), nullable=True),
+        sa.Column("external_url", sa.String(500), nullable=True),
         sa.Column(
-            "source",
-            postgresql.ENUM("sra", "sdt", name="regulatory_source", create_type=False),
-            nullable=False,
-        ),
-        sa.Column("decision_id", sa.String(50), nullable=True),
-        sa.Column("decision_date", sa.Date(), nullable=True),
-        sa.Column(
-            "decision_type",
-            postgresql.ENUM(
-                "rebuke",
-                "fine_band_a",
-                "fine_band_b",
-                "fine_band_c",
-                "fine_band_d",
-                "control_order",
-                "disqualification",
-                "strike_off",
-                "intervention",
-                name="sra_decision_type",
-                create_type=False,
-            ),
-            nullable=False,
-        ),
-        # Pre-computed deduction for the Regulatory History factor (Annex One §7).
-        sa.Column("deduction", sa.Float(), nullable=False),
-        # SDT fines are banded by amount (Annex One §7.5).
-        sa.Column("sdt_fine_amount", sa.Numeric(10, 2), nullable=True),
-        sa.Column("source_url", sa.String(500), nullable=True),
-        sa.Column(
-            "created_at",
+            "last_updated",
             sa.DateTime(timezone=True),
             server_default=sa.text("now()"),
             nullable=False,
         ),
         sa.ForeignKeyConstraint(["org_id"], ["organisations.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
-    )
-    op.create_index("ix_regulatory_decisions_org_id", "regulatory_decisions", ["org_id"])
-    op.create_index(
-        "ix_regulatory_decisions_decision_type",
-        "regulatory_decisions",
-        ["decision_type"],
+        sa.UniqueConstraint("org_id"),
     )
 
     # ── analytics_events ─────────────────────────────────────────────────────
@@ -460,11 +430,8 @@ def upgrade() -> None:
 
 def downgrade() -> None:
     op.drop_table("analytics_events")
-    op.drop_table("regulatory_decisions")
-    op.execute("DROP TYPE IF EXISTS sra_decision_type")
-    op.execute("DROP TYPE IF EXISTS regulatory_source")
-    op.drop_table("complaints_decisions")
-    op.execute("DROP TYPE IF EXISTS leo_severity")
+    op.drop_table("regulatory_summary")
+    op.drop_table("complaints_summary")
     op.drop_table("firm_users")
     op.execute("DROP TYPE IF EXISTS firm_user_role")
     op.drop_table("review_invitations")
@@ -477,5 +444,7 @@ def downgrade() -> None:
     op.drop_table("chat_sessions")
     op.execute("DROP TYPE IF EXISTS scorecard_preference")
     op.drop_table("price_cards")
+    op.execute("DROP TYPE IF EXISTS price_type")
     op.drop_table("offices")
+    op.execute("DROP TYPE IF EXISTS office_type")
     op.drop_table("organisations")

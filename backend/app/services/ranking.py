@@ -5,6 +5,11 @@ exercised in isolation by `tests/unit/test_ranking.py`. The orchestration
 (load all WMCA firms, score them, weight them, rank) lives in
 `app.services.search` and consumes these primitives.
 
+Reputation, Complaints and Regulatory factor inputs arrive pre-computed
+from the Master Export workbook (Annex One: "all ingestion / cleansing /
+normalisation must complete prior to runtime"). The runtime ranker only
+normalises across the results set and applies factor weights.
+
 Conventions:
     - All factor scores are floats on a 0–100 scale, retained at full
       numerical precision (no rounding) so the weighted scorecard sum
@@ -15,37 +20,15 @@ Conventions:
       results set). Complaints, Regulatory and Offices are *absolute*.
 """
 
-import math
-from collections.abc import Iterable
-
-# Reputation confidence weighting — Annex One §5.7.1.
-REPUTATION_K = 0.025
-
-# Complaint handling penalty when LeO judged the firm's own handling
-# unreasonable — Annex One §6.14.
-COMPLAINT_HANDLING_PENALTY = 4.0
-
 
 # ── Reputation (Factor 1, §5) ────────────────────────────────────────────────
 
 
-def adjusted_reputation_value(rating: float | None, review_count: int | None) -> float:
-    """ARV = rating × (1 + k × ln(review_count + 1)).
-
-    Firms with no rating data score 0 ARV (will normalise to 0 unless every
-    firm in the set is also unrated, in which case the §5.6 edge case
-    assigns 50 to all).
-    """
-    if not rating:
-        return 0.0
-    count = review_count or 0
-    return float(rating) * (1.0 + REPUTATION_K * math.log(count + 1))
-
-
 def normalise_reputation(arvs: dict[str, float]) -> dict[str, float]:
-    """Min–max normalise ARVs across the results set to 0–100.
+    """Min–max normalise adjusted reputation values across the results set.
 
-    Per §5.6 edge case: if highest == lowest, every firm scores 50.
+    Per §5.6 edge case: if highest == lowest, every firm scores 50. Firms
+    with no upstream ARV (`None`) are passed in as 0.0 by the caller.
     """
     if not arvs:
         return {}
@@ -75,35 +58,6 @@ def normalise_price(prices: dict[str, float]) -> dict[str, float]:
         return {k: 50.0 for k in prices}
     span = hi - lo
     return {k: (hi - v) / span * 100.0 for k, v in prices.items()}
-
-
-# ── Complaints (Factor 3, §6) ────────────────────────────────────────────────
-
-
-def score_complaints(decisions: Iterable) -> float:
-    """Absolute, base 100. Per-decision deduction = (severity × remedy) +
-    handling_penalty (4 if unreasonable handling, else 0). Aggregated
-    additively across decisions — Annex One §6.16. No floor.
-    """
-    total_deduction = 0.0
-    for d in decisions:
-        per_decision = float(d.severity_score) * float(d.remedy_amount_score)
-        if d.complaint_handling_penalty:
-            per_decision += COMPLAINT_HANDLING_PENALTY
-        total_deduction += per_decision
-    return 100.0 - total_deduction
-
-
-# ── Regulatory (Factor 4, §7) ────────────────────────────────────────────────
-
-
-def score_regulatory(decisions: Iterable) -> float:
-    """Absolute, base 100. Sum of per-decision deductions (pre-computed at
-    ingest from the §7.3 SRA / §7.5 SDT tables). No floor — score may be
-    negative. Intervention is a binary eligibility filter handled
-    upstream in `search.py` and never reaches this scorer.
-    """
-    return 100.0 - sum(float(d.deduction) for d in decisions)
 
 
 # ── Distance (Factor 5, §8) ──────────────────────────────────────────────────

@@ -11,7 +11,7 @@ import { formatCurrency } from "@/lib/utils";
 type Props = {
   firm: {
     org_id: string;
-    name: string;
+    trading_name: string;
     quote: { total: number } | null;
   };
   sessionId: string;
@@ -52,7 +52,7 @@ export function AppointModal({ firm, sessionId, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-lg font-semibold">Appoint {firm.name}</h2>
+          <h2 className="text-lg font-semibold">Appoint {firm.trading_name}</h2>
           <button onClick={onClose} className="btn-ghost p-1">
             <X className="w-5 h-5" />
           </button>
@@ -63,7 +63,7 @@ export function AppointModal({ firm, sessionId, onClose }: Props) {
             <CheckCircle className="w-12 h-12 text-brand-600 mx-auto mb-3" />
             <p className="font-semibold text-gray-900 mb-1">Appointment submitted!</p>
             <p className="text-gray-500 text-sm mb-4">
-              {firm.name} has been notified and will be in touch to confirm your appointment.
+              {firm.trading_name} has been notified and will be in touch to confirm your appointment.
             </p>
             <button onClick={onClose} className="btn-primary">Done</button>
           </div>
@@ -108,7 +108,7 @@ export function AppointModal({ firm, sessionId, onClose }: Props) {
                 The quoted price covers the firm&apos;s legal fees and the disbursements listed
                 on their price card. Matter-specific costs like Stamp Duty, leasehold notice
                 fees, and indemnity policies are <strong>excluded</strong> and will be confirmed
-                by {firm.name} once your matter is open.{" "}
+                by {firm.trading_name} once your matter is open.{" "}
                 <a
                   href="/disbursements"
                   target="_blank"
@@ -128,7 +128,7 @@ export function AppointModal({ firm, sessionId, onClose }: Props) {
                   {...register("consent_contacted", { required: true })}
                 />
                 <span className="text-sm text-gray-600">
-                  I consent to {firm.name} contacting me about this matter *
+                  I consent to {firm.trading_name} contacting me about this matter *
                 </span>
               </label>
               <label className="flex items-start gap-2 cursor-pointer">

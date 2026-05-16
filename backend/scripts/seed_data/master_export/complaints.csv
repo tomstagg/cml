@@ -1,0 +1,23 @@
+CML firm ID,Trading name (for display),Complaints score,Stars,Complaints history,Decision count text,Scale context,Issue one,Issue two,Issue three,LeO hyperlink
+CML-001,Talbots Law,63,3,Low,2 published decisions (last 12 months),~1 decision per 11 offices,Failure to provide advice,Delay,,https://www.legalombudsman.org.uk/information-centre/data-centre/ombudsman-decision-data/
+CML-002,Poole Alcock,100,5,No published complaints history,,,,,,
+CML-003,Knights ,100,5,No published complaints history,,,,,,
+CML-004,Davisons Law,55,2,Moderate,2 published decisions (last 12 months),~1 decision per 12 offices,Poor advice,Failure to provide advice,,https://www.legalombudsman.org.uk/information-centre/data-centre/ombudsman-decision-data/
+CML-005,Irwin Mitchell ,50,2,Moderate,1 published decision (last 12 months),~1 decision per 23 offices,Cost – Information deficient,Failure to follow instructions,Failure to keep informed,https://www.legalombudsman.org.uk/information-centre/data-centre/ombudsman-decision-data/
+CML-006,Shakespeare Martineau ,100,5,No published complaints history,,,,,,
+CML-007,HCB Solicitors ,88,4,Very low,1 published decision (last 12 months),~1 decision per 18 offices,Failure to release files or papers,,,https://www.legalombudsman.org.uk/information-centre/data-centre/ombudsman-decision-data/
+CML-008,Star Legal Solicitors,100,5,No published complaints history,,,,,,
+CML-009,HCR Law,100,5,No published complaints history,,,,,,
+CML-010,Hine Solicitors ,100,5,No published complaints history,,,,,,
+CML-011,David J Foster & Co ,100,5,No published complaints history,,,,,,
+CML-012,FBC Manby Bowdler ,100,5,No published complaints history,,,,,,
+CML-013,Hill Dickinson,100,5,No published complaints history,,,,,,
+CML-014,Spencer West,100,5,No published complaints history,,,,,,
+CML-015,Weightmans ,100,5,No published complaints history,,,,,,
+CML-016,Gordon & Thompson Solicitors,100,5,No published complaints history,,,,,,
+CML-017,NBB Waldrons Solicitors,100,5,No published complaints history,,,,,,
+CML-018,Glover Priest Solicitors ,85,4,Very low,1 published decision (last 12 months),~1 decision per 8 offices,Failure to provide advice,,,https://www.legalombudsman.org.uk/information-centre/data-centre/ombudsman-decision-data/
+CML-019,Gunnercooke,100,5,No published complaints history,,,,,,
+CML-020,MFG Solicitors,81,4,Very low,1 published decision (last 12 months),~1 decision per 8 offices,Failure to investigate complaint internally,Failure to provide advice,Cost - Excessive,https://www.legalombudsman.org.uk/information-centre/data-centre/ombudsman-decision-data/
+CML-021,Alsters Kelley Solicitors ,78,3,Low,1 published decision (last 12 months),~1 decision per 7 offices,Failure to progress,Failure to keep informed,,https://www.legalombudsman.org.uk/information-centre/data-centre/ombudsman-decision-data/
+CML-022,Clarke Willmott,100,5,No published complaints history,,,,,,

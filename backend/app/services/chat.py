@@ -259,6 +259,7 @@ def get_intake_flags(answers: dict) -> dict[str, Any]:
     return {
         "purchase_price": purchase_price,
         "tenure": answers.get("tenure", "freehold"),
+        "transaction_type": answers.get("transaction_type", "purchase"),
         "property_postcode": answers.get("property_postcode", ""),
         "mortgage": _yn(answers.get("mortgage")),
         "new_build": _yn(answers.get("new_build")),

@@ -10,7 +10,7 @@ import { trackCallback } from "@/lib/analytics";
 type Props = {
   firm: {
     org_id: string;
-    name: string;
+    trading_name: string;
     quote: { total: number } | null;
   };
   sessionId: string;
@@ -55,7 +55,7 @@ export function CallbackModal({ firm, sessionId, onClose }: Props) {
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
         <div className="flex items-center justify-between p-6 border-b border-gray-100">
-          <h2 className="text-lg font-semibold">Request Callback — {firm.name}</h2>
+          <h2 className="text-lg font-semibold">Request Callback — {firm.trading_name}</h2>
           <button onClick={onClose} className="btn-ghost p-1">
             <X className="w-5 h-5" />
           </button>
@@ -66,7 +66,7 @@ export function CallbackModal({ firm, sessionId, onClose }: Props) {
             <CheckCircle className="w-12 h-12 text-brand-600 mx-auto mb-3" />
             <p className="font-semibold text-gray-900 mb-1">Callback requested!</p>
             <p className="text-gray-500 text-sm mb-4">
-              {firm.name} will call you at your preferred time.
+              {firm.trading_name} will call you at your preferred time.
             </p>
             <button onClick={onClose} className="btn-primary">Done</button>
           </div>
@@ -121,7 +121,7 @@ export function CallbackModal({ firm, sessionId, onClose }: Props) {
                 Any quoted price covers legal fees and the disbursements listed on the
                 firm&apos;s price card. Matter-specific costs like Stamp Duty, leasehold notice
                 fees, and indemnity policies are <strong>excluded</strong> and will be
-                confirmed by {firm.name} once your matter is open.{" "}
+                confirmed by {firm.trading_name} once your matter is open.{" "}
                 <a
                   href="/disbursements"
                   target="_blank"
@@ -137,7 +137,7 @@ export function CallbackModal({ firm, sessionId, onClose }: Props) {
               <label className="flex items-start gap-2 cursor-pointer">
                 <input type="checkbox" className="mt-1 rounded" {...register("consent_contacted", { required: true })} />
                 <span className="text-sm text-gray-600">
-                  I consent to {firm.name} contacting me *
+                  I consent to {firm.trading_name} contacting me *
                 </span>
               </label>
               <label className="flex items-start gap-2 cursor-pointer">

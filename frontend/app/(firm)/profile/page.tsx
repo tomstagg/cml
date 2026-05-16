@@ -9,14 +9,22 @@ import { toast } from "sonner";
 
 type Profile = {
   id: string;
+  cml_firm_id: string;
   sra_number: string;
   name: string;
-  auth_status: string;
-  website_url: string | null;
+  trading_name: string;
   phone: string | null;
-  email: string | null;
+  referral_email: string | null;
   enrolled: boolean;
-  offices: { id: string; address_line1: string | null; city: string | null; postcode: string; is_primary: boolean }[];
+  active_in_pilot: boolean;
+  offices: {
+    id: string;
+    address_line1: string | null;
+    city: string | null;
+    postcode: string;
+    is_primary: boolean;
+    office_type: string | null;
+  }[];
 };
 
 export default function ProfilePage() {
@@ -24,20 +32,22 @@ export default function ProfilePage() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [website, setWebsite] = useState("");
   const [phone, setPhone] = useState("");
-  const [email, setEmail] = useState("");
+  const [referralEmail, setReferralEmail] = useState("");
 
   useEffect(() => {
     const token = getStoredToken();
-    if (!token) { router.push("/login"); return; }
-    firmProfileApi.get(token)
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    firmProfileApi
+      .get(token)
       .then((data) => {
         const p = data as Profile;
         setProfile(p);
-        setWebsite(p.website_url ?? "");
         setPhone(p.phone ?? "");
-        setEmail(p.email ?? "");
+        setReferralEmail(p.referral_email ?? "");
       })
       .catch(() => router.push("/login"))
       .finally(() => setLoading(false));
@@ -49,9 +59,8 @@ export default function ProfilePage() {
     setSaving(true);
     try {
       const updated = await firmProfileApi.update(token, {
-        website_url: website || undefined,
         phone: phone || undefined,
-        email: email || undefined,
+        referral_email: referralEmail || undefined,
       });
       setProfile(updated as Profile);
       toast.success("Profile saved");
@@ -80,16 +89,26 @@ export default function ProfilePage() {
         <h2 className="font-semibold text-navy mb-4">Firm</h2>
         <dl className="space-y-3">
           <div>
-            <dt className="text-sm text-gray-500">Firm Name</dt>
+            <dt className="text-sm text-gray-500">Trading Name</dt>
+            <dd className="font-medium text-navy">{profile.trading_name}</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">Legal Name</dt>
             <dd className="font-medium text-navy">{profile.name}</dd>
+          </div>
+          <div>
+            <dt className="text-sm text-gray-500">CML Firm ID</dt>
+            <dd className="font-medium text-navy">{profile.cml_firm_id}</dd>
           </div>
           <div>
             <dt className="text-sm text-gray-500">SRA Number</dt>
             <dd className="font-medium text-navy">{profile.sra_number}</dd>
           </div>
           <div>
-            <dt className="text-sm text-gray-500">SRA Status</dt>
-            <dd className="font-medium text-navy capitalize">{profile.auth_status}</dd>
+            <dt className="text-sm text-gray-500">Pilot Status</dt>
+            <dd className="font-medium text-navy">
+              {profile.active_in_pilot ? "Active in pilot" : "Not in pilot"}
+            </dd>
           </div>
         </dl>
       </div>
@@ -97,16 +116,6 @@ export default function ProfilePage() {
       <div className="card p-6 mb-6">
         <h2 className="font-semibold text-navy mb-4">Contact Information</h2>
         <div className="space-y-4">
-          <div>
-            <label className="label">Website URL</label>
-            <input
-              type="url"
-              className="input"
-              value={website}
-              onChange={(e) => setWebsite(e.target.value)}
-              placeholder="https://www.yourfirm.co.uk"
-            />
-          </div>
           <div>
             <label className="label">Phone</label>
             <input
@@ -118,19 +127,28 @@ export default function ProfilePage() {
             />
           </div>
           <div>
-            <label className="label">Email (for client notifications)</label>
+            <label className="label">Referral email</label>
+            <p className="text-xs text-gray-500 mb-1">
+              Proceed and Callback notifications are sent to this address.
+            </p>
             <input
               type="email"
               className="input"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              value={referralEmail}
+              onChange={(e) => setReferralEmail(e.target.value)}
               placeholder="enquiries@yourfirm.co.uk"
             />
           </div>
         </div>
         <div className="mt-4 pt-4 border-t border-gray-100">
           <button onClick={handleSave} disabled={saving} className="btn-gradient">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <><Save className="w-4 h-4" /> Save Changes</>}
+            {saving ? (
+              <Loader2 className="w-4 h-4 animate-spin" />
+            ) : (
+              <>
+                <Save className="w-4 h-4" /> Save Changes
+              </>
+            )}
           </button>
         </div>
       </div>
@@ -142,8 +160,14 @@ export default function ProfilePage() {
             {profile.offices.map((office) => (
               <div key={office.id} className="text-sm text-gray-600">
                 <p>{office.address_line1}</p>
-                <p>{office.city}, {office.postcode}</p>
-                {office.is_primary && <span className="text-xs text-purple">Primary office</span>}
+                <p>
+                  {office.city}, {office.postcode}
+                </p>
+                {office.is_primary && (
+                  <span className="text-xs text-purple">
+                    Primary office{office.office_type ? ` · ${office.office_type}` : ""}
+                  </span>
+                )}
               </div>
             ))}
           </div>

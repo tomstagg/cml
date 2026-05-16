@@ -1,14 +1,16 @@
-"""Conveyancing price calculator.
+"""Conveyancing price calculator (Master Export anchor-point edition).
 
-Implements Annex One §10 Total Effective Price for the Quoted Prices path:
+The Master Export workbook supplies per-firm anchor prices at seven CML-defined
+purchase-price points (£150k → £1.5m) for each of four matter combinations
+(freehold/leasehold × purchase/sale). The runtime ranker only needs a
+deterministic Total Effective Price per firm to feed the price factor; this
+calculator picks the *nearest* anchor to the user's purchase price.
 
-    P_legal,effective = P_quoted                       (no `c` confidence uplift this pilot)
-    P_effective       = P_legal,effective × (1 + VAT)
-                      + Σ included_disbursements (each line's VAT applied per-row flag)
-
-The calculator consumes a price-card JSONB (see `app.schemas.firm.PriceCardData`)
-and the normalised conveyancing answers produced by
-`app.services.chat.get_intake_flags`.
+Out of scope for this pass (tracked in the plan, follow-up needed):
+    - Linear interpolation between adjacent anchors
+    - Modifier application (new build, shared ownership, etc.)
+    - Additional cost application (ID verification, SDLT admin fee, etc.)
+    - VAT and confidence uplift `c = 0.075` for Estimated prices (Annex One §10)
 """
 
 from decimal import ROUND_HALF_UP, Decimal
@@ -16,120 +18,81 @@ from decimal import ROUND_HALF_UP, Decimal
 VAT_RATE = Decimal("0.20")
 PENNY = Decimal("0.01")
 
+# CML-defined anchor points on the Master Export "Price" tab.
+ANCHORS = (150_000, 250_000, 500_000, 750_000, 1_000_000, 1_250_000, 1_500_000)
+
 
 def _q(value: Decimal) -> Decimal:
     return value.quantize(PENNY, rounding=ROUND_HALF_UP)
 
 
-def _condition_applies(condition: str | None, answers: dict) -> bool:
-    """Evaluate a price-card adjustment condition against conveyancing answers.
+def _nearest_anchor(purchase_price: int) -> int:
+    """Pick the closest of the seven CML anchor points to the user's price."""
+    return min(ANCHORS, key=lambda a: abs(a - purchase_price))
 
-    Supported expressions (case-insensitive on the RHS):
-        tenure==leasehold | tenure==freehold
-        mortgage==true    | mortgage==false
-        new_build==true   | shared_ownership==true | help_to_buy_isa==true
-    A None / empty condition always applies.
-    """
-    if not condition:
-        return True
 
-    if "==" not in condition:
-        return False
-
-    field, expected = (part.strip() for part in condition.split("==", 1))
-    expected = expected.lower()
-    actual = answers.get(field)
-
-    if isinstance(actual, bool):
-        return ("true" if actual else "false") == expected
-    return str(actual).lower() == expected
+def _matter_path(answers: dict) -> tuple[str, str] | None:
+    """Resolve (tenure, transaction) tuple from intake flags, or None."""
+    tenure = (answers.get("tenure") or "").lower()
+    if tenure not in ("freehold", "leasehold"):
+        return None
+    txn = (answers.get("transaction_type") or "").lower()
+    if txn not in ("purchase", "sale"):
+        return None
+    return tenure, txn
 
 
 def calculate_total_effective_price(price_card: dict, answers: dict) -> dict | None:
-    """Return an itemised quote dict, or None if no band matches.
+    """Return an itemised quote dict, or None if no anchor price is available.
 
-    Output shape:
+    Output shape preserved from the previous calculator for compatibility:
         {
           "base_fee": float,
-          "adjustments": [{"name": str, "amount": float}, ...],
+          "adjustments": [],
           "fees_subtotal": float,
-          "vat": float,                      # VAT on legal fees only
-          "disbursements": [{"name": str, "amount": float, "vat_applies": bool}, ...],
-          "disbursements_total": float,      # sum of disbursement amounts incl. each row's VAT
-          "total": float,                    # P_effective
+          "vat": float,
+          "disbursements": [],
+          "disbursements_total": float,
+          "total": float,
           "currency": "GBP",
-          "pricing_model": "fixed" | "band",
+          "pricing_model": "anchor",
         }
     """
     if not price_card:
         return None
 
-    purchase_price = Decimal(str(answers.get("purchase_price", 0) or 0))
-    pricing_model = price_card.get("pricing_model", "band")
-
-    # ── Base fee from purchase-price band ──────────────────────────────────
-    matched_fee: Decimal | None = None
-    for band in price_card.get("bands", []):
-        min_val = Decimal(str(band.get("purchase_price_min", 0)))
-        max_val = band.get("purchase_price_max")
-        if max_val is None:
-            if purchase_price >= min_val:
-                matched_fee = Decimal(str(band.get("fee", 0)))
-                break
-        else:
-            if min_val <= purchase_price <= Decimal(str(max_val)):
-                matched_fee = Decimal(str(band.get("fee", 0)))
-                break
-
-    if matched_fee is None:
+    path = _matter_path(answers)
+    if path is None:
         return None
-    base_fee = matched_fee
+    tenure, txn = path
 
-    # ── Conditional adjustments ────────────────────────────────────────────
-    adjustments: list[dict] = []
-    adjustment_total = Decimal("0")
-    for adj in price_card.get("adjustments", []):
-        if not _condition_applies(adj.get("condition"), answers):
-            continue
-        amount = Decimal(str(adj.get("amount", 0)))
-        adjustments.append({"name": adj["name"], "amount": float(amount)})
-        adjustment_total += amount
+    purchase_price = int(answers.get("purchase_price", 0) or 0)
+    if purchase_price <= 0:
+        return None
 
-    fees_subtotal = base_fee + adjustment_total
+    anchors = price_card.get(tenure, {}).get(txn, {}) or {}
+    if not anchors:
+        return None
 
-    # ── VAT on legal fees ──────────────────────────────────────────────────
-    vat_amount = (
-        _q(fees_subtotal * VAT_RATE)
-        if price_card.get("vat_applies_to_fees", True)
-        else Decimal("0")
-    )
+    chosen = _nearest_anchor(purchase_price)
+    # Anchor keys may be ints or strings depending on JSON serialisation.
+    raw = anchors.get(chosen, anchors.get(str(chosen)))
+    if raw is None:
+        return None
 
-    # ── Included disbursements (each row carries its own VAT flag) ─────────
-    disbursements: list[dict] = []
-    disbursements_total = Decimal("0")
-    for disb in price_card.get("included_disbursements", []):
-        net = Decimal(str(disb.get("amount", 0)))
-        vat_applies = bool(disb.get("vat_applies", False))
-        gross = _q(net * (Decimal("1") + VAT_RATE)) if vat_applies else net
-        disbursements.append(
-            {
-                "name": disb["name"],
-                "amount": float(gross),
-                "vat_applies": vat_applies,
-            }
-        )
-        disbursements_total += gross
-
-    total = fees_subtotal + vat_amount + disbursements_total
+    base_fee = Decimal(str(raw))
+    fees_subtotal = base_fee
+    vat_amount = _q(fees_subtotal * VAT_RATE)
+    total = fees_subtotal + vat_amount
 
     return {
         "base_fee": float(base_fee),
-        "adjustments": adjustments,
+        "adjustments": [],
         "fees_subtotal": float(fees_subtotal),
         "vat": float(vat_amount),
-        "disbursements": disbursements,
-        "disbursements_total": float(_q(disbursements_total)),
+        "disbursements": [],
+        "disbursements_total": 0.0,
         "total": float(_q(total)),
         "currency": "GBP",
-        "pricing_model": pricing_model,
+        "pricing_model": "anchor",
     }
