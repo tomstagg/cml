@@ -74,6 +74,7 @@ def _format_question(q: dict | None, answers: dict) -> QuestionResponse | None:
         type=q["type"],
         pathways=q["pathways"],
         options=options,
+        tenure_options=q.get("tenure_options"),
         placeholder=q.get("placeholder"),
         hint=q.get("hint"),
     )
