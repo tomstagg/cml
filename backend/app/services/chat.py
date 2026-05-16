@@ -172,30 +172,54 @@ MODIFIER_OPTIONS_BUYING: list[dict] = [
     {
         "value": "mortgage_required",
         "label": "I'm buying with a mortgage",
+        "description": (
+            "Tick if you're using a mortgage or other secured loan to fund the purchase. "
+            "Your solicitor usually also acts for the lender, which adds work."
+        ),
     },
     {
         "value": "new_build",
         "label": "The property is a new build",
+        "description": (
+            "A newly built home being sold by the developer (off-plan or recently completed). "
+            "Tight builder deadlines and extra warranty paperwork apply."
+        ),
         "pathways": [PATHWAY_PURCHASE, PATHWAY_COMBINED],
         "tenures": ["freehold"],
     },
     {
         "value": "new_lease",
         "label": "This is a new lease",
+        "description": (
+            "The developer or freeholder is granting a brand-new lease on the property "
+            "(rather than you taking over an existing one). Extra lease drafting is needed."
+        ),
         "pathways": [PATHWAY_PURCHASE, PATHWAY_COMBINED],
         "tenures": ["leasehold"],
     },
     {
         "value": "shared_ownership_or_help_to_buy",
         "label": "I'm using shared ownership or Help to Buy",
+        "description": (
+            "Government-backed schemes where you part-buy / part-rent, or where the "
+            "government provides an equity loan. Extra documentation is required."
+        ),
     },
     {
         "value": "gifted_deposit",
         "label": "Part of the deposit is being gifted",
+        "description": (
+            "Some of your deposit is being given to you (not loaned) by a family member "
+            "or friend. Your solicitor will need to carry out extra anti-money-laundering checks."
+        ),
     },
     {
         "value": "unregistered_title_purchase",
         "label": "The property I am buying is unregistered",
+        "description": (
+            "The property's title isn't yet recorded at the Land Registry — common for "
+            "older homes never sold since 1990. Extra investigation of historic deeds is needed."
+        ),
     },
 ]
 
@@ -203,10 +227,18 @@ MODIFIER_OPTIONS_SELLING: list[dict] = [
     {
         "value": "additional_mortgage_redemption",
         "label": "There is more than one mortgage or secured loan against the property I'm selling",
+        "description": (
+            "More than one lender needs paying off on completion (e.g. a main mortgage plus "
+            "a home-improvement loan or second charge). Your solicitor coordinates each redemption."
+        ),
     },
     {
         "value": "unregistered_title_sale",
         "label": "The property I'm selling is unregistered",
+        "description": (
+            "Your property's title isn't recorded at the Land Registry — usually because it "
+            "hasn't changed hands since 1990. Your solicitor will need the original paper deeds."
+        ),
     },
 ]
 
@@ -253,13 +285,25 @@ def dynamic_options(question_id: str, answers: dict) -> list[dict]:
             allowed_tenures = opt.get("tenures")
             if allowed_tenures and (purchase_tenure not in allowed_tenures):
                 continue
-            out.append({"value": opt["value"], "label": opt["label"]})
+            out.append(
+                {
+                    "value": opt["value"],
+                    "label": opt["label"],
+                    "description": opt.get("description"),
+                }
+            )
     if pathway in (PATHWAY_SALE, PATHWAY_COMBINED):
         for opt in MODIFIER_OPTIONS_SELLING:
             allowed_tenures = opt.get("tenures")
             if allowed_tenures and (sale_tenure not in allowed_tenures):
                 continue
-            out.append({"value": opt["value"], "label": opt["label"]})
+            out.append(
+                {
+                    "value": opt["value"],
+                    "label": opt["label"],
+                    "description": opt.get("description"),
+                }
+            )
     return out
 
 

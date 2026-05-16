@@ -32,6 +32,7 @@ class QuestionResponse(BaseModel):
     type: str
     pathways: list[str] | None = None
     options: list[QuestionOption] | None = None
+    tenure_options: list[QuestionOption] | None = None
     placeholder: str | None = None
     hint: str | None = None
 
