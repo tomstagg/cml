@@ -68,15 +68,15 @@ async def create_appointment(
             send_proceed_user_copy,
             client_email,
             body.client_name,
-            org.name,
+            org.trading_name,
             quoted_price,
             settings.excluded_disbursements_url,
         )
-        if org.email:
+        if org.referral_email:
             background_tasks.add_task(
                 send_proceed_to_firm,
-                org.email,
-                org.name,
+                org.referral_email,
+                org.trading_name,
                 body.client_name,
                 client_email,
                 quoted_price,
@@ -86,15 +86,15 @@ async def create_appointment(
             send_callback_user_copy,
             client_email,
             body.client_name,
-            org.name,
+            org.trading_name,
             body.preferred_time,
             quoted_price,
         )
-        if org.email:
+        if org.referral_email:
             background_tasks.add_task(
                 send_callback_to_firm,
-                org.email,
-                org.name,
+                org.referral_email,
+                org.trading_name,
                 body.client_name,
                 client_email,
                 body.client_phone,

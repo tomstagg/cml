@@ -12,7 +12,7 @@ from slowapi.errors import RateLimitExceeded
 from app.config import settings
 from app.dependencies import verify_admin_api_key
 from app.limiter import limiter
-from app.tasks.review_sync import start_scheduler, stop_scheduler
+from app.tasks.scheduler import start_scheduler, stop_scheduler
 
 # API routers
 from app.api.public import sessions, search, appointments, events, reviews as public_reviews

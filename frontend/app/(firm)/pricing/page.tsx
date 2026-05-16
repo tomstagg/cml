@@ -1,49 +1,43 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Loader2, Plus, Trash2 } from "lucide-react";
-import { firmPricingApi } from "@/lib/api";
+import { Loader2, Pencil } from "lucide-react";
+import { firmPricingApi, type PriceCard } from "@/lib/api";
 import { getStoredToken, formatCurrency } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { PriceCardForm } from "@/components/firm/PriceCardForm";
 
-type PriceCard = {
-  id: string;
-  practice_area: string;
-  pricing: {
-    pricing_model: string;
-    bands: { purchase_price_min: number; purchase_price_max: number | null; fee: number }[];
-    matter_types: string[];
-    vat_applies_to_fees: boolean;
-  };
-  active: boolean;
-  updated_at: string;
+const PRICE_TYPE_LABEL: Record<PriceCard["price_type"], string> = {
+  verified: "Verified by firm",
+  estimated: "Estimated (transparency statement)",
+  no_data: "No data",
 };
+
+const ANCHORS = [150_000, 250_000, 500_000, 750_000, 1_000_000, 1_250_000, 1_500_000] as const;
 
 export default function PricingPage() {
   const router = useRouter();
-  const [cards, setCards] = useState<PriceCard[]>([]);
+  const [card, setCard] = useState<PriceCard | null>(null);
   const [loading, setLoading] = useState(true);
-  const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState(false);
 
   useEffect(() => {
     const token = getStoredToken();
-    if (!token) { router.push("/login"); return; }
-    firmPricingApi.list(token)
-      .then((data) => setCards(data as PriceCard[]))
+    if (!token) {
+      router.push("/login");
+      return;
+    }
+    firmPricingApi
+      .get(token)
+      .then((data) => {
+        setCard(data);
+        // Open the editor automatically if the firm has no card yet.
+        if (data === null) setEditing(true);
+      })
       .catch(() => router.push("/login"))
       .finally(() => setLoading(false));
   }, []);
-
-  async function handleDelete(cardId: string) {
-    const token = getStoredToken();
-    if (!token) return;
-    if (!confirm("Deactivate this price card?")) return;
-    await firmPricingApi.delete(token, cardId);
-    setCards((prev) => prev.filter((c) => c.id !== cardId));
-    toast.success("Price card deactivated");
-  }
 
   if (loading) {
     return (
@@ -53,100 +47,104 @@ export default function PricingPage() {
     );
   }
 
+  if (editing) {
+    return (
+      <div>
+        <h1 className="text-2xl font-bold text-navy mb-6">Fees & Service Offering</h1>
+        <PriceCardForm
+          initial={card}
+          onSaved={(saved) => {
+            setCard(saved);
+            setEditing(false);
+            toast.success("Price card saved");
+          }}
+          onCancel={() => setEditing(false)}
+        />
+      </div>
+    );
+  }
+
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-navy">Fees & Service Offering</h1>
-          <p className="text-gray-500 text-sm mt-1">Manage your conveyancing price cards.</p>
+          <p className="text-gray-500 text-sm mt-1">Your conveyancing price card.</p>
         </div>
-        <button onClick={() => setShowForm(true)} className="btn-gradient">
-          <Plus className="w-4 h-4" /> Add Price Card
-        </button>
+        {card && (
+          <button onClick={() => setEditing(true)} className="btn-gradient">
+            <Pencil className="w-4 h-4" /> Edit price card
+          </button>
+        )}
       </div>
 
-      {showForm && (
-        <div className="mb-6">
-          <PriceCardForm
-            onSaved={(card) => {
-              setCards((prev) => [card as PriceCard, ...prev.filter((c) => c.id !== (card as PriceCard).id)]);
-              setShowForm(false);
-              toast.success("Price card saved!");
-            }}
-            onCancel={() => setShowForm(false)}
-          />
-        </div>
-      )}
-
-      {cards.length === 0 ? (
+      {card === null ? (
         <div className="card p-12 text-center text-gray-400">
-          <p>No price cards yet. Add your conveyancing pricing to appear in search results.</p>
+          <p>No price card yet. Add your conveyancing pricing to appear in search results.</p>
         </div>
       ) : (
-        <div className="space-y-4">
-          {cards.map((card) => (
-            <div key={card.id} className="card p-5">
-              <div className="flex items-center justify-between">
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="font-semibold text-navy capitalize">{card.practice_area}</span>
-                    <span className={`text-xs px-2 py-0.5 rounded-full ${card.active ? "bg-mint/30 text-navy" : "bg-gray-100 text-gray-500"}`}>
-                      {card.active ? "Active" : "Inactive"}
-                    </span>
-                  </div>
-                  <p className="text-sm text-gray-500">
-                    {card.pricing.pricing_model} pricing ·{" "}
-                    {card.pricing.matter_types.join(", ").replace("_", " ")} ·{" "}
-                    {card.pricing.bands.length} band{card.pricing.bands.length !== 1 ? "s" : ""}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-0.5">
-                    Updated {new Date(card.updated_at).toLocaleDateString("en-GB")}
-                  </p>
-                </div>
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => handleDelete(card.id)}
-                    className="btn-ghost text-red-500 hover:text-red-700 p-2"
-                    title="Deactivate"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
-              </div>
+        <div className="card p-5">
+          <div className="flex items-center gap-2 mb-3">
+            <span className="font-semibold text-navy">Residential conveyancing</span>
+            <span className="text-xs px-2 py-0.5 rounded-full bg-mint/30 text-navy">
+              {PRICE_TYPE_LABEL[card.price_type]}
+            </span>
+          </div>
+          <p className="text-xs text-gray-400 mb-4">
+            Updated {new Date(card.updated_at).toLocaleDateString("en-GB")}
+          </p>
 
-              {/* Band preview */}
-              {card.pricing.bands.length > 0 && (
-                <div className="mt-4 pt-4 border-t border-gray-100">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="text-xs text-gray-400">
-                        <th className="text-left font-medium pb-1">Purchase price band</th>
-                        <th className="text-right font-medium pb-1">Legal fee</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-50">
-                      {card.pricing.bands.map((band, i) => (
-                        <tr key={i}>
-                          <td className="py-1.5 text-gray-600">
-                            {formatCurrency(band.purchase_price_min)} –{" "}
-                            {band.purchase_price_max
-                              ? formatCurrency(band.purchase_price_max)
-                              : "above"}
+          {card.price_type === "no_data" ? (
+            <p className="text-sm text-gray-500">
+              No anchor prices recorded — your firm currently won&apos;t appear in search
+              results until a price card is published.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-xs text-gray-500 border-b border-gray-100">
+                    <th className="text-left font-medium pb-2 pr-3">Purchase price</th>
+                    <th className="text-right font-medium pb-2 px-2">FH purchase</th>
+                    <th className="text-right font-medium pb-2 px-2">FH sale</th>
+                    <th className="text-right font-medium pb-2 px-2">LH purchase</th>
+                    <th className="text-right font-medium pb-2 px-2">LH sale</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-50">
+                  {ANCHORS.map((anchor) => (
+                    <tr key={anchor}>
+                      <td className="py-1.5 pr-3 text-gray-600">{formatCurrency(anchor)}</td>
+                      {(
+                        [
+                          ["freehold", "purchase"],
+                          ["freehold", "sale"],
+                          ["leasehold", "purchase"],
+                          ["leasehold", "sale"],
+                        ] as const
+                      ).map(([tenure, txn]) => {
+                        const v =
+                          card.pricing[tenure]?.[txn]?.[String(anchor)] ??
+                          card.pricing[tenure]?.[txn]?.[anchor];
+                        return (
+                          <td
+                            key={`${tenure}-${txn}`}
+                            className="py-1.5 px-2 text-right text-navy"
+                          >
+                            {v != null ? formatCurrency(v) : "—"}
                           </td>
-                          <td className="py-1.5 text-right font-medium text-navy">
-                            {formatCurrency(band.fee)}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                  {card.pricing.vat_applies_to_fees && (
-                    <p className="text-xs text-gray-400 mt-2">VAT (20%) applies to legal fees</p>
-                  )}
-                </div>
-              )}
+                        );
+                      })}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+              <p className="text-xs text-gray-400 mt-3">
+                VAT (20%) is added to legal fees at quote time. Searches and other disbursements
+                are listed in the price card editor.
+              </p>
             </div>
-          ))}
+          )}
         </div>
       )}
     </div>

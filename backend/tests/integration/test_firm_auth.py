@@ -120,9 +120,11 @@ async def org_with_email(db_session):
     from app.models.organisation import Organisation
 
     org = Organisation(
+        cml_firm_id="CML-T10",
         sra_number="SRA999010",
-        name="Email Law Firm",
-        email="firm@example.com",
+        name="Email Law Firm Ltd",
+        trading_name="Email Law Firm",
+        referral_email="firm@example.com",
         enrolled=False,
         enrollment_token=None,
         enrollment_token_used=False,

@@ -80,7 +80,7 @@ async def test_get_invitation_returns_firm_name(client, valid_invitation, enroll
     resp = await client.get(f"/api/public/reviews/invitation/{valid_invitation.token}")
     assert resp.status_code == 200
     data = resp.json()
-    assert data["firm_name"] == enrolled_org.name
+    assert data["firm_name"] == enrolled_org.trading_name
     assert "expires_at" in data
 
 
@@ -134,9 +134,13 @@ async def test_submit_review_marks_invitation_used(client, valid_invitation, db_
     assert valid_invitation.used_at is not None
 
 
-async def test_submit_review_updates_aggregate_rating(
-    client, valid_invitation, enrolled_org, db_session
-):
+async def test_submit_review_stores_review_row(client, valid_invitation, enrolled_org, db_session):
+    """CML user-submitted reviews are stored verbatim; aggregation is now
+    handled upstream in the Master Export workbook so no Organisation-level
+    aggregate update happens at submit time."""
+    from app.models.review import Review, ReviewSource
+    from sqlalchemy import select
+
     await client.post(
         "/api/public/reviews",
         json={
@@ -145,9 +149,12 @@ async def test_submit_review_updates_aggregate_rating(
             "text": "Excellent service and very professional team throughout.",
         },
     )
-    await db_session.refresh(enrolled_org)
-    assert enrolled_org.aggregate_rating == 5.0
-    assert enrolled_org.aggregate_review_count == 1
+    result = await db_session.execute(
+        select(Review).where(Review.org_id == enrolled_org.id, Review.source == ReviewSource.cml)
+    )
+    reviews = result.scalars().all()
+    assert len(reviews) == 1
+    assert float(reviews[0].rating) == 5.0
 
 
 async def test_submit_review_invalid_token_returns_404(client):
