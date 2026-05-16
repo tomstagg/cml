@@ -44,7 +44,7 @@ export function WhyChooseUsDemo() {
               number of offices. Same inputs, same ranking, every time.
             </p>
             <p className="text-ink-muted leading-relaxed mb-6">
-              Pick a firm and we&rsquo;ll introduce you in your own name — no cold leads,
+              Pick a firm and we&rsquo;ll introduce you in your own name. No cold leads,
               no hard sell, no pay-to-rank.
             </p>
             <Link
