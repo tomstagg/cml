@@ -13,18 +13,16 @@ import {
 import { HeroSearch } from "@/components/marketing/HeroSearch";
 import { WhyChooseUsDemo } from "@/components/marketing/WhyChooseUsDemo";
 
-// Placeholder portraits for the hero social-proof strip — swap for licensed shots
-// before launch.
 const heroAvatars = [
-  "https://images.unsplash.com/photo-1494790108377-be9c29b29330?auto=format&fit=crop&w=120&h=120&q=80",
-  "https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=120&h=120&q=80",
-  "https://images.unsplash.com/photo-1438761681033-6461ffad8d80?auto=format&fit=crop&w=120&h=120&q=80",
-  "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=120&h=120&q=80",
-  "https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?auto=format&fit=crop&w=120&h=120&q=80",
+  "/images/marketing/review-1.png",
+  "/images/marketing/review-2.png",
+  "/images/marketing/review-3.png",
+  "/images/marketing/review-4.png",
+  "/images/marketing/review-5.png",
 ];
 
 export const metadata: Metadata = {
-  title: "Choose My Lawyer — Find a conveyancing solicitor",
+  title: "Choose My Lawyer | Find a conveyancing solicitor",
   description:
     "Compare residential conveyancing solicitors across the West Midlands. Independent, transparent quotes ranked on price, reputation, complaints, regulation and distance.",
 };
@@ -33,7 +31,7 @@ const howItWorks = [
   {
     icon: ClipboardList,
     title: "Tell us about your property",
-    body: "Answer a short, guided chat about your purchase or sale — price, tenure, postcode, mortgage. Takes about three minutes.",
+    body: "Answer a short, guided chat about your purchase or sale: price, tenure, postcode, mortgage. Takes about three minutes.",
   },
   {
     icon: Search,
@@ -43,7 +41,7 @@ const howItWorks = [
   {
     icon: PhoneCall,
     title: "Proceed or request a callback",
-    body: "Instruct a single firm, or ask up to five for a callback. The firm hears from you directly — no cold leads, no hard sell.",
+    body: "Instruct a single firm, or ask up to five for a callback. The firm hears from you directly. No cold leads, no hard sell.",
   },
 ];
 
@@ -51,24 +49,24 @@ const valueProps = [
   {
     icon: Scale,
     title: "Whole-of-market ranking",
-    body: "Every in-scope SRA-authorised firm appears in your results — not just the ones who pay us.",
+    body: "Every in-scope SRA-authorised firm appears in your results, not just the ones who pay us.",
   },
   {
     icon: Search,
     title: "Six-factor scorecard",
-    body: "Price, reputation, complaints, regulation, distance and offices — same inputs, same ranking, every time.",
+    body: "Price, reputation, complaints, regulation, distance and offices. Same inputs, same ranking, every time.",
   },
   {
     icon: PhoneCall,
     title: "Introductions in your name",
-    body: "Proceed or request a callback and the firm emails you directly — no cold leads, no hard sell.",
+    body: "Proceed or request a callback and the firm emails you directly. No cold leads, no hard sell.",
   },
 ];
 
 const testimonials = [
   {
     quote:
-      "I had quotes side-by-side in minutes — no chasing firms for prices. The breakdown of disbursements was the clearest I'd seen.",
+      "I had quotes side-by-side in minutes, with no chasing firms for prices. The breakdown of disbursements was the clearest I'd seen.",
     name: "Hannah W.",
     location: "Birmingham",
   },
@@ -86,7 +84,7 @@ const testimonials = [
   },
 ];
 
-// Placeholder photography — swap for licensed shots before launch.
+// Placeholder photography. Swap for licensed shots before launch.
 const articles = [
   {
     tag: "Buying",
@@ -111,11 +109,11 @@ const articles = [
 const faqs = [
   {
     q: "Is it free to use?",
-    a: "Yes — completely free for consumers. There's no charge to get quotes, instruct a firm, or request a callback.",
+    a: "Yes, completely free for consumers. There's no charge to get quotes, instruct a firm, or request a callback.",
   },
   {
     q: "How accurate are the quotes?",
-    a: "Quotes are calculated from each firm's published price card against your specific matter — purchase price, tenure, mortgage, and so on. The number you see is the comparable Total Effective Price; the firm will confirm exact fees on instruction. Excluded disbursements (Stamp Duty, leasehold notice fees, ground rent apportionment, indemnity policies) are flagged separately.",
+    a: "Quotes are calculated from each firm's published price card against your specific matter: purchase price, tenure, mortgage, and so on. The number you see is the comparable Total Effective Price; the firm will confirm exact fees on instruction. Excluded disbursements (Stamp Duty, leasehold notice fees, ground rent apportionment, indemnity policies) are flagged separately.",
   },
   {
     q: "Are all the firms regulated?",
@@ -123,15 +121,15 @@ const faqs = [
   },
   {
     q: "How are firms ranked?",
-    a: "By a six-factor scorecard: reputation 25%, price 25%, complaints history 15%, regulatory history 15%, distance 10%, and number of offices 10%. You can pick a different scorecard at intake to weight one factor at 40% — the others rescale around it. Same inputs always produce the same rankings.",
+    a: "By a six-factor scorecard: reputation 25%, price 25%, complaints history 15%, regulatory history 15%, distance 10%, and number of offices 10%. You can pick a different scorecard at intake to weight one factor at 40%, and the others rescale around it. Same inputs always produce the same rankings.",
   },
   {
     q: "Which areas do you cover?",
-    a: "During the pilot we cover residential conveyancing across the West Midlands Combined Authority — Birmingham (B), Coventry (CV), Dudley (DY), Wolverhampton (WV), and Walsall (WS) postcodes.",
+    a: "During the pilot we cover residential conveyancing across the West Midlands Combined Authority: Birmingham (B), Coventry (CV), Dudley (DY), Wolverhampton (WV), and Walsall (WS) postcodes.",
   },
   {
     q: "Can I save my comparison and come back later?",
-    a: "Yes. During the chat, click Save for later and enter your email — we'll send you a link to resume where you left off.",
+    a: "Yes. During the chat, click Save for later and enter your email, and we'll send you a link to resume where you left off.",
   },
 ];
 
@@ -139,13 +137,22 @@ export default function HomePage() {
   return (
     <>
       {/* Hero */}
-      <section className="relative overflow-hidden bg-navy text-white">
+      <section className="relative isolate overflow-hidden bg-navy text-white">
+        <Image
+          src="/images/marketing/top-main.png"
+          alt=""
+          fill
+          priority
+          sizes="100vw"
+          className="object-cover opacity-35"
+        />
+        <div aria-hidden className="absolute inset-0 bg-navy/70" />
         <div
           aria-hidden
-          className="absolute inset-0 -z-10 opacity-70 [background-image:radial-gradient(ellipse_at_top,rgba(151,71,255,0.55),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(10,229,246,0.25),transparent_45%)]"
+          className="absolute inset-0 opacity-70 [background-image:radial-gradient(ellipse_at_top,rgba(151,71,255,0.55),transparent_55%),radial-gradient(ellipse_at_bottom_right,rgba(10,229,246,0.25),transparent_45%)]"
         />
-        <div aria-hidden className="absolute inset-0 -z-10 decorative-lines opacity-30" />
-        <div className="section-container pt-24 sm:pt-32 pb-20 sm:pb-24">
+        <div aria-hidden className="absolute inset-0 decorative-lines opacity-30" />
+        <div className="section-container relative pt-24 sm:pt-32 pb-20 sm:pb-24">
           <div className="max-w-3xl mx-auto text-center">
             <span className="eyebrow text-teal mb-5">
               West Midlands · Conveyancing solicitors
@@ -155,7 +162,6 @@ export default function HomePage() {
               <span className="bg-gradient-to-r from-teal to-purple bg-clip-text text-transparent">
                 appoint lawyers
               </span>
-              .
             </h1>
             <div className="flex justify-center mb-8">
               <span className="inline-flex items-center gap-2 rounded-full border border-white/25 bg-white/10 px-4 py-1.5 text-sm font-medium text-white/85 backdrop-blur">
@@ -165,7 +171,7 @@ export default function HomePage() {
             </div>
             <p className="text-lg sm:text-xl text-white/80 mb-10 leading-relaxed max-w-2xl mx-auto">
               Answer a few simple questions about your property purchase or sale and get a ranked
-              list of SRA-authorised solicitors with transparent quotes — in under three minutes.
+              list of SRA-authorised solicitors with transparent quotes, in under three minutes.
             </p>
             <HeroSearch />
             <p className="mt-7 text-white/60 text-sm">
@@ -317,6 +323,7 @@ export default function HomePage() {
                 fill
                 className="object-cover"
                 sizes="(min-width: 1024px) 50vw, 100vw"
+                unoptimized
               />
               <div className="absolute inset-0 bg-navy/20" />
             </div>
@@ -331,7 +338,7 @@ export default function HomePage() {
                 comparison sites quietly skip.
               </p>
               <p className="text-white/80 leading-relaxed mb-6">
-                Pick a different priority — say, price first or regulatory record first — and the
+                Pick a different priority (say, price first or regulatory record first) and the
                 weights rescale around it. No black-box AI, no surprise fees, no pay-to-rank.
               </p>
               <Link
@@ -376,6 +383,7 @@ export default function HomePage() {
                     fill
                     className="object-cover"
                     sizes="(min-width: 768px) 33vw, 100vw"
+                    unoptimized
                   />
                   <span className="absolute left-4 top-4 chip text-xs">{a.tag}</span>
                 </div>
