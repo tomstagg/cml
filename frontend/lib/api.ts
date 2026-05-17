@@ -90,6 +90,20 @@ export type QuoteBreakdown = {
   total: number;
   currency: string;
   pricing_model: string;
+  price_type: "estimated" | "verified";
+};
+
+export type IntakeSummarySide = {
+  tenure: "freehold" | "leasehold" | "unsure" | null;
+  value: number;
+  details: string[];
+};
+
+export type IntakeSummary = {
+  transaction_type: "buying" | "selling" | "selling_and_buying" | null;
+  user_postcode: string | null;
+  buying: IntakeSummarySide | null;
+  selling: IntakeSummarySide | null;
 };
 
 export type FactorScores = {
@@ -131,6 +145,7 @@ export type SearchResponse = {
   postcode: string | null;
   scorecard_preference: string;
   include_distance: boolean;
+  intake_summary: IntakeSummary;
 };
 
 export const searchApi = {
@@ -154,14 +169,20 @@ export const appointmentsApi = {
   create: (data: {
     session_id: string;
     org_id: string;
-    type: "appoint" | "callback";
+    type: "select" | "callback";
     client_name: string;
     client_email: string;
     client_phone?: string;
     preferred_time?: string;
     quoted_price?: number;
-    consent_contacted: boolean;
-    consent_terms: boolean;
+    // Legacy callback consents.
+    consent_contacted?: boolean;
+    consent_terms?: boolean;
+    // Select-only fields.
+    data_sharing_consent?: boolean;
+    purchase_property_postcode?: string;
+    sale_property_postcode?: string;
+    price_type?: "estimated" | "verified";
   }) => request("/api/public/appointments", { method: "POST", body: data }),
 };
 

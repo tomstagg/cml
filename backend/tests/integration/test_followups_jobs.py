@@ -81,13 +81,13 @@ async def test_callback_followup_emails_today_callbacks(db_session, enrolled_org
     mock_send.assert_awaited_once()
 
 
-async def test_callback_followup_skips_proceed_appointments(db_session, enrolled_org):
+async def test_callback_followup_skips_select_appointments(db_session, enrolled_org):
     today = date(2026, 5, 7)
     today_dt = datetime(2026, 5, 7, 10, 0, tzinfo=timezone.utc)
     await _seed_appointment(
         db_session,
         org_id=enrolled_org.id,
-        appt_type=AppointmentType.appoint,
+        appt_type=AppointmentType.select,
         created_at=today_dt,
     )
     with patch("app.tasks.followups.send_callback_followup", new_callable=AsyncMock) as mock_send:
@@ -126,25 +126,25 @@ async def test_callback_followup_ignores_other_days(db_session, enrolled_org):
     assert sent == 0
 
 
-# ── _proceed_followup_job ────────────────────────────────────────────────────
+# ── _select_followup_job ────────────────────────────────────────────────────
 
 
-async def test_proceed_followup_runs_for_5_working_days_old(db_session, enrolled_org):
+async def test_select_followup_runs_for_5_working_days_old(db_session, enrolled_org):
     today = date(2026, 5, 8)  # Fri
     target_dt = datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc)  # 5 working days back
     await _seed_appointment(
         db_session,
         org_id=enrolled_org.id,
-        appt_type=AppointmentType.appoint,
+        appt_type=AppointmentType.select,
         created_at=target_dt,
     )
-    with patch("app.tasks.followups.send_proceed_followup", new_callable=AsyncMock) as mock_send:
-        sent = await followups._proceed_followup_job(today=today)
+    with patch("app.tasks.followups.send_select_followup", new_callable=AsyncMock) as mock_send:
+        sent = await followups._select_followup_job(today=today)
     assert sent == 1
     mock_send.assert_awaited_once()
 
 
-async def test_proceed_followup_skips_callback(db_session, enrolled_org):
+async def test_select_followup_skips_callback(db_session, enrolled_org):
     today = date(2026, 5, 8)
     target_dt = datetime(2026, 5, 1, 12, 0, tzinfo=timezone.utc)
     await _seed_appointment(
@@ -153,12 +153,12 @@ async def test_proceed_followup_skips_callback(db_session, enrolled_org):
         appt_type=AppointmentType.callback,
         created_at=target_dt,
     )
-    with patch("app.tasks.followups.send_proceed_followup", new_callable=AsyncMock) as mock_send:
-        sent = await followups._proceed_followup_job(today=today)
+    with patch("app.tasks.followups.send_select_followup", new_callable=AsyncMock) as mock_send:
+        sent = await followups._select_followup_job(today=today)
     assert sent == 0
 
 
-# ── _proceed_feedback_request_job ────────────────────────────────────────────
+# ── _select_feedback_request_job ────────────────────────────────────────────
 
 
 async def test_feedback_request_creates_invitation_and_emails(db_session, enrolled_org):
@@ -167,13 +167,13 @@ async def test_feedback_request_creates_invitation_and_emails(db_session, enroll
     appt = await _seed_appointment(
         db_session,
         org_id=enrolled_org.id,
-        appt_type=AppointmentType.appoint,
+        appt_type=AppointmentType.select,
         created_at=target_dt,
     )
     with patch(
-        "app.tasks.followups.send_proceed_feedback_request", new_callable=AsyncMock
+        "app.tasks.followups.send_select_feedback_request", new_callable=AsyncMock
     ) as mock_send:
-        sent = await followups._proceed_feedback_request_job(today=today)
+        sent = await followups._select_feedback_request_job(today=today)
     assert sent == 1
     mock_send.assert_awaited_once()
 
@@ -191,7 +191,7 @@ async def test_feedback_request_skips_if_invitation_exists(db_session, enrolled_
     appt = await _seed_appointment(
         db_session,
         org_id=enrolled_org.id,
-        appt_type=AppointmentType.appoint,
+        appt_type=AppointmentType.select,
         created_at=target_dt,
     )
     db_session.add(
@@ -205,8 +205,8 @@ async def test_feedback_request_skips_if_invitation_exists(db_session, enrolled_
     await db_session.commit()
 
     with patch(
-        "app.tasks.followups.send_proceed_feedback_request", new_callable=AsyncMock
+        "app.tasks.followups.send_select_feedback_request", new_callable=AsyncMock
     ) as mock_send:
-        sent = await followups._proceed_feedback_request_job(today=today)
+        sent = await followups._select_feedback_request_job(today=today)
     assert sent == 0
     mock_send.assert_not_awaited()

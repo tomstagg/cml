@@ -12,7 +12,7 @@ import enum
 
 
 class AppointmentType(str, enum.Enum):
-    appoint = "appoint"
+    select = "select"
     callback = "callback"
 
 
@@ -58,9 +58,15 @@ class Appointment(Base):
     quoted_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
     quote_breakdown: Mapped[str | None] = mapped_column(Text)
 
-    # GDPR consent captured
+    # GDPR consent captured (legacy callback flow uses contacted+terms;
+    # the Select flow uses the single data_sharing_consent checkbox).
     consent_contacted: Mapped[bool] = mapped_column(default=False, nullable=False)
     consent_terms: Mapped[bool] = mapped_column(default=False, nullable=False)
+    data_sharing_consent: Mapped[bool] = mapped_column(default=False, nullable=False)
+
+    # Property postcodes captured on the Select form (per-side, optional).
+    purchase_property_postcode: Mapped[str | None] = mapped_column(String(16))
+    sale_property_postcode: Mapped[str | None] = mapped_column(String(16))
 
     # End-of-day callback follow-up answer (binary: did the firm contact you?).
     firm_contact_made: Mapped[bool | None] = mapped_column(default=None, nullable=True)

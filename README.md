@@ -1,6 +1,6 @@
 # Choose My Lawyer
 
-UK legal comparison platform. The **MVP pilot** is scoped to **residential conveyancing** in the **West Midlands Combined Authority** (go-live 1 June 2026, ~90-day PPC-driven pilot). Consumers answer a 13-step guided chat and receive a ranked list of solicitors with calculated Total Effective Prices. Firms enrol, configure pricing, and receive Proceed / Callback requests via the platform. Admin manages enrolment and Google review sync.
+UK legal comparison platform. The **MVP pilot** is scoped to **residential conveyancing** in the **West Midlands Combined Authority** (go-live 1 June 2026, ~90-day PPC-driven pilot). Consumers answer a short pathway-aware intake (4–5 steps depending on whether they're buying, selling, or doing both) and receive a ranked list of solicitors with calculated Total Effective Prices. Firms enrol, configure pricing, and receive Proceed / Callback requests via the platform. The firm dataset — including pre-computed reputation, complaints and regulatory scores — is curated in the Master Export workbook and ingested by a single importer; admins flag exclusions, enablement, and pilot participation in that workbook.
 
 See `PLAN.md` for architecture decisions and phase status, and `docs/requirements.md` (incl. **Annex One** — ranking methodology) for the full functional spec.
 
@@ -35,8 +35,8 @@ Browser ──► Next.js 15 (App Router)  ──► FastAPI (async)  ──► 
 | `app/models/` | SQLAlchemy ORM models |
 | `app/schemas/` | Pydantic request/response schemas |
 | `app/services/` | Business logic |
-| `app/tasks/review_sync.py` | APScheduler entrypoint + weekly Google reviews sync |
-| `app/tasks/followups.py` | Phase F follow-up jobs (callback EOD, 5-WD Proceed, 2-month feedback) |
+| `app/tasks/scheduler.py` | APScheduler entrypoint (started by the FastAPI lifespan handler) |
+| `app/tasks/followups.py` | Follow-up jobs registered into the scheduler (callback EOD, 5-WD Proceed, 2-month feedback) |
 
 **API namespaces**:
 
@@ -49,40 +49,37 @@ Browser ──► Next.js 15 (App Router)  ──► FastAPI (async)  ──► 
 | Service | Purpose |
 |---|---|
 | `auth.py` | bcrypt hashing, JWT sign/verify (24hr expiry) |
-| `chat.py` | 13-question conveyancing intake engine + intake flag normalisation |
-| `price_calc.py` | Total Effective Price calculation from JSONB pricing + intake flags |
+| `chat.py` | Pathway-aware conveyancing intake engine (Buying / Selling / Both) + intake flag normalisation for the pricing engine |
+| `price_calc.py` | Total Effective Price calculation from JSONB pricing + intake flags; applies the §10 estimated-price uplift (`c = 0.075`) for `price_type=estimated` cards |
 | `ranking.py` | Pure factor scorers (Annex One §5–9): reputation, price, complaints, regulatory, distance, offices |
 | `scorecard.py` | Weight tables (balanced + 6 prioritised) and tie-broken `apply()` (Annex One §11, §16) |
 | `search.py` | Full-market 6-factor ranking + top-5 contactable extraction (Annex One §3.5) |
 | `geocoding.py` | Fetchify.io postcode → lat/lng |
 | `email.py` | Sparkpost transactional emails (mocked if no key); Proceed/Callback senders dispatch in the user's name with `reply_to` + CML BCC |
 | `followup_tokens.py` | HMAC-signed yes/no tokens for one-click follow-up replies |
-| `reviews.py` | Google Places sync, aggregate rating calculation |
 
-**Ranking algorithm** — deterministic six-factor scorecard (Annex One §5–11). Each factor is scored 0–100 at full numerical precision; the overall score is a weighted sum and only the displayed integer is rounded.
+**Ranking algorithm** — deterministic six-factor scorecard (Annex One §5–11). Each factor is scored 0–100 at full numerical precision; the overall score is a weighted sum and only the displayed integer is rounded. Reputation, complaints and regulatory scores arrive pre-computed from the Master Export workbook and are consumed verbatim by the runtime ranker (Annex One: "all ingestion / cleansing / normalisation must complete prior to runtime").
 
 | Factor | Source data | Score basis | Balanced weight |
 |---|---|---|---|
-| Reputation | `aggregate_rating`, `aggregate_review_count` | `ARV = rating × (1 + 0.025 × ln(reviews + 1))`, min–max normalised across results set | 25% |
-| Price | active conveyancing `price_card` → Total Effective Price | `(P_max − P) / (P_max − P_min) × 100` (lower price → higher score) | 25% |
-| Complaints | `complaints_decisions` (LeO) | `100 − Σ ((severity_score × remedy_amount_score) + handling_penalty)` | 15% |
-| Regulatory | `regulatory_decisions` (SRA + SDT) | `100 − Σ deductions` per §7.3 / §7.5 tables (no floor — can go negative) | 15% |
-| Distance | `offices.lat/lng` vs property postcode | min–max normalised (closer → higher); user can opt out | 10% |
+| Reputation | `organisations.adjusted_reputation_value` (pre-baked in Master Export from `ARV = rating × (1 + 0.025 × ln(reviews + 1))`) | min–max normalised across the results set (50 if all equal) | 25% |
+| Price | `price_cards` JSONB → Total Effective Price | `(P_max − P) / (P_max − P_min) × 100` (lower price → higher score) | 25% |
+| Complaints | `complaints_summary.score` (single row per firm, pre-computed from LeO) | consumed directly as the 0–100 factor score | 15% |
+| Regulatory | `regulatory_summary.score` (single row per firm, pre-computed from SRA + SDT) | consumed directly as the 0–100 factor score | 15% |
+| Distance | `offices.lat/lng` vs the user's postcode | min–max normalised (closer → higher); user can opt out by leaving the postcode question blank | 10% |
 | Offices | `count(offices)` | banded: 1→70, 2–3→78, 4–6→85, 7–10→90, 11–20→95, 21+→100 | 10% |
 
 **Prioritised scorecard** — the user can pick one priority factor on the chat preference step. That factor's weight becomes 40; the other five share 60 in their balanced-scorecard ratios (e.g. Reputation Priority: rep 40, price 20, complaints 12, regulatory 12, distance 8, offices 8). The seven weight sets are pinned verbatim from Annex One §16.6 in `scorecard.py::SCORECARDS`.
 
 **Distance excluded (§8.2)** — if the user opts out of distance, its weight goes to 0 and the remaining factors are proportionately rescaled so the sum stays at 100.
 
-**Sequencing rule (§3.5)** — the *entire* in-scope WMCA market is ranked first using the chosen scorecard. The top-5 contactable firms are then extracted from that ordering by filtering on `enrolled=true`. Enrolled firms are never ranked separately — this preserves the "whole of market / fully independent" positioning.
+**Sequencing rule (§3.5)** — the *entire* in-scope WMCA market is ranked first using the chosen scorecard. The top-5 contactable firms are then extracted from that ordering by filtering on `enrolled=true AND active_in_pilot=true`. Enrolled firms are never ranked separately — this preserves the "whole of market / fully independent" positioning.
 
-**Eligibility filter (§8.13)** — firms with `organisations.intervened=true` (an SRA Intervention) are removed from results entirely before ranking.
+**Eligibility filter (§8.13)** — firms with `organisations.excluded=true` are removed from results entirely before ranking. This is the broader of (a) SRA Intervention and (b) any other CML safeguarding decision recorded in the Master Export. Firms whose price card is `price_type='no_data'` are also excluded at runtime — they have no anchor prices and therefore cannot be priced until a transparency statement is captured.
 
 **Tie-break order (§11)** — higher reputation → higher complaints → higher regulatory → higher price → higher distance score (closer office) → higher offices score → alphabetical by firm name.
 
-**Ingestion** — all LeO and SRA decision data is normalised at ingest into structured deduction values (`scripts/import_leo_csv.py`, `scripts/import_sra_decisions_csv.py`) so the runtime ranker only consumes pre-processed numbers.
-
-CML reviews are weighted 2× vs Google reviews in the aggregate rating consumed by the reputation factor.
+**Ingestion** — every numeric input to the ranker is pre-computed in the Master Export workbook and loaded by `scripts/import_master_export.py` (one importer, six CSV tabs). The runtime ranker only consumes pre-processed numbers; there is no per-decision arithmetic at request time.
 
 ---
 
@@ -94,7 +91,7 @@ CML reviews are weighted 2× vs Google reviews in the aggregate rating consumed 
 
 | Group | Routes | Description |
 |---|---|---|
-| `(marketing)` | `/`, `/how-it-works`, `/for-firms`, `/contact`, `/privacy`, `/terms` (legacy `/probate` page slated for replacement by `/conveyancing` in Phase H) | Public marketing with Navbar + Footer |
+| `(marketing)` | `/`, `/how-it-works`, `/for-firms`, `/conveyancing`, `/contact`, `/privacy`, `/terms` | Public marketing with Navbar + Footer |
 | `(public)` | `/chat`, `/results/[sessionId]`, `/review/[token]` | Consumer chat flow |
 | `(firm)` | `/login`, `/enroll/[token]`, `/dashboard`, `/profile`, `/pricing`, `/reviews` | Authenticated firm portal |
 
@@ -104,10 +101,18 @@ CML reviews are weighted 2× vs Google reviews in the aggregate rating consumed 
 |---|---|
 | `lib/api.ts` | Typed fetch wrapper — all API calls go here |
 | `lib/utils.ts` | `cn()`, `formatCurrency()`, token helpers |
-| `components/chat/ChatInterface.tsx` | 13-step chat controller |
-| `components/results/ResultsClient.tsx` | Ranked results with sort/filter |
+| `lib/analytics.ts` | Meta Pixel + first-party `analytics_events` mirror; gated by consent |
+| `lib/consent.ts` | Cookie-consent state (localStorage) read by Meta Pixel + analytics |
+| `components/chat/ChatInterface.tsx` | Pathway-aware chat controller (Buying / Selling / Both) |
+| `components/results/ResultsClient.tsx` | Ranked results table with per-row price-breakdown expander, reorder control, and complaints / regulatory cells |
+| `components/results/ReorderControl.tsx` | Scorecard preference + include-distance toggle (re-issues `/api/public/search` with query params) |
+| `components/results/ComplaintsCell.tsx`, `RegulatoryCell.tsx`, `SeverityCell.tsx` | Render the pre-computed star / display-text values from the summary tables |
+| `components/results/AppointModal.tsx`, `CallbackModal.tsx` | Consent + contact-details capture for Proceed / Callback |
 | `components/firm/FirmLayout.tsx` | Sidebar nav + auth wrapper |
-| `components/firm/PriceCardForm.tsx` | Pricing CRUD form |
+| `components/firm/PriceCardForm.tsx` | Pricing CRUD form (post-pilot — pricing is currently driven from the Master Export workbook) |
+| `components/CookieConsent.tsx` | Banner that writes consent state to localStorage |
+| `components/MetaPixel.tsx`, `AnalyticsPageView.tsx` | Load `fbevents.js` after consent and fire PageView |
+| `components/ReviewForm.tsx` | CML review submission (`/review/[token]`) |
 | `next.config.ts` | API proxy rewrites, image domain allowlist |
 
 **Conventions**:
@@ -140,11 +145,11 @@ CML reviews are weighted 2× vs Google reviews in the aggregate rating consumed 
 
 ```
 organisations
-  ├─ offices (one-to-many, is_primary flag, lat/lng for distance)
+  ├─ offices (one-to-many, is_primary flag, office_type BRANCH/HO, lat/lng for distance)
   ├─ firm_users (one-to-many, roles: admin/staff)
-  ├─ price_cards (one-to-many, JSONB pricing, active flag)
-  ├─ complaints_decisions (one-to-many, LeO — Annex One §6)
-  ├─ regulatory_decisions (one-to-many, SRA + SDT — Annex One §7)
+  ├─ price_card (one-to-one, JSONB pricing, price_type enum)
+  ├─ complaints_summary (one-to-one, pre-computed score + display text)
+  ├─ regulatory_summary (one-to-one, pre-computed score + display text)
   ├─ appointments (via FK)
   └─ reviews (via FK, source: cml/google)
 
@@ -152,66 +157,80 @@ chat_sessions
   └─ appointments (one-to-many, FK nullable)
        └─ review_invitations (one-to-one)
 
-analytics_events  (standalone — funnel + Meta Pixel mirror, Phase I)
+analytics_events  (standalone — funnel + Meta Pixel mirror)
 ```
 
-**Key table fields**:
+**Key table fields** — schema is aligned to the Master Export workbook (Firms / Reputation / Price / Complaints history / Regulatory history / Distance tabs). The `cml_firm_id` (e.g. `CML-001`) is the spreadsheet-owned identity; `sra_number` is preserved alongside as the regulator identity. Reputation, complaints and regulatory scores are pre-computed in the workbook.
 
-`organisations` — `sra_number`, `name`, `auth_status`, `enrolled`, `enrollment_token`, `intervened` (binary eligibility — §8.13), `google_place_id`, `aggregate_rating`, `aggregate_review_count`
+`organisations` — `cml_firm_id` (UNIQUE), `sra_number` (UNIQUE), `name`, `trading_name`, `phone`, `referral_email`, `excluded` (binary eligibility — §8.13), `exclusion_reason`, `conveyancing_confirmed`, `transparency_statement_captured`, `enrolled`, `proceed_enabled`, `callback_enabled`, `active_in_pilot`, `enrollment_token`, `enrollment_token_used`, `google_rating`, `google_review_count`, `google_reviews_url`, `adjusted_reputation_value`, `master_export_updated_at`
 
-`offices` — `org_id`, `postcode`, `lat`, `lng`, `is_primary`
+`offices` — `org_id`, `address_line1`, `city`, `postcode`, `lat`, `lng`, `is_primary`, `office_type` (`BRANCH` / `HO`)
 
-`firm_users` — `org_id`, `email`, `hashed_password`, `role` (admin/staff), `last_login`
+`firm_users` — `org_id`, `email`, `hashed_password`, `role` (admin/staff), `full_name`, `last_login`
 
-`price_cards` — `org_id`, `practice_area` (`residential_conveyancing`), `pricing` (JSONB), `active`
+`price_cards` — `org_id` (UNIQUE — one card per firm), `price_type` (`estimated` / `verified` / `no_data`), `pricing` (JSONB). Cards with `price_type='no_data'` are excluded from results at runtime.
 
-`chat_sessions` — `answers` (JSONB), `message_history` (JSONB), `results_cache` (JSONB), `scorecard_preference` (enum: `balanced`/`reputation`/`price`/`complaints`/`regulatory`/`distance`/`offices`), `include_distance` (bool), `expires_at` (30 days)
+`chat_sessions` — `practice_area` (`residential_conveyancing`), `answers` (JSONB — keyed by question id), `message_history` (JSONB), `results_cache` (JSONB — only the default `balanced` + auto-distance view is cached), `save_email`, `expires_at` (30 days). Scorecard preference and distance inclusion are **not** stored on the session — they're URL query params on `/api/public/search/{session_id}`.
 
-`appointments` — `type` (appoint/callback), `status` (pending/confirmed/completed/cancelled), `client_name`, `client_email`, `quoted_price`, `quote_breakdown`, `firm_contact_made` (nullable bool — set by the consumer clicking Yes/No in either follow-up email), `conflict_check_outcome` (enum: `pending`/`clear`/`conflict`), consent fields
+`appointments` — `type` (appoint/callback), `status` (pending/confirmed/completed/cancelled), `client_name`, `client_email`, `client_phone`, `preferred_time`, `quoted_price`, `quote_breakdown`, `consent_contacted`, `consent_terms`, `firm_contact_made` (nullable bool — set by the consumer clicking Yes/No in either follow-up email), `conflict_check_outcome` (enum: `pending`/`clear`/`conflict`)
 
-`complaints_decisions` — `org_id`, `decision_id` (LeO ID), `decision_date`, `remedy_type`, `severity_band`, `severity_score`, `remedy_amount`, `remedy_amount_score`, `complaint_handling_penalty`, `source_url`. Pre-computed at ingest from §6 tables.
+`complaints_summary` — one row per firm. `org_id` (UNIQUE), `score` (0–100, consumed directly by the ranker), `stars`, `display_text` (e.g. "Low" / "No published complaints history"), `decision_count_text`, `scale_context`, `issue_one`/`two`/`three`, `external_url` (LeO link), `last_updated`. Pre-computed in the Master Export from §6 tables.
 
-`regulatory_decisions` — `org_id`, `source` (`sra`/`sdt`), `decision_id`, `decision_date`, `decision_type` (rebuke/fine_band_a..d/control_order/disqualification/strike_off/intervention), `deduction`, `sdt_fine_amount`, `source_url`. Pre-computed at ingest from §7.3 / §7.5 tables.
+`regulatory_summary` — one row per firm. `org_id` (UNIQUE), `score` (0–100), `stars`, `display_text`, `decision_count_text`, `outcome_one`/`two`/`three`, `external_url` (SRA link), `last_updated`. Pre-computed in the Master Export from §7.3 / §7.5 tables.
+
+`reviews` — `source` (cml/google), `rating`, `text`, `reviewer_name`, `external_id`, `firm_response`, `firm_response_at`, `reported`, `reported_at`
+
+`review_invitations` — `appointment_id`, `email`, `token`, `sent_at`, `used_at`, `expires_at`
 
 `analytics_events` — `session_id`, `event_type`, `metadata` (JSONB), `created_at`. Mirrors Meta Pixel events for independent CSV export.
 
-`reviews` — `source` (cml/google), `rating`, `text`, `external_id`, `firm_response`, `reported`
-
-`review_invitations` — `appointment_id`, `token`, `sent_at`, `used_at`, `expires_at`
-
-**Price card JSONB schema** (residential conveyancing, Quoted Prices only this pilot — Annex One §10):
+**Price card JSONB schema** (residential conveyancing — Master Export Price tab shape, Annex One §10):
 
 ```json
 {
-  "practice_area": "residential_conveyancing",
-  "matter_types": ["purchase", "sale", "purchase_and_sale", "remortgage"],
-  "pricing_model": "band",
-  "bands": [
-    {"purchase_price_min": 0, "purchase_price_max": 250000, "fee": 950},
-    {"purchase_price_min": 250000, "purchase_price_max": 500000, "fee": 1250},
-    {"purchase_price_min": 500000, "purchase_price_max": null, "fee": 1750}
+  "freehold": {
+    "purchase": {"150000": 750, "250000": 900, "500000": 1000, "750000": 1100, "1000000": 1250, "1250000": 1350, "1500000": 1450},
+    "sale":     {"150000": 750, "250000": 900, "500000": 1000, "750000": 1100, "1000000": 1250, "1250000": 1350, "1500000": 1450}
+  },
+  "leasehold": {
+    "purchase": {"150000": 750, "250000": 900, "500000": 1000, "750000": 1100, "1000000": 1250, "1250000": 1350, "1500000": 1450},
+    "sale":     {"150000": 750, "250000": 900, "500000": 1000, "750000": 1100, "1000000": 1250, "1250000": 1350, "1500000": 1450}
+  },
+  "modifiers": [
+    {"name": "Purchase - New build (freehold)",          "amount":   0},
+    {"name": "Purchase - New lease (leasehold)",         "amount":   0},
+    {"name": "Purchase - Acting for lender",             "amount": 100},
+    {"name": "Purchase - Shared ownership/Help to Buy",  "amount": 250},
+    {"name": "Purchase - Gifted deposit",                "amount":  75},
+    {"name": "Purchase - Unregistered title",            "amount": 150},
+    {"name": "Sale - Unregistered title",                "amount": 150},
+    {"name": "Sale - Additional mortgage redemption",    "amount": 100}
   ],
-  "adjustments": [
-    {"name": "Leasehold supplement",       "amount": 250, "condition": "tenure==leasehold"},
-    {"name": "New build supplement",       "amount": 200, "condition": "new_build==true"},
-    {"name": "Help to Buy ISA admin",      "amount":  75, "condition": "help_to_buy_isa==true"},
-    {"name": "Shared ownership supplement","amount": 250, "condition": "shared_ownership==true"},
-    {"name": "Mortgage handling",          "amount": 150, "condition": "mortgage==true"}
+  "additional_costs": [
+    {"name": "Additional - ID verification",     "amount":   8},
+    {"name": "Additional - onboarding fee",      "amount":   0},
+    {"name": "Additional - transfer admin fee",  "amount":  40},
+    {"name": "SDLT admin fee",                   "amount":  80},
+    {"name": "Leasehold admin fee",              "amount": 250}
   ],
-  "included_disbursements": [
-    {"name": "Local authority search",         "amount": 180, "vat_applies": true},
-    {"name": "Drainage & water search",        "amount":  65, "vat_applies": true},
-    {"name": "Bankruptcy search",              "amount":   6, "vat_applies": false},
-    {"name": "Land Registry registration fee", "amount": 150, "vat_applies": false}
-  ],
-  "excluded_disbursements_note": "Stamp Duty Land Tax, leasehold notice fees, …",
-  "vat_applies_to_fees": true
+  "disbursements": [
+    {"name": "Disb - searches (CML standard pack)", "amount": 350}
+  ]
 }
 ```
 
-**Total Effective Price** = base fee (band lookup by `purchase_price`) + matching adjustments + VAT on legal fees + Σ included disbursements (with each item's VAT applied per `vat_applies`). The Estimated Price path and confidence factors `c`/`d` are deferred post-pilot.
+**Total Effective Price** (per side of the matter — combined sales-and-purchase runs the pricer twice and sums):
 
-**Migrations**: Single Alembic file `alembic/versions/0001_initial_schema.py` covers all tables.
+```
+P_estimated       = anchor_fee + Σ applicable modifiers + Σ applicable additional costs
+P_legal_effective = P_estimated × (1 + c)   if price_type='estimated' (c = 0.075, §10)
+                  = P_estimated             if price_type='verified'
+P_effective       = P_legal_effective + (P_legal_effective × 0.20) + Σ disbursements (already inc. VAT)
+```
+
+`anchor_fee` is read from the matching `{tenure}.{side}` map by the user's purchase / sale price, snapping up to the nearest of the seven anchors (£150k / £250k / £500k / £750k / £1m / £1.25m / £1.5m). The Verified-price path uses Master Export amounts directly; the Estimated path applies the §10 confidence uplift `c = 0.075`. Cards with `price_type='no_data'` are excluded from results.
+
+**Migrations**: Single Alembic file `alembic/versions/0001_initial_schema.py` covers all tables. Pre-launch the policy is to **edit `0001` in place and drop/recreate the dev DB**; no new Alembic revisions are added until go-live (see `scripts/wipe-and-reseed-railway-db.sh` for the Railway-side cycle).
 
 ---
 
@@ -270,42 +289,36 @@ uv sync --extra testing
 
 ## Firm onboarding
 
-Four steps from SRA data import to a logged-in firm user.
+Four steps from Master Export data import to a logged-in firm user. For the pilot the founder curates pricing centrally in the workbook, so Steps 2–4 (firm-portal enrolment) are bypassed for most pilot firms — but the flow is wired up and supported.
 
 ---
 
-### Step 1 — Import SRA data (one-off)
+### Step 1 — Import firm data from the Master Export workbook (one-off, repeatable)
 
-Organisations enter the system via CSV import. No API involved. For the WMCA pilot, run with the West Midlands postcode-prefix filter:
-
-```bash
-docker-compose exec backend python scripts/import_sra_csv.py \
-  --csv /path/to/sra_firms.csv --region "West Midlands" --geocode
-```
-
-DB result:
-- `organisations` row: `enrolled=false`, `enrollment_token=null`
-- `offices` row: primary office with postcode (+ lat/lng if `--geocode`)
-
-The same import pattern is also used for the two pre-runtime data feeds the ranker depends on (Annex One §6–7 mandates that all interpretation, cleansing and scoring of LeO / SRA data is completed *before* runtime):
+Organisations enter the system via a single importer. No API involved. The Master Export workbook owns everything: firm identity, primary office, pricing, complaints / regulatory summaries, distance (additional offices), and reputation.
 
 ```bash
-# Legal Ombudsman complaints decisions → complaints_decisions
-docker-compose exec backend python scripts/import_leo_csv.py --csv /path/to/leo_decisions.csv
+docker-compose exec backend python scripts/import_master_export.py \
+  --input-dir scripts/seed_data/master_export
 
-# SRA + SDT regulatory decisions → regulatory_decisions (interventions flip
-# organisations.intervened=true and are not added as scored rows)
-docker-compose exec backend python scripts/import_sra_decisions_csv.py --csv /path/to/decisions.csv
+# Skip Fetchify postcode geocoding (no key set locally):
+docker-compose exec backend python scripts/import_master_export.py \
+  --input-dir scripts/seed_data/master_export --no-geocode
+
+# Roll back inside a transaction (useful for verifying a workbook change):
+docker-compose exec backend python scripts/import_master_export.py \
+  --input-dir scripts/seed_data/master_export --dry-run
 ```
 
-For local/smoke testing, insert directly:
+Expected CSVs in the `--input-dir` (one per workbook tab):
+- `firms.csv` — one row per firm (Firms tab) → `organisations`, primary `offices` row
+- `reputation.csv` — Reputation tab → `organisations.google_rating` / `_review_count` / `_reviews_url` / `adjusted_reputation_value`
+- `complaints.csv` — Complaints history tab → `complaints_summary` (one row per firm)
+- `regulatory.csv` — Regulatory history tab → `regulatory_summary` (one row per firm)
+- `price.csv` — Price tab (two header rows) → `price_cards.pricing` JSONB + `price_type`
+- `distance.csv` — Distance tab → additional `offices` rows (one per non-primary office)
 
-```bash
-docker-compose exec db psql -U cml -d cml_db -c "
-INSERT INTO organisations (id, sra_number, name, auth_status, enrolled, enrollment_token_used, email)
-VALUES (gen_random_uuid(), 'SRA123458', 'Test Law Firm Ltd', 'authorised', false, false, 'tom@gmail.com');
-"
-```
+The importer is idempotent: parents (organisations) are upserted by `cml_firm_id`; child collections (offices, price_card, summaries) are deleted and re-inserted on each run.
 
 ---
 
@@ -316,7 +329,7 @@ POST /api/admin/organisations/{org_id}/invite-enrollment
 Headers: X-Admin-Key: <ADMIN_API_KEY>
 ```
 
-Requirements: org must have `enrolled=false` and an `email` field set. All `/api/admin/*` routes require the `X-Admin-Key` header — it must match the `ADMIN_API_KEY` env var on the backend.
+Requirements: org must have `enrolled=false` and a `referral_email` set (from the Firms tab). All `/api/admin/*` routes require the `X-Admin-Key` header — it must match the `ADMIN_API_KEY` env var on the backend.
 
 DB changes:
 - `organisations.enrollment_token` → new UUID
@@ -330,7 +343,7 @@ Response:
 }
 ```
 
-An invitation email is sent to `org.email` with a link to `{APP_URL}/enroll/{token}`. If `SPARKPOST_API_KEY` is not set, the email is mocked (logged only) and the token is still returned in the response.
+An invitation email is sent to `org.referral_email` with a link to `{APP_URL}/enroll/{token}`. If `SPARKPOST_API_KEY` is not set, the email is mocked (logged only) and the token is still returned in the response.
 
 ---
 
@@ -383,8 +396,10 @@ JWT is stored in localStorage and sent as `Authorization: Bearer <token>` on all
 
 | Step | Table | Fields set |
 |---|---|---|
-| Import | `organisations` | `sra_number`, `name`, `auth_status`, `email`; `enrolled=false` |
-| Import | `offices` | address, `postcode`, `is_primary=true`, optional `location` |
+| Import | `organisations` | `cml_firm_id`, `sra_number`, `name`, `trading_name`, `phone`, `referral_email`, `excluded`, `conveyancing_confirmed`, `transparency_statement_captured`, `enrolled`, `proceed_enabled`, `callback_enabled`, `active_in_pilot`, `google_rating`/`_review_count`/`_reviews_url`, `adjusted_reputation_value`, `master_export_updated_at` |
+| Import | `offices` | `address_line1`, `city`, `postcode`, `is_primary`, `office_type`, optional `lat`/`lng` |
+| Import | `price_cards` | `price_type`, `pricing` (JSONB) |
+| Import | `complaints_summary` / `regulatory_summary` | `score`, `stars`, `display_text`, `issue_one..three` / `outcome_one..three`, `external_url` |
 | Admin invite | `organisations` | `enrollment_token` (new UUID), `enrollment_token_used=false` |
 | Register | `firm_users` | all fields, `role=admin` |
 | Register | `organisations` | `enrolled=true`, `enrollment_token_used=true` |
@@ -447,8 +462,10 @@ default sender so the consumer sees "Choose My Lawyer" in their own inbox.
 
 Three APScheduler cron jobs fire from `app/tasks/followups.py`. Registered
 into the shared scheduler by `register_followup_jobs()`, called from
-`app/tasks/review_sync.py::start_scheduler` (which itself is wired into
-the FastAPI lifespan in `app/main.py`).
+`app/tasks/scheduler.py::start_scheduler` (which itself is wired into
+the FastAPI lifespan in `app/main.py`). The scheduler used to also run a
+weekly Google reviews sync; that job was retired when reputation data
+moved into the Master Export workbook.
 
 | Job | Cron (UTC) | Targets | Email | Sets |
 |---|---|---|---|---|
@@ -467,9 +484,9 @@ The 2-month job additionally LEFT JOINs `review_invitations` and filters
 on `id IS NULL`, so a manual re-run can't double-issue review tokens.
 
 The `_proceed_feedback_request_job` replaces the prior 90-day post-completion
-review job that lived in `tasks/review_sync.py`. The Phase F variant keys
-off Proceed appointments at 60 days regardless of `status`, which matches
-the conveyancing pilot's reality (matters run 8–12 weeks).
+review job. It keys off Proceed appointments at 60 days regardless of
+`status`, which matches the conveyancing pilot's reality (matters run
+8–12 weeks).
 
 ### One-click follow-up capture
 
@@ -584,7 +601,7 @@ Set in the Railway dashboard per service. Anything marked **required** will leav
 | `SPARKPOST_API_KEY` | ✅ for emails | Without this, every email path silently no-ops (logged only) |
 | `SPARKPOST_FROM_EMAIL` | ✅ for emails | Must match a verified Sparkpost sending domain. Also receives the BCC of every Proceed/Callback firm email. |
 | `SPARKPOST_FROM_NAME` | optional | Default `Choose My Lawyer` |
-| `GOOGLE_PLACES_API_KEY` | optional | Weekly Google reviews sync; without it the scheduler job no-ops |
+| `GOOGLE_PLACES_API_KEY` | unused (legacy) | Read by `config.py` for backwards-compatibility but no longer consumed — reputation now arrives pre-baked from the Master Export workbook (`adjusted_reputation_value`). Safe to omit. |
 | `FETCHIFY_API_KEY` | optional | Postcode → lat/lng. Without it the distance factor falls back to no distance score; the rest of ranking still works |
 | `JWT_ALGORITHM`, `JWT_EXPIRY_HOURS` | optional | Defaults `HS256`, `24` |
 | `REVIEW_INVITATION_DELAY_DAYS`, `REVIEW_INVITATION_EXPIRY_DAYS` | optional | Defaults `60`, `30` (Phase F) |
@@ -622,7 +639,7 @@ After DNS resolves, in Railway add custom domains to each service (frontend gets
 - [ ] `CORS_ORIGINS` includes the production domain(s)
 - [ ] Sparkpost sending domain verified; SPF/DKIM/DMARC records propagated
 - [ ] First deploy: `alembic upgrade head` ran cleanly (logged in `start.sh` output)
-- [ ] Ops data bootstrap done — see "Ops data bootstrap" below; final `seed_price_cards.py` run shows enrolled firms with active price cards
+- [ ] Ops data bootstrap done — see "Ops data bootstrap" below; final `import_master_export.py` run reports the expected row counts for `organisations`, `offices`, `price_cards`, `complaints_summary`, `regulatory_summary`
 - [ ] `scripts/smoke_test.py --base-url https://api.choosemylawyer.co.uk --admin-key $ADMIN_API_KEY` passes against production
 - [ ] Cookie consent banner appears in incognito on `https://choosemylawyer.co.uk`; rejecting hides it; accepting loads `fbevents.js`
 - [ ] Meta Events Manager test-events viewer shows live PageView + IntakeStarted while clicking through
@@ -633,32 +650,25 @@ After DNS resolves, in Railway add custom domains to each service (frontend gets
 
 ## Ops data bootstrap
 
-The Railway DB starts empty. Until curated SRA / LeO / SRA-decisions CSVs are ready, a 15-firm synthetic dataset under `backend/scripts/seed_data/` bootstraps a representative ops environment. The same importers that consume real data also consume these — there is no separate "demo" code path.
+The Railway DB starts empty. The seed dataset under `backend/scripts/seed_data/master_export/` is the six-CSV export of the Master Export workbook — the same shape the importer will consume against real data — and it's the only path into the ops environment. There is no separate "demo" code path, no synthetic-data generator, and no per-feed importer.
 
-### 1. (Re)generate the seed CSVs
+### 1. Load into the ops DB
 
-Already committed; re-run only if `seed_synthetic.py`'s in-memory firm spec changes:
-
-```bash
-docker-compose exec backend python scripts/seed_synthetic.py --emit-csvs scripts/seed_data
-```
-
-The script does not connect to the database in this mode. It writes three importer-shaped files:
-
-- `sra_firms.csv` — 15 firms spread across all five WMCA postcode prefixes (B / CV / DY / WV / WS)
-- `leo_decisions.csv` — 8 LeO complaints decisions covering every severity band + amount band the runtime ranker needs to exercise
-- `sra_decisions.csv` — 5 SRA / SDT decisions plus 1 intervention row
-
-### 2. Load into the ops DB
-
-The four scripts must be run **in order** — SRA firms first so the decision importers can resolve `sra_number → org_id`; price cards last because they upsert pricing onto orgs that already exist:
+A single command imports all six CSVs:
 
 ```bash
-python scripts/import_sra_csv.py --csv scripts/seed_data/sra_firms.csv --geocode
-python scripts/import_sra_decisions_csv.py --csv scripts/seed_data/sra_decisions.csv
-python scripts/import_leo_csv.py --csv scripts/seed_data/leo_decisions.csv
-python scripts/seed_price_cards.py
+docker-compose exec backend python scripts/import_master_export.py \
+  --input-dir scripts/seed_data/master_export
 ```
+
+Useful flags:
+
+| Flag | Effect |
+|---|---|
+| `--no-geocode` | Skip Fetchify postcode geocoding — distance scoring will fall back to no-distance, the rest of ranking still works |
+| `--dry-run` | Run inside a transaction and roll back — useful for verifying a workbook change before persisting |
+
+The importer is idempotent. Parents (`organisations`) are upserted by `cml_firm_id`; child collections (`offices`, `price_card`, `complaints_summary`, `regulatory_summary`) are deleted and re-inserted on every run, so re-running cleanly reflects any spreadsheet edits.
 
 #### Running against Railway from your laptop
 
@@ -693,11 +703,9 @@ export DATABASE_URL="postgresql://postgres:<password>@<host>.proxy.rlwy.net:<por
 echo "${DATABASE_URL:0:30}…"
 # Should print "postgresql://postgres:…@<host>.proxy.rlwy.net" — NOT "postgres.railway.internal"
 
-# 4. Run the four importers via the local venv:
-uv run python scripts/import_sra_csv.py --csv scripts/seed_data/sra_firms.csv --geocode
-uv run python scripts/import_sra_decisions_csv.py --csv scripts/seed_data/sra_decisions.csv
-uv run python scripts/import_leo_csv.py --csv scripts/seed_data/leo_decisions.csv
-uv run python scripts/seed_price_cards.py
+# 4. Run the importer via the local venv:
+uv run python scripts/import_master_export.py \
+  --input-dir scripts/seed_data/master_export --no-geocode
 
 # 5. Exit the subshell so DATABASE_URL drops back to your local dev value:
 exit
@@ -705,22 +713,11 @@ exit
 
 ⚠ **Never overwrite the backend service's `DATABASE_URL` in Railway** — it must stay the internal hostname so the deployed service uses the private network (faster, free intra-region traffic). The override above is local-shell-only.
 
-#### Expected counts on a clean DB
+**Pricing source of truth.** The MVP has no admin pricing form — every WMCA firm is priced by the founder in the Master Export workbook. Annex One §3 requires the full market to be ranked, so all firms get a price card; the search service then filters on `enrolled=true AND active_in_pilot=true` to extract the top-5 contactable. The firm-portal `/enroll/{token}` flow exists but is bypassed for the pilot — the spreadsheet is canonical. To onboard a real firm: edit `firms.csv` (`Signed up? = TRUE`, plus the corresponding flags) and `price.csv` (`Price type` = `Verified` once you have a transparency statement on file), then re-run `import_master_export.py`.
 
-| Importer | Result |
-|---|---|
-| `import_sra_csv` | 14 created, 1 skipped (firm 9000006 has `auth_status="conditions"` — the SRA importer's production filter accepts authorised firms only, by design) |
-| `import_sra_decisions_csv` | 5 decisions created, 1 intervention flagged on firm 9000015 |
-| `import_leo_csv` | 7 decisions created, 1 skipped (the row for firm 9000006, dropped above) |
-| `seed_price_cards` | 14 created, 0 updated, 1 skipped (9000006); 5 newly enrolled |
+### 2. End-to-end smoke test
 
-All three CSV importers are idempotent — they upsert by `sra_number` (firms) or `decision_id` (decisions), so re-running is safe. `seed_price_cards.py` upserts the single active card per (org, practice_area) so re-running replaces in place rather than duplicating.
-
-**Pricing source of truth.** The MVP has no admin pricing form — every WMCA firm is priced by the founder. Annex One §3 requires the full market to be ranked, so all firms get a price card; the search service then filters on `enrolled=true` to extract the top-5 contactable. The fee offsets driving each card live in `seed_synthetic.FIRMS`; `seed_price_cards.py` reads the whole list (not just the enrolled subset), upserts a single active card per firm, and flips `Organisation.enrolled=True` for those marked enrolled. The firm-portal `/enroll/{token}` flow exists but is bypassed for the pilot — the script is canonical. To onboard a real firm, edit FIRMS with `enrolled=True` plus the negotiated `fee_offset`, run `import_sra_csv.py` if the org isn't already there, then re-run `seed_price_cards.py`.
-
-### 3. End-to-end smoke test
-
-Once the dataset is loaded, drive the system through a full user journey to confirm everything works. Unlike the importers, the smoke test only needs to reach the backend's **public HTTP API** — it never connects directly to the database, so no `DATABASE_URL` override is needed.
+Once the dataset is loaded, drive the system through a full user journey to confirm everything works. Unlike the importer, the smoke test only needs to reach the backend's **public HTTP API** — it never connects directly to the database, so no `DATABASE_URL` override is needed.
 
 Locally against docker-compose:
 
@@ -740,19 +737,20 @@ uv run python scripts/smoke_test.py \
 exit
 ```
 
-The script exercises 10 checkpoints — health, session creation, all 13 intake answers, balanced + reputation-priority ranking with §8.13 intervention filter, complaints + regulatory source URL render, Proceed appointment, admin conflict-check, analytics event capture, admin CSV export — and exits non-zero on any failure. Manual checks the script *can't* automate are listed in PLAN.md "Verification" (Sparkpost inbox confirmation that firm emails arrive in the user's name, Meta Events Manager test-events viewer, browser cookie banner UX).
+The script exercises health, session creation, the full intake, balanced + a prioritised scorecard view, the §8.13 `excluded` filter, complaints + regulatory source-URL rendering, Proceed appointment, admin conflict-check, analytics event capture and admin CSV export — and exits non-zero on any failure. Manual checks the script *can't* automate are listed in PLAN.md "Verification" (Sparkpost inbox confirmation that firm emails arrive in the user's name, Meta Events Manager test-events viewer, browser cookie banner UX).
 
-### 4. Replacing the synthetic dataset
+### 3. Replacing the seed dataset with the live workbook
 
-When curated real CSVs land, point the importers at them instead. The synthetic firms occupy SRA numbers `9000000–9000099`, namespaced clear of any real SRA range, and can be wiped from the ops DB with:
+When the live Master Export workbook is ready, drop its six CSV exports into `backend/scripts/seed_data/master_export/` (overwriting the committed seed files) and re-run the importer. Because every parent is upserted by `cml_firm_id` and every child collection is wiped + reinserted, the same command does both "first load" and "reflect every spreadsheet change since":
 
-```sql
-DELETE FROM organisations WHERE sra_number LIKE '90000%';
+```bash
+docker-compose exec backend python scripts/import_master_export.py \
+  --input-dir scripts/seed_data/master_export
 ```
 
-Cascading FKs remove the dependent `offices`, `price_cards`, `complaints_decisions` and `regulatory_decisions` rows automatically.
+The seed dataset uses CML firm IDs `CML-001 .. CML-015` and real SRA numbers / firm names from the WMCA. There is no "synthetic-only" prefix to delete — the importer is the authority on what should be present, so simply replacing the CSVs is enough.
 
-### 5. Wipe and reseed Railway (one command)
+### 4. Wipe and reseed Railway (one command)
 
 For the pre-launch workflow where `0001_initial_schema.py` is edited in place, deploys leave the prod DB on a stale schema until it's dropped and recreated. `scripts/wipe-and-reseed-railway-db.sh` does the full cycle against the **currently linked** Railway project + environment.
 

@@ -17,7 +17,7 @@ async def test_appointment(db_session, enrolled_org, completed_session):
     appt = Appointment(
         session_id=completed_session.id,
         org_id=enrolled_org.id,
-        type=AppointmentType.appoint,
+        type=AppointmentType.select,
         status=AppointmentStatus.completed,
         client_name="Jane Smith",
         client_email="jane@example.com",

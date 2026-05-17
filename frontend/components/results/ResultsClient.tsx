@@ -8,10 +8,10 @@ import { searchApi, type FirmResult, type QuoteBreakdown, type SearchResponse } 
 import { trackResultsViewed } from "@/lib/analytics";
 import { ComplaintsCell } from "./ComplaintsCell";
 import { RegulatoryCell } from "./RegulatoryCell";
-import { AppointModal } from "./AppointModal";
+import { SelectModal } from "./SelectModal";
 import { CallbackModal } from "./CallbackModal";
 import { ReorderControl } from "./ReorderControl";
-import { cn, formatCurrency } from "@/lib/utils";
+import { cn, formatCityName, formatCurrency } from "@/lib/utils";
 
 type SortKey = "rank" | "price" | "reputation" | "complaints" | "regulatory" | "distance" | "offices";
 type SortDir = "asc" | "desc";
@@ -36,7 +36,7 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
   const [sortKey, setSortKey] = useState<SortKey>("rank");
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
-  const [appointFirm, setAppointFirm] = useState<FirmResult | null>(null);
+  const [selectFirm, setSelectFirm] = useState<FirmResult | null>(null);
   const [callbackFirm, setCallbackFirm] = useState<FirmResult | null>(null);
 
   useEffect(() => {
@@ -162,7 +162,7 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
                 topFiveIds={topFiveIds}
                 includeDistance={includeDistance}
                 tinted
-                onAppoint={setAppointFirm}
+                onSelect={setSelectFirm}
                 onCallback={setCallbackFirm}
               />
             </section>
@@ -178,7 +178,7 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
               sortKey={sortKey}
               sortDir={sortDir}
               onSort={onHeaderClick}
-              onAppoint={setAppointFirm}
+              onSelect={setSelectFirm}
               onCallback={setCallbackFirm}
             />
             {pageCount > 1 && (
@@ -194,11 +194,12 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
         addition. Choose My Lawyer is not regulated by the SRA.
       </p>
 
-      {appointFirm && (
-        <AppointModal
-          firm={appointFirm}
+      {selectFirm && (
+        <SelectModal
+          firm={selectFirm}
           sessionId={sessionId}
-          onClose={() => setAppointFirm(null)}
+          intakeSummary={data.intake_summary}
+          onClose={() => setSelectFirm(null)}
         />
       )}
       {callbackFirm && (
@@ -240,7 +241,7 @@ type TableProps = {
   sortKey?: SortKey;
   sortDir?: SortDir;
   onSort?: (key: SortKey) => void;
-  onAppoint: (firm: FirmResult) => void;
+  onSelect: (firm: FirmResult) => void;
   onCallback: (firm: FirmResult) => void;
 };
 
@@ -253,7 +254,7 @@ function ResultsTable({
   sortKey,
   sortDir,
   onSort,
-  onAppoint,
+  onSelect,
   onCallback,
 }: TableProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
@@ -310,7 +311,7 @@ function ResultsTable({
                   <td className="py-3 px-3">
                     <div className="font-medium text-navy">{firm.trading_name}</div>
                     <div className="text-xs text-gray-500 mt-0.5">
-                      {firm.city || firm.postcode || "—"}
+                      {formatCityName(firm.city) || firm.postcode || "—"}
                     </div>
                   </td>
                   <td className="py-3 px-3">
@@ -361,10 +362,10 @@ function ResultsTable({
                     {firm.enrolled && isTopFive ? (
                       <div className="flex flex-col gap-1.5 items-end">
                         <button
-                          onClick={() => onAppoint(firm)}
+                          onClick={() => onSelect(firm)}
                           className="bg-gradient-to-br from-purple to-teal text-white text-xs font-medium px-3 py-1.5 rounded-full hover:opacity-90"
                         >
-                          Proceed
+                          Select
                         </button>
                         <button
                           onClick={() => onCallback(firm)}
@@ -423,7 +424,7 @@ function PriceBreakdownPanel({ quote }: { quote: QuoteBreakdown }) {
       <span>{label}</span>
       <span className={cn(!bold && !muted && "text-navy")}>
         {sign === "+" ? "+ " : ""}
-        {formatCurrency(amount)}
+        {formatCurrency(Math.round(amount))}
       </span>
     </div>
   );
@@ -446,7 +447,7 @@ function PriceBreakdownPanel({ quote }: { quote: QuoteBreakdown }) {
         <Row key={i} label={d.name} amount={d.amount} indent muted />
       ))}
       <div className="border-t border-gray-200 pt-1.5">
-        <Row label="Total (rounded up)" amount={Math.ceil(quote.total)} bold />
+        <Row label="Total" amount={Math.ceil(quote.total)} bold />
       </div>
     </div>
   );

@@ -43,9 +43,9 @@ const steps = [
   },
   {
     icon: PhoneCall,
-    title: "Proceed or request a callback",
+    title: "Select a firm or request a callback",
     body: [
-      "Click Proceed to instruct a single firm, or Request a callback with up to five firms. Both actions send an email introduction in your name (not from CML).",
+      "Click Select to send your details to a single firm, or Request a callback with up to five firms. Both actions send an email introduction in your name (not from CML).",
       "We'll follow up to check the firm contacted you, and at the 5-working-day mark to flag any price drift.",
     ],
   },
@@ -63,7 +63,7 @@ const factors = [
 const faqs = [
   {
     q: "Is it free?",
-    a: "Yes. Free for consumers, with no obligation. We charge participating firms a referral fee per Proceed or Callback action — that's how we keep the lights on.",
+    a: "Yes. Free for consumers, with no obligation. We charge participating firms a referral fee per Select or Callback action — that's how we keep the lights on.",
   },
   {
     q: "How accurate are the quotes?",
@@ -79,7 +79,7 @@ const faqs = [
   },
   {
     q: "What if a firm doesn't get back to me?",
-    a: "We'll email you the same evening (for callbacks) and 5 working days after a Proceed action to ask whether the firm has been in touch. If they haven't, you can re-run the comparison or pick another firm.",
+    a: "We'll email you the same evening (for callbacks) and 5 working days after a Select action to ask whether the firm has been in touch. If they haven't, you can re-run the comparison or pick another firm.",
   },
 ];
 
@@ -182,6 +182,99 @@ export default function HowItWorksPage() {
                 We check in by email so you can flag firms that didn't respond.
               </p>
             </div>
+          </div>
+        </div>
+      </section>
+
+      <section
+        id="whats-in-my-price"
+        className="py-20 bg-white scroll-mt-24 border-t border-gray-100"
+      >
+        <div className="section-container max-w-3xl">
+          <h2 className="font-bold text-navy mb-3">What is included in my price?</h2>
+          <p className="text-ink-muted mb-8">
+            The price you see on each result is what the firm would typically charge for a
+            straightforward residential transaction matching your intake answers. Here&apos;s
+            what that figure includes — and what may legitimately change later.
+          </p>
+
+          <div className="space-y-4">
+            <details className="card p-6 group" open>
+              <summary className="font-semibold text-navy cursor-pointer list-none flex justify-between items-center gap-4">
+                What&apos;s included
+                <span className="text-purple group-open:rotate-45 transition-transform text-xl leading-none">
+                  +
+                </span>
+              </summary>
+              <ul className="text-ink-muted mt-3 leading-relaxed list-disc pl-5 space-y-1">
+                <li>The firm&apos;s standard legal fees for your transaction</li>
+                <li>VAT on those fees where applicable</li>
+                <li>HM Land Registry fees</li>
+                <li>A standard search pack (see below)</li>
+              </ul>
+            </details>
+
+            <details className="card p-6 group">
+              <summary className="font-semibold text-navy cursor-pointer list-none flex justify-between items-center gap-4">
+                What&apos;s excluded
+                <span className="text-purple group-open:rotate-45 transition-transform text-xl leading-none">
+                  +
+                </span>
+              </summary>
+              <p className="text-ink-muted mt-3 leading-relaxed">
+                Costs that depend on circumstances we can&apos;t determine at intake aren&apos;t
+                in the headline price. These typically include Stamp Duty Land Tax, leasehold
+                management-pack and notice fees, indemnity policies, bank transfer fees, and
+                any expedited searches. The firm will confirm any of these once they have your
+                paperwork.
+              </p>
+            </details>
+
+            <details className="card p-6 group">
+              <summary className="font-semibold text-navy cursor-pointer list-none flex justify-between items-center gap-4">
+                How the standard search pack works
+                <span className="text-purple group-open:rotate-45 transition-transform text-xl leading-none">
+                  +
+                </span>
+              </summary>
+              <p className="text-ink-muted mt-3 leading-relaxed">
+                Conveyancing in England and Wales relies on a small set of standard searches
+                (Local Authority, Drainage and Water, Environmental, plus Chancel Repair
+                indemnity where needed). We bundle these into a standard pack at a typical
+                market rate so prices are comparable across firms.
+              </p>
+            </details>
+
+            <details className="card p-6 group">
+              <summary className="font-semibold text-navy cursor-pointer list-none flex justify-between items-center gap-4">
+                Why some searches may change
+                <span className="text-purple group-open:rotate-45 transition-transform text-xl leading-none">
+                  +
+                </span>
+              </summary>
+              <p className="text-ink-muted mt-3 leading-relaxed">
+                Some properties need additional searches because of where they are or what&apos;s
+                been done to them — mining searches in former coalfield areas, flood-risk
+                searches near rivers, planning history searches for extensions, etc. If your
+                firm recommends one, ask them to explain why it&apos;s needed.
+              </p>
+            </details>
+
+            <details className="card p-6 group">
+              <summary className="font-semibold text-navy cursor-pointer list-none flex justify-between items-center gap-4">
+                When legitimate price changes may occur
+                <span className="text-purple group-open:rotate-45 transition-transform text-xl leading-none">
+                  +
+                </span>
+              </summary>
+              <p className="text-ink-muted mt-3 leading-relaxed">
+                A firm may legitimately adjust the price if your transaction changes meaningfully
+                — for example a chain breaks and you switch from a chained sale to a cash
+                buyer, the lease turns out to be very short, or unexpected title issues require
+                extra work. We expect firms to tell you about any change at the time, and
+                we&apos;ll ask you about that in our follow-up.
+              </p>
+            </details>
           </div>
         </div>
       </section>

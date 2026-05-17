@@ -65,8 +65,8 @@ async def test_dashboard_stats_empty_state(auth_client):
 async def test_dashboard_stats_counts_appointments_within_30d(
     auth_client, enrolled_org, db_session, completed_session
 ):
-    await _make_appointment(db_session, enrolled_org, completed_session, AppointmentType.appoint)
-    await _make_appointment(db_session, enrolled_org, completed_session, AppointmentType.appoint)
+    await _make_appointment(db_session, enrolled_org, completed_session, AppointmentType.select)
+    await _make_appointment(db_session, enrolled_org, completed_session, AppointmentType.select)
     # Callbacks should not count toward new appointments.
     await _make_appointment(db_session, enrolled_org, completed_session, AppointmentType.callback)
 
@@ -78,9 +78,9 @@ async def test_dashboard_stats_excludes_appointments_older_than_30d(
     auth_client, enrolled_org, db_session, completed_session
 ):
     await _make_appointment(
-        db_session, enrolled_org, completed_session, AppointmentType.appoint, age_days=45
+        db_session, enrolled_org, completed_session, AppointmentType.select, age_days=45
     )
-    await _make_appointment(db_session, enrolled_org, completed_session, AppointmentType.appoint)
+    await _make_appointment(db_session, enrolled_org, completed_session, AppointmentType.select)
 
     resp = await auth_client.get("/api/firm/dashboard/stats")
     assert resp.json()["new_appointments_30d"] == 1

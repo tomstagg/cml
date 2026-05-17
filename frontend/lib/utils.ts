@@ -19,6 +19,24 @@ export function formatRating(rating: number | null | undefined): string {
   return rating.toFixed(1);
 }
 
+// Source data has mixed casing (BIRMINGHAM vs Birmingham, NEWCASTLE UPON TYNE
+// vs Newcastle upon Tyne). Title-case for display, keeping the UK convention
+// of lowercase connectors ("on", "upon", "under" etc.) when not the first word.
+const CITY_STOPWORDS = new Set(["on", "of", "the", "upon", "under", "and", "in", "by"]);
+
+export function formatCityName(s: string | null | undefined): string {
+  if (!s) return "";
+  return s
+    .toLowerCase()
+    .split(/(\s+|-)/)
+    .map((tok, i) => {
+      if (tok === "" || /^\s+$/.test(tok) || tok === "-") return tok;
+      if (i > 0 && CITY_STOPWORDS.has(tok)) return tok;
+      return tok.charAt(0).toUpperCase() + tok.slice(1);
+    })
+    .join("");
+}
+
 export type SeverityBand = {
   stars: 0 | 1 | 2 | 3 | 4 | 5;
   label: string;

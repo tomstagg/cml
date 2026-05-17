@@ -548,3 +548,50 @@ def get_intake_flags(answers: dict) -> dict[str, Any]:
         "user_postcode": user_postcode,
         "distance_included": bool(user_postcode),
     }
+
+
+# ── Intake summary (CML Select workflow) ─────────────────────────────────────
+# Read-only block shown on the Select form so the user isn't re-asked anything
+# already captured at intake. Tokens are returned raw; the frontend humanises
+# them so the API stays display-agnostic.
+
+_BUYING_DETAIL_TOKENS = {opt["value"] for opt in MODIFIER_OPTIONS_BUYING}
+_SELLING_DETAIL_TOKENS = {opt["value"] for opt in MODIFIER_OPTIONS_SELLING}
+
+
+def build_intake_summary(answers: dict) -> dict:
+    flags = get_intake_flags(answers)
+    pathway = flags["pathway"]
+    transaction_type = answers.get("transaction_type") or None
+
+    raw_details = answers.get("transaction_details") or []
+    if not isinstance(raw_details, list):
+        raw_details = []
+
+    buying_details = [t for t in raw_details if t in _BUYING_DETAIL_TOKENS]
+    selling_details = [t for t in raw_details if t in _SELLING_DETAIL_TOKENS]
+
+    def _side(tenure_key: str, value_key: str, detail_tokens: list[str]) -> dict:
+        return {
+            "tenure": flags.get(tenure_key),
+            "value": int(flags.get(value_key) or 0),
+            "details": detail_tokens,
+        }
+
+    buying = (
+        _side("purchase_tenure_type", "purchase_property_value", buying_details)
+        if pathway in (PATHWAY_PURCHASE, PATHWAY_COMBINED)
+        else None
+    )
+    selling = (
+        _side("sale_tenure_type", "sale_property_value", selling_details)
+        if pathway in (PATHWAY_SALE, PATHWAY_COMBINED)
+        else None
+    )
+
+    return {
+        "transaction_type": transaction_type,
+        "user_postcode": flags.get("user_postcode") or None,
+        "buying": buying,
+        "selling": selling,
+    }

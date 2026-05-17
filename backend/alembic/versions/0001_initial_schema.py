@@ -180,7 +180,7 @@ def upgrade() -> None:
     op.create_index("ix_chat_sessions_expires_at", "chat_sessions", ["expires_at"])
 
     # ── appointments ─────────────────────────────────────────────────────────
-    op.execute("CREATE TYPE appointment_type AS ENUM ('appoint', 'callback')")
+    op.execute("CREATE TYPE appointment_type AS ENUM ('select', 'callback')")
     op.execute(
         "CREATE TYPE appointment_status AS ENUM ('pending', 'confirmed', 'completed', 'cancelled')"
     )
@@ -193,7 +193,7 @@ def upgrade() -> None:
         sa.Column("org_id", postgresql.UUID(as_uuid=True), nullable=False),
         sa.Column(
             "type",
-            postgresql.ENUM("appoint", "callback", name="appointment_type", create_type=False),
+            postgresql.ENUM("select", "callback", name="appointment_type", create_type=False),
             nullable=False,
         ),
         sa.Column(
@@ -217,6 +217,9 @@ def upgrade() -> None:
         sa.Column("quote_breakdown", sa.Text(), nullable=True),
         sa.Column("consent_contacted", sa.Boolean(), nullable=False, server_default="false"),
         sa.Column("consent_terms", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("data_sharing_consent", sa.Boolean(), nullable=False, server_default="false"),
+        sa.Column("purchase_property_postcode", sa.String(16), nullable=True),
+        sa.Column("sale_property_postcode", sa.String(16), nullable=True),
         sa.Column("firm_contact_made", sa.Boolean(), nullable=True),
         sa.Column(
             "conflict_check_outcome",

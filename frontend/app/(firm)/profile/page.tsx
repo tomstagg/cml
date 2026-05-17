@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { Loader2, Save } from "lucide-react";
 import { firmProfileApi } from "@/lib/api";
-import { getStoredToken } from "@/lib/utils";
+import { formatCityName, getStoredToken } from "@/lib/utils";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -161,7 +161,7 @@ export default function ProfilePage() {
               <div key={office.id} className="text-sm text-gray-600">
                 <p>{office.address_line1}</p>
                 <p>
-                  {office.city}, {office.postcode}
+                  {formatCityName(office.city)}, {office.postcode}
                 </p>
                 {office.is_primary && (
                   <span className="text-xs text-purple">

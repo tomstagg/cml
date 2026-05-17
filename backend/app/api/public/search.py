@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.chat_session import ChatSession
 from app.schemas.search import SearchResponse
-from app.services.chat import get_intake_flags, is_flow_complete
+from app.services.chat import build_intake_summary, get_intake_flags, is_flow_complete
 from app.services.search import search_firms
 
 router = APIRouter(prefix="/search", tags=["search"])
@@ -76,4 +76,5 @@ async def get_results(
         postcode=flags.get("user_postcode") or None,
         scorecard_preference=scorecard_preference,
         include_distance=effective_include_distance,
+        intake_summary=build_intake_summary(session.answers or {}),
     )

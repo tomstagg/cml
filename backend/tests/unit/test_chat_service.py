@@ -1,6 +1,7 @@
 """Unit tests for app/services/chat.py — pathway-aware intake flow."""
 
 from app.services.chat import (
+    build_intake_summary,
     dynamic_options,
     first_question,
     get_intake_flags,
@@ -354,3 +355,61 @@ def test_intake_flags_empty_defaults_to_purchase():
     assert flags["pathway"] == "purchase"
     assert flags["purchase_property_value"] == 0.0
     assert flags["distance_included"] is False
+
+
+# ── build_intake_summary (Select form recap) ─────────────────────────────────
+
+
+def test_intake_summary_buying_only():
+    summary = build_intake_summary(CONVEYANCING_ANSWERS)
+    assert summary["transaction_type"] == "buying"
+    assert summary["user_postcode"] == "B1 1AA"
+    assert summary["selling"] is None
+    assert summary["buying"]["tenure"] == "leasehold"
+    assert summary["buying"]["value"] == 275_000
+    assert "mortgage_required" in summary["buying"]["details"]
+    assert "shared_ownership_or_help_to_buy" in summary["buying"]["details"]
+
+
+def test_intake_summary_selling_only():
+    summary = build_intake_summary(
+        {
+            "transaction_type": "selling",
+            "sale_tenure_type": "freehold",
+            "sale_property_value": 400_000,
+            "transaction_details": ["additional_mortgage_redemption"],
+            "distance_preference": "",
+        }
+    )
+    assert summary["transaction_type"] == "selling"
+    assert summary["user_postcode"] is None
+    assert summary["buying"] is None
+    assert summary["selling"]["tenure"] == "freehold"
+    assert summary["selling"]["value"] == 400_000
+    assert summary["selling"]["details"] == ["additional_mortgage_redemption"]
+
+
+def test_intake_summary_combined_splits_details_by_side():
+    """Selling-only flags belong under `selling`; buying-only under `buying`."""
+    summary = build_intake_summary(
+        {
+            "transaction_type": "selling_and_buying",
+            "combined_property_details": {
+                "purchase_tenure_type": "leasehold",
+                "purchase_property_value": 500_000,
+                "sale_tenure_type": "freehold",
+                "sale_property_value": 350_000,
+            },
+            "transaction_details": [
+                "new_lease",  # buying side
+                "additional_mortgage_redemption",  # selling side
+            ],
+            "distance_preference": "B2 4QA",
+        }
+    )
+    assert summary["transaction_type"] == "selling_and_buying"
+    assert summary["buying"]["tenure"] == "leasehold"
+    assert summary["buying"]["details"] == ["new_lease"]
+    assert summary["selling"]["tenure"] == "freehold"
+    assert summary["selling"]["details"] == ["additional_mortgage_redemption"]
+    assert summary["user_postcode"] == "B2 4QA"

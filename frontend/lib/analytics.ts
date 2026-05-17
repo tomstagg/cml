@@ -5,7 +5,7 @@ import { hasMarketingConsent } from "./consent";
 // other events are recorded as custom events.
 const META_STANDARD = {
   page_view: "PageView",
-  proceed: "Lead",
+  select: "Lead",
   callback: "Contact",
 } as const;
 
@@ -58,12 +58,12 @@ export function trackResultsViewed(
   });
 }
 
-export function trackProceed(
+export function trackSelect(
   sessionId: string,
   orgId: string,
   quotedPrice: number | null,
 ): void {
-  emit("proceed", sessionId, {
+  emit("select", sessionId, {
     session_id: sessionId,
     org_id: orgId,
     quoted_price: quotedPrice,
