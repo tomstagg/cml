@@ -756,6 +756,17 @@ Cascading FKs remove the dependent `offices`, `price_cards`, `complaints_decisio
 
 For the pre-launch workflow where `0001_initial_schema.py` is edited in place, deploys leave the prod DB on a stale schema until it's dropped and recreated. `scripts/wipe-and-reseed-railway-db.sh` does the full cycle against the **currently linked** Railway project + environment.
 
+First-time setup on a new machine — log into Railway and link the project so the CLI knows which workspace + project to target:
+
+```bash
+railway login                                     # opens browser, one-time
+railway link --project cml                        # link this repo to the cml project
+railway environment production                    # target prod (or staging)
+railway status                                    # sanity-check: project=cml, env=production
+```
+
+Then run the script from the repo root:
+
 ```bash
 scripts/wipe-and-reseed-railway-db.sh --dry-run   # show what'll be targeted
 scripts/wipe-and-reseed-railway-db.sh             # prompts for 'WIPE'
