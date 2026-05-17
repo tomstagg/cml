@@ -752,6 +752,31 @@ DELETE FROM organisations WHERE sra_number LIKE '90000%';
 
 Cascading FKs remove the dependent `offices`, `price_cards`, `complaints_decisions` and `regulatory_decisions` rows automatically.
 
+### 5. Wipe and reseed Railway (one command)
+
+For the pre-launch workflow where `0001_initial_schema.py` is edited in place, deploys leave the prod DB on a stale schema until it's dropped and recreated. `scripts/wipe-and-reseed-railway-db.sh` does the full cycle against the **currently linked** Railway project + environment.
+
+```bash
+scripts/wipe-and-reseed-railway-db.sh --dry-run   # show what'll be targeted
+scripts/wipe-and-reseed-railway-db.sh             # prompts for 'WIPE'
+scripts/wipe-and-reseed-railway-db.sh --yes       # CI / unattended
+```
+
+The script:
+1. Auto-detects the Postgres service (any name matching `^postgres`, override with `--service NAME`).
+2. Pulls `DATABASE_PUBLIC_URL` from that service via `railway variable list --json` — never echoed.
+3. Confirms the target host, requires you to type `WIPE` (unless `--yes`).
+4. `DROP SCHEMA public CASCADE; CREATE SCHEMA public;` via local `psql`.
+5. `uv run alembic upgrade head` in `backend/`.
+6. `uv run python scripts/import_master_export.py --input-dir scripts/seed_data/master_export --no-geocode`.
+7. Prints row counts for `organisations`, `offices`, `price_cards`, `complaints_summary`, `regulatory_summary` so you can eyeball seeding worked.
+
+Prereqs: `railway`, `psql` (from `libpq`), `jq`, `uv`. The script bails early if any are missing.
+
+To target a different environment, switch context first — `railway environment staging` — then re-run. There's no `--environment` flag, by design: it forces a `railway status` glance before destruction.
+
+⚠ **Destructive — pre-launch only.** Erases every chat session, appointment, review, and firm user. Do not run after 1 June 2026 without a `pg_dump` first.
+
 ---
 
 ## Lessons Learned
