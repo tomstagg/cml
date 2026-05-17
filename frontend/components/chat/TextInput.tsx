@@ -11,12 +11,20 @@ type Props = {
   hint?: string;
   onSubmit: (value: string) => void;
   disabled?: boolean;
+  // Currency-only: reject values outside [min, max] with the supplied message.
+  min?: number;
+  max?: number;
+  outOfBoundsMessage?: string;
 };
 
 const EMAIL_REGEX = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const PHONE_REGEX = /^[+\d][\d\s]{8,}$/;
 
-function validate(type: InputType, value: string): string | null {
+function validate(
+  type: InputType,
+  value: string,
+  bounds?: { min?: number; max?: number; outOfBoundsMessage?: string },
+): string | null {
   const trimmed = value.trim();
   if (!trimmed) return "This field is required.";
 
@@ -24,6 +32,12 @@ function validate(type: InputType, value: string): string | null {
     const numeric = Number(trimmed.replace(/[£,\s]/g, ""));
     if (!Number.isFinite(numeric)) return "Please enter a numeric amount.";
     if (numeric <= 0) return "Amount must be greater than zero.";
+    if (bounds) {
+      const { min, max, outOfBoundsMessage } = bounds;
+      if ((min !== undefined && numeric < min) || (max !== undefined && numeric > max)) {
+        return outOfBoundsMessage ?? "Please check that amount.";
+      }
+    }
   }
 
   if (type === "email" && !EMAIL_REGEX.test(trimmed)) {
@@ -46,12 +60,21 @@ function normalise(type: InputType, value: string): string {
   return trimmed;
 }
 
-export function TextInput({ type, placeholder, hint, onSubmit, disabled }: Props) {
+export function TextInput({
+  type,
+  placeholder,
+  hint,
+  onSubmit,
+  disabled,
+  min,
+  max,
+  outOfBoundsMessage,
+}: Props) {
   const [value, setValue] = useState("");
   const [error, setError] = useState("");
 
   function handleSubmit() {
-    const validationError = validate(type, value);
+    const validationError = validate(type, value, { min, max, outOfBoundsMessage });
     if (validationError) {
       setError(validationError);
       return;
