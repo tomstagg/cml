@@ -295,7 +295,6 @@ function ResultsTable({
                 className={cn(
                   "border-t border-gray-100 align-top",
                   tinted ? "bg-[#EAF8FB]" : "bg-white",
-                  !firm.enrolled && "opacity-60",
                 )}
               >
                 <td className="py-3 px-3 font-semibold text-navy">{firm.rank}</td>
@@ -325,7 +324,7 @@ function ResultsTable({
                 <td className="py-3 px-3 text-right">
                   {firm.quote ? (
                     <span className="font-semibold text-navy">
-                      {formatCurrency(firm.quote.total)}
+                      {formatCurrency(Math.ceil(firm.quote.total))}
                     </span>
                   ) : (
                     <span className="text-gray-400">—</span>
