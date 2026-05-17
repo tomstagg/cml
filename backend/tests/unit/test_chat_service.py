@@ -132,6 +132,64 @@ def test_validate_currency_rejects_zero():
     assert ok is False
 
 
+def test_validate_currency_rejects_below_minimum_with_spec_message():
+    ok, msg = validate_answer("purchase_property_value", 49_999, {"transaction_type": "buying"})
+    assert ok is False
+    assert msg == "Can you check that purchase price please"
+
+
+def test_validate_currency_rejects_above_maximum():
+    ok, msg = validate_answer("purchase_property_value", 5_000_001, {"transaction_type": "buying"})
+    assert ok is False
+    assert msg == "Can you check that purchase price please"
+
+
+def test_validate_currency_accepts_lower_boundary():
+    ok, _ = validate_answer("purchase_property_value", 50_000, {"transaction_type": "buying"})
+    assert ok
+
+
+def test_validate_currency_accepts_upper_boundary():
+    ok, _ = validate_answer("purchase_property_value", 5_000_000, {"transaction_type": "buying"})
+    assert ok
+
+
+def test_validate_sale_currency_uses_sale_phrasing():
+    ok, msg = validate_answer("sale_property_value", 10_000, {"transaction_type": "selling"})
+    assert ok is False
+    assert msg == "Can you check that sale price please"
+
+
+def test_validate_dual_block_bounds_purchase_side():
+    ok, msg = validate_answer(
+        "combined_property_details",
+        {
+            "purchase_tenure_type": "freehold",
+            "purchase_property_value": 49_000,
+            "sale_tenure_type": "leasehold",
+            "sale_property_value": 200_000,
+        },
+        {"transaction_type": "selling_and_buying"},
+    )
+    assert ok is False
+    assert msg == "Can you check that purchase price please"
+
+
+def test_validate_dual_block_bounds_sale_side():
+    ok, msg = validate_answer(
+        "combined_property_details",
+        {
+            "purchase_tenure_type": "freehold",
+            "purchase_property_value": 300_000,
+            "sale_tenure_type": "leasehold",
+            "sale_property_value": 6_000_000,
+        },
+        {"transaction_type": "selling_and_buying"},
+    )
+    assert ok is False
+    assert msg == "Can you check that sale price please"
+
+
 def test_validate_tenure_accepts_unsure():
     ok, _ = validate_answer("purchase_tenure_type", "unsure", {"transaction_type": "buying"})
     assert ok
@@ -227,6 +285,30 @@ def test_dynamic_modifiers_for_combined_show_both_sides():
     ids = [opt["value"] for opt in dynamic_options("transaction_details", answers)]
     assert "mortgage_required" in ids  # buying side
     assert "additional_mortgage_redemption" in ids  # selling side
+
+
+def test_dynamic_modifier_label_single_pathway_uses_short_form():
+    answers = {"transaction_type": "buying", "purchase_tenure_type": "freehold"}
+    options = {opt["value"]: opt for opt in dynamic_options("transaction_details", answers)}
+    assert options["new_build"]["label"] == "The property is a new build"
+
+
+def test_dynamic_modifier_label_combined_pathway_disambiguates_buying_side():
+    answers = {
+        "transaction_type": "selling_and_buying",
+        "combined_property_details": {
+            "purchase_tenure_type": "freehold",
+            "sale_tenure_type": "leasehold",
+            "purchase_property_value": 300_000,
+            "sale_property_value": 200_000,
+        },
+    }
+    options = {opt["value"]: opt for opt in dynamic_options("transaction_details", answers)}
+    assert options["new_build"]["label"] == "The property I'm buying is a new build"
+    # new_lease only shows for leasehold purchase tenure, so swap and re-check
+    answers["combined_property_details"]["purchase_tenure_type"] = "leasehold"
+    options = {opt["value"]: opt for opt in dynamic_options("transaction_details", answers)}
+    assert options["new_lease"]["label"] == "The property I'm buying is a new lease"
 
 
 # ── Intake flags ─────────────────────────────────────────────────────────────

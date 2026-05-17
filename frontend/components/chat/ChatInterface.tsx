@@ -13,6 +13,7 @@ import { CheckboxGroup } from "./CheckboxGroup";
 import { DualPropertyBlock } from "./DualPropertyBlock";
 import { OptionalPostcode } from "./OptionalPostcode";
 import { TextInput } from "./TextInput";
+import { CURRENCY_MAX, CURRENCY_MIN, currencyOutOfBoundsMessage } from "@/lib/intake";
 import { ChatSidebar } from "./ChatSidebar";
 import { SaveModal } from "./SaveModal";
 
@@ -325,7 +326,8 @@ function QuestionInput({
           disabled={disabled}
         />
       );
-    case "currency":
+    case "currency": {
+      const side = question.id === "sale_property_value" ? "sale" : "purchase";
       return (
         <TextInput
           type="currency"
@@ -333,8 +335,12 @@ function QuestionInput({
           hint={question.hint}
           onSubmit={(value) => onAnswer(Number(value))}
           disabled={disabled}
+          min={CURRENCY_MIN}
+          max={CURRENCY_MAX}
+          outOfBoundsMessage={currencyOutOfBoundsMessage(side)}
         />
       );
+    }
     case "checkbox_group":
       return (
         <CheckboxGroup

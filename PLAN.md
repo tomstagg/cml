@@ -286,6 +286,10 @@ Drives both the chat conversation flow and the right-hand stepper sidebar (`docs
 | 12 | Your details | Email | email | required pre-Proceed/Callback |
 | 13 | Your details | Phone | tel | required pre-Callback |
 
+### Conversational AI guard-rails — deferred
+
+The CML Intake Schema spec (Google Doc, "Conversational Guard-Rails" section) describes an off-topic redirect pattern (*"Sorry, I can't help you with that. I'm here to help you find a lawyer to advise you on your move…"*). The current intake is a deterministic structured-form wizard with chat-styled UI — every input is a pill, currency field, checkbox group, or strict regex postcode. There is **no free-form text input and no LLM/AI integration**, so off-topic messages cannot physically be entered. The guard-rail pattern becomes relevant only if a free-form chat surface is added in a future phase. **No action required for MVP.**
+
 ---
 
 ## Email notification matrix

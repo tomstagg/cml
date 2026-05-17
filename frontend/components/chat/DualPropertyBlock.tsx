@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { ArrowRight, Info } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { CURRENCY_MAX, CURRENCY_MIN, currencyOutOfBoundsMessage } from "@/lib/intake";
 
 type TenureOption = { value: string; label: string };
 
@@ -66,7 +67,11 @@ export function DualPropertyBlock({ tenureOptions, onSubmit, disabled }: Props) 
     const purchaseValue = parsePounds(purchasePrice);
     const saleValue = parsePounds(salePrice);
     if (!purchaseValue) nextErrors.purchase_property_value = "Enter a purchase price.";
+    else if (purchaseValue < CURRENCY_MIN || purchaseValue > CURRENCY_MAX)
+      nextErrors.purchase_property_value = currencyOutOfBoundsMessage("purchase");
     if (!saleValue) nextErrors.sale_property_value = "Enter a sale price.";
+    else if (saleValue < CURRENCY_MIN || saleValue > CURRENCY_MAX)
+      nextErrors.sale_property_value = currencyOutOfBoundsMessage("sale");
 
     setErrors(nextErrors);
     if (Object.keys(nextErrors).length > 0) return;

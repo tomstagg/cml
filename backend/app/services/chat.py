@@ -27,6 +27,12 @@ TRANSACTION_TYPE_TO_PATHWAY = {
     "selling_and_buying": PATHWAY_COMBINED,
 }
 
+# Intake Schema Q3P/Q3S — reasonable currency guardrails for residential
+# conveyancing in the pilot region. Outside this range the user is asked to
+# double-check the figure rather than silently progressing.
+CURRENCY_MIN = 50_000
+CURRENCY_MAX = 5_000_000
+
 
 # ── Question schema ──────────────────────────────────────────────────────────
 # Every question is tagged with the pathways it belongs to. The active pathway
@@ -180,6 +186,7 @@ MODIFIER_OPTIONS_BUYING: list[dict] = [
     {
         "value": "new_build",
         "label": "The property is a new build",
+        "combined_label": "The property I'm buying is a new build",
         "description": (
             "A newly built home being sold by the developer (off-plan or recently completed). "
             "Tight builder deadlines and extra warranty paperwork apply."
@@ -190,6 +197,7 @@ MODIFIER_OPTIONS_BUYING: list[dict] = [
     {
         "value": "new_lease",
         "label": "This is a new lease",
+        "combined_label": "The property I'm buying is a new lease",
         "description": (
             "The developer or freeholder is granting a brand-new lease on the property "
             "(rather than you taking over an existing one). Extra lease drafting is needed."
@@ -285,10 +293,17 @@ def dynamic_options(question_id: str, answers: dict) -> list[dict]:
             allowed_tenures = opt.get("tenures")
             if allowed_tenures and (purchase_tenure not in allowed_tenures):
                 continue
+            # Combined pathway uses the disambiguating "The property I'm buying…"
+            # variant so the user can tell purchase modifiers from sale modifiers.
+            label = (
+                opt.get("combined_label", opt["label"])
+                if pathway == PATHWAY_COMBINED
+                else opt["label"]
+            )
             out.append(
                 {
                     "value": opt["value"],
-                    "label": opt["label"],
+                    "label": label,
                     "description": opt.get("description"),
                 }
             )
@@ -377,6 +392,12 @@ def _is_positive_number(value: Any) -> bool:
         return False
 
 
+def _currency_check_message(field_id: str) -> str:
+    """Intake-schema query response for out-of-bounds property values."""
+    noun = "sale" if field_id.startswith("sale_") else "purchase"
+    return f"Can you check that {noun} price please"
+
+
 def is_flow_complete(answers: dict) -> bool:
     return next_question(answers) is None
 
@@ -414,14 +435,12 @@ def validate_answer(question_id: str, answer: Any, answers: dict) -> tuple[bool,
         return True, None
 
     if qtype == "currency":
-        return (
-            (True, None)
-            if _is_positive_number(answer)
-            else (
-                False,
-                "Please enter a numeric amount greater than zero.",
-            )
-        )
+        if not _is_positive_number(answer):
+            return False, "Please enter a numeric amount greater than zero."
+        value = float(answer)
+        if value < CURRENCY_MIN or value > CURRENCY_MAX:
+            return False, _currency_check_message(question_id)
+        return True, None
 
     if qtype == "dual_property_block":
         if not isinstance(answer, dict):
@@ -431,8 +450,12 @@ def validate_answer(question_id: str, answer: Any, answers: dict) -> tuple[bool,
             if answer.get(key) not in ("freehold", "leasehold", "unsure"):
                 return False, f"Please pick a tenure for {key}."
         for key in ("purchase_property_value", "sale_property_value"):
-            if not _is_positive_number(answer.get(key)):
+            raw = answer.get(key)
+            if not _is_positive_number(raw):
                 return False, f"Please enter a numeric amount for {key}."
+            value = float(raw)
+            if value < CURRENCY_MIN or value > CURRENCY_MAX:
+                return False, _currency_check_message(key)
         return True, None
 
     if qtype == "checkbox_group":
