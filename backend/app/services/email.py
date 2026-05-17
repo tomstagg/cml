@@ -91,33 +91,148 @@ def _format_price(value: float | None) -> str | None:
     return f"£{value:,.2f}" if value is not None else None
 
 
-async def send_proceed_to_firm(
+# Humanised labels for transaction_details flag tokens, used in both the firm
+# email and the consumer copy so the recap is consistent with the Select form.
+_DETAIL_LABELS: dict[str, str] = {
+    "mortgage_required": "Mortgage",
+    "new_build": "New build",
+    "new_lease": "New lease",
+    "shared_ownership_or_help_to_buy": "Shared ownership / Help to Buy",
+    "gifted_deposit": "Gifted deposit",
+    "unregistered_title_purchase": "Unregistered title (purchase)",
+    "additional_mortgage_redemption": "Additional mortgage redemption",
+    "unregistered_title_sale": "Unregistered title (sale)",
+}
+
+_TENURE_LABELS = {"freehold": "Freehold", "leasehold": "Leasehold", "unsure": "Not sure yet"}
+
+
+def _format_details(tokens: list[str] | None) -> str:
+    if not tokens:
+        return "None selected"
+    return ", ".join(_DETAIL_LABELS.get(t, t) for t in tokens)
+
+
+def _format_value(value: int | None) -> str:
+    if not value:
+        return "—"
+    return f"£{int(value):,}"
+
+
+def _price_status_label(price_type: str | None) -> str:
+    if price_type == "verified":
+        return "verified by firm"
+    if price_type == "estimated":
+        return "estimated"
+    return ""
+
+
+def _intake_summary_rows_html(
+    intake_summary: dict,
+    *,
+    purchase_postcode: str | None,
+    sale_postcode: str | None,
+) -> str:
+    """Render the intake summary as a key/value block, mirroring the spec."""
+    buying = intake_summary.get("buying")
+    selling = intake_summary.get("selling")
+    transaction_type = intake_summary.get("transaction_type") or "—"
+    pretty_type = {
+        "buying": "Buying",
+        "selling": "Selling",
+        "selling_and_buying": "Buying &amp; selling",
+    }.get(transaction_type, transaction_type)
+
+    def row(label: str, value: str) -> str:
+        return (
+            f'<tr><td style="padding:4px 12px 4px 0;color:#555;">{label}</td>'
+            f'<td style="padding:4px 0;color:#080C64;font-weight:600;">{value}</td></tr>'
+        )
+
+    rows = [row("Transaction", pretty_type)]
+    if buying and selling:
+        rows.append(row("Buying — tenure", _TENURE_LABELS.get(buying.get("tenure"), "—")))
+        rows.append(row("Buying — value", _format_value(buying.get("value"))))
+        rows.append(row("Buying — details", _format_details(buying.get("details"))))
+        if purchase_postcode:
+            rows.append(row("Buying — postcode", purchase_postcode))
+        rows.append(row("Selling — tenure", _TENURE_LABELS.get(selling.get("tenure"), "—")))
+        rows.append(row("Selling — value", _format_value(selling.get("value"))))
+        rows.append(row("Selling — details", _format_details(selling.get("details"))))
+        if sale_postcode:
+            rows.append(row("Selling — postcode", sale_postcode))
+    elif buying:
+        rows.append(row("Tenure", _TENURE_LABELS.get(buying.get("tenure"), "—")))
+        rows.append(row("Property value", _format_value(buying.get("value"))))
+        rows.append(row("Details", _format_details(buying.get("details"))))
+        if purchase_postcode:
+            rows.append(row("Property postcode", purchase_postcode))
+    elif selling:
+        rows.append(row("Tenure", _TENURE_LABELS.get(selling.get("tenure"), "—")))
+        rows.append(row("Property value", _format_value(selling.get("value"))))
+        rows.append(row("Details", _format_details(selling.get("details"))))
+        if sale_postcode:
+            rows.append(row("Property postcode", sale_postcode))
+
+    return (
+        '<table style="border-collapse:collapse;font-size:14px;margin:8px 0;">'
+        f"{''.join(rows)}</table>"
+    )
+
+
+async def send_select_to_firm(
     firm_email: str,
     firm_name: str,
     client_name: str,
     client_email: str,
+    client_phone: str,
+    intake_summary: dict,
+    purchase_property_postcode: str | None,
+    sale_property_postcode: str | None,
     quoted_price: float | None,
+    price_type: str | None,
 ) -> bool:
-    """Proceed email — sent to the firm under the consumer's name + reply-to."""
-    subject = f"Conveyancing instruction from {client_name} via Choose My Lawyer"
+    """Select email — sent to the firm under the consumer's name + reply-to.
+
+    Per the CML Select workflow schema the firm receives: contact details,
+    transaction summary, postcode(s) if supplied, the price the user saw, and
+    whether that price was estimated or verified.
+    """
+    subject = f"New instruction from {client_name} via Choose My Lawyer"
     price = _format_price(quoted_price)
-    quote_html = (
-        f"<p>The quoted price shown to {client_name} was <strong>{price}</strong>.</p>"
-        if price
-        else ""
+    status = _price_status_label(price_type)
+    price_html = ""
+    if price:
+        suffix = f" ({status})" if status else ""
+        price_html = f"<p><strong>Price shown to {client_name}:</strong> {price}{suffix}</p>"
+
+    summary_html = _intake_summary_rows_html(
+        intake_summary,
+        purchase_postcode=purchase_property_postcode,
+        sale_postcode=sale_property_postcode,
     )
+
     html = f"""
     <h2>Hello {firm_name},</h2>
-    <p>I'd like to instruct you for my residential conveyancing matter.
-    I found you through Choose My Lawyer and am ready to proceed.</p>
-    {quote_html}
-    <p>Please reply to this email to confirm next steps and any conflict-check
-    requirements. My contact details are below.</p>
-    <p>Many thanks,<br>{client_name}<br>{client_email}</p>
+    <p>I'd like to instruct you for my residential conveyancing matter. I found
+    you through Choose My Lawyer and have selected your firm to act for me.</p>
+    <h3 style="margin-bottom:4px;">My contact details</h3>
+    <ul>
+        <li><strong>Name:</strong> {client_name}</li>
+        <li><strong>Email:</strong> {client_email}</li>
+        <li><strong>Phone:</strong> {client_phone}</li>
+    </ul>
+    <h3 style="margin-bottom:4px;">Transaction summary</h3>
+    {summary_html}
+    {price_html}
+    <p>Please reply to this email to confirm next steps and complete your
+    conflict check.</p>
+    <p>Many thanks,<br>{client_name}</p>
     <hr>
     <p style="color:#666;font-size:12px;">
         This message was generated on behalf of {client_name} via Choose My
-        Lawyer. Replies go directly to {client_email}.
+        Lawyer with their consent to share these details. Replies go directly
+        to {client_email}.
     </p>
     """
     return await send_email(
@@ -176,38 +291,50 @@ async def send_callback_to_firm(
 # ── Proceed / Callback consumer copies ───────────────────────────────────────
 
 
-async def send_proceed_user_copy(
+async def send_select_user_copy(
     client_email: str,
     client_name: str,
     firm_name: str,
+    intake_summary: dict,
+    purchase_property_postcode: str | None,
+    sale_property_postcode: str | None,
     quoted_price: float | None,
-    excluded_disbursements_url: str,
+    price_type: str | None,
 ) -> bool:
-    subject = f"Your instruction to {firm_name} — Choose My Lawyer"
+    """Confirmation copy to the user, recapping the details shared with the firm
+    and setting expectations for what happens next (CML Select workflow)."""
+    subject = f"Your details have been sent to {firm_name} — Choose My Lawyer"
     price = _format_price(quoted_price)
-    quote_html = (
-        f'<div style="background:#EAF8FB;padding:12px;border-radius:8px;'
-        f'text-align:center;margin:12px 0;">'
-        f'<p style="margin:0;color:#080C64;">Quoted price</p>'
-        f'<p style="margin:0;font-size:20px;font-weight:700;">{price}</p></div>'
-        if price
-        else ""
+    status = _price_status_label(price_type)
+    price_html = ""
+    if price:
+        suffix = f" ({status})" if status else ""
+        price_html = (
+            f'<div style="background:#EAF8FB;padding:12px;border-radius:8px;'
+            f'text-align:center;margin:12px 0;">'
+            f'<p style="margin:0;color:#080C64;">Price shown</p>'
+            f'<p style="margin:0;font-size:20px;font-weight:700;">{price}{suffix}</p></div>'
+        )
+
+    summary_html = _intake_summary_rows_html(
+        intake_summary,
+        purchase_postcode=purchase_property_postcode,
+        sale_postcode=sale_property_postcode,
     )
+
     html = f"""
-    <h2>Your instruction has been sent</h2>
+    <h2>Your details are on their way</h2>
     <p>Hi {client_name},</p>
-    <p>We've passed your instruction on to <strong>{firm_name}</strong> in
-    your name. They'll reply to you directly to confirm next steps and any
-    conflict-check requirements.</p>
-    {quote_html}
-    <p><strong>Reminder about disbursements.</strong> The quoted price covers
-    the firm's legal fees and the included third-party costs disclosed on
-    their price card. Some matter-specific costs (e.g. Stamp Duty, leasehold
-    notice fees, indemnity policies) are <em>excluded</em> and will be
-    confirmed by the firm once your matter is open.
-    <a href="{excluded_disbursements_url}">Read more about excluded
-    disbursements</a>.</p>
-    <p>If you don't hear back within a few working days, please let us know.</p>
+    <p>We've sent your contact details and the transaction summary below to
+    <strong>{firm_name}</strong>.</p>
+    {summary_html}
+    {price_html}
+    <p><strong>What happens next.</strong> {firm_name} will contact you
+    directly by the next working day. They'll first complete a conflict check;
+    if they can act they should confirm this and send their client care letter
+    and terms of business shortly afterwards.</p>
+    <p>If the final price changes, we expect them to explain why at the time.
+    We'll be in touch later to ask how it went.</p>
     <p>Best regards,<br>The Choose My Lawyer Team</p>
     """
     return await send_email(client_email, subject, html)
@@ -268,7 +395,7 @@ async def send_callback_followup(
     return await send_email(client_email, subject, html)
 
 
-async def send_proceed_followup(
+async def send_select_followup(
     client_email: str,
     client_name: str,
     firm_name: str,
@@ -279,28 +406,29 @@ async def send_proceed_followup(
     html = f"""
     <h2>A quick update</h2>
     <p>Hi {client_name},</p>
-    <p>It's been five working days since you instructed
-    <strong>{firm_name}</strong>. Did they get in touch and confirm your
-    matter?</p>
+    <p>It's been five working days since you selected
+    <strong>{firm_name}</strong> via Choose My Lawyer. Did they get in touch
+    and confirm your matter?</p>
     <p>
         <a href="{yes_url}" style="background:#69E4B5;color:#080C64;padding:10px 18px;text-decoration:none;border-radius:9999px;display:inline-block;margin-right:8px;">Yes, in progress</a>
         <a href="{no_url}" style="background:#fff;color:#080C64;border:1px solid #080C64;padding:10px 18px;text-decoration:none;border-radius:9999px;display:inline-block;">No, not yet</a>
     </p>
-    <p><strong>Note on price.</strong> Quoted prices on Choose My Lawyer are a
-    snapshot at the time you searched. If significant time has passed before
-    instructing, the firm may have updated their fees — please confirm the
-    current price with them in writing before proceeding.</p>
+    <p><strong>Note on price.</strong> Prices on Choose My Lawyer are a
+    snapshot at the time you searched. If circumstances have changed, the firm
+    may legitimately update their quote — we expect them to explain any change
+    at the time. Please confirm the current price with them in writing before
+    proceeding.</p>
     <p>Best regards,<br>The Choose My Lawyer Team</p>
     """
     return await send_email(client_email, subject, html)
 
 
-async def send_proceed_feedback_request(
+async def send_select_feedback_request(
     client_email: str,
     firm_name: str,
     review_url: str,
 ) -> bool:
-    """Sent ~2 months after Proceed; replaces the old 90-day review job."""
+    """Sent ~2 months after Select; replaces the old 90-day review job."""
     subject = f"How was your experience with {firm_name}?"
     html = f"""
     <h2>Share your experience</h2>

@@ -13,6 +13,7 @@ class QuoteBreakdown(BaseModel):
     total: float
     currency: str
     pricing_model: str
+    price_type: str  # "estimated" | "verified" (no_data is filtered out before search)
 
 
 class FactorScores(BaseModel):
@@ -48,6 +49,25 @@ class FirmResult(BaseModel):
     score: float
 
 
+class IntakeSummarySide(BaseModel):
+    """Per-side intake recap shown on the Select form."""
+
+    tenure: str | None  # "freehold" | "leasehold" | "unsure" | None
+    value: int  # property value in £
+    details: list[str] = []  # transaction_details flag tokens (frontend humanises)
+
+
+class IntakeSummary(BaseModel):
+    """Read-only intake recap consumed by the Select form so the user isn't
+    re-asked anything captured during the chat.
+    """
+
+    transaction_type: str | None  # "buying" | "selling" | "selling_and_buying"
+    user_postcode: str | None  # for prefilling property postcode field(s)
+    buying: IntakeSummarySide | None = None
+    selling: IntakeSummarySide | None = None
+
+
 class SearchResponse(BaseModel):
     """Full-market ranking + top-5 contactable extracted from it.
 
@@ -63,3 +83,4 @@ class SearchResponse(BaseModel):
     postcode: str | None
     scorecard_preference: str = "balanced"
     include_distance: bool = False
+    intake_summary: IntakeSummary

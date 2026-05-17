@@ -256,6 +256,7 @@ def calculate_total_effective_price(
             "total": float(_q(_as_decimal(combined_total))),
             "currency": "GBP",
             "pricing_model": "anchor",
+            "price_type": price_type.value,
         }
 
     side = pathway  # "purchase" or "sale"
@@ -273,4 +274,5 @@ def calculate_total_effective_price(
         "total": quote["total"],
         "currency": "GBP",
         "pricing_model": "anchor",
+        "price_type": price_type.value,
     }

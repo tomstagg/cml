@@ -1,4 +1,4 @@
-"""Public API: create appointments and callback requests."""
+"""Public API: create Select / Callback requests."""
 
 import uuid
 
@@ -7,16 +7,17 @@ from fastapi.responses import HTMLResponse
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import settings
 from app.database import get_db
 from app.models.appointment import Appointment, AppointmentType
+from app.models.chat_session import ChatSession
 from app.models.organisation import Organisation
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse
+from app.services.chat import build_intake_summary
 from app.services.email import (
     send_callback_to_firm,
     send_callback_user_copy,
-    send_proceed_to_firm,
-    send_proceed_user_copy,
+    send_select_to_firm,
+    send_select_user_copy,
 )
 from app.services.followup_tokens import verify_followup_token
 
@@ -29,14 +30,25 @@ async def create_appointment(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a Proceed (`appoint`) or Callback request and dispatch emails.
+    """Create a Select or Callback request and dispatch emails.
 
     Per Annex One §12.2 the firm-side email is sent **in the user's name**
     (display name + ``reply_to``) with CML BCC'd. The user receives a neutral
     CML-branded copy.
     """
-    if not body.consent_contacted or not body.consent_terms:
-        raise HTTPException(status_code=400, detail="Both consent fields must be accepted")
+    is_select = body.type == AppointmentType.select.value
+
+    if is_select:
+        if not body.data_sharing_consent:
+            raise HTTPException(
+                status_code=400,
+                detail="Data sharing consent is required to send your details to the firm.",
+            )
+        if not body.client_phone:
+            raise HTTPException(status_code=400, detail="Phone number is required for Select.")
+    else:
+        if not body.consent_contacted or not body.consent_terms:
+            raise HTTPException(status_code=400, detail="Both consent fields must be accepted")
 
     org_result = await db.execute(
         select(Organisation).where(Organisation.id == body.org_id, Organisation.enrolled == True)
@@ -56,6 +68,9 @@ async def create_appointment(
         quoted_price=body.quoted_price,
         consent_contacted=body.consent_contacted,
         consent_terms=body.consent_terms,
+        data_sharing_consent=body.data_sharing_consent,
+        purchase_property_postcode=body.purchase_property_postcode,
+        sale_property_postcode=body.sale_property_postcode,
     )
     db.add(appointment)
     await db.flush()
@@ -63,23 +78,37 @@ async def create_appointment(
     quoted_price = float(body.quoted_price) if body.quoted_price else None
     client_email = str(body.client_email)
 
-    if body.type == AppointmentType.appoint.value:
+    if is_select:
+        session_result = await db.execute(
+            select(ChatSession).where(ChatSession.id == body.session_id)
+        )
+        session_obj = session_result.scalar_one_or_none()
+        intake_summary = build_intake_summary(session_obj.answers or {} if session_obj else {})
+
         background_tasks.add_task(
-            send_proceed_user_copy,
+            send_select_user_copy,
             client_email,
             body.client_name,
             org.trading_name,
+            intake_summary,
+            body.purchase_property_postcode,
+            body.sale_property_postcode,
             quoted_price,
-            settings.excluded_disbursements_url,
+            body.price_type,
         )
         if org.referral_email:
             background_tasks.add_task(
-                send_proceed_to_firm,
+                send_select_to_firm,
                 org.referral_email,
                 org.trading_name,
                 body.client_name,
                 client_email,
+                body.client_phone,
+                intake_summary,
+                body.purchase_property_postcode,
+                body.sale_property_postcode,
                 quoted_price,
+                body.price_type,
             )
     else:
         background_tasks.add_task(

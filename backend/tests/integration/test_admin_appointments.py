@@ -27,7 +27,7 @@ async def proceed_appointment(db_session, enrolled_org):
     appt = Appointment(
         session_id=session.id,
         org_id=enrolled_org.id,
-        type=AppointmentType.appoint,
+        type=AppointmentType.select,
         client_name="Jane Smith",
         client_email="jane@example.com",
         consent_contacted=True,

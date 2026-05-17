@@ -9,12 +9,27 @@ from app.services.email import (
     send_conflict_check_failed,
     send_email,
     send_enrollment_invitation,
-    send_proceed_feedback_request,
-    send_proceed_followup,
-    send_proceed_to_firm,
-    send_proceed_user_copy,
+    send_select_feedback_request,
+    send_select_followup,
+    send_select_to_firm,
+    send_select_user_copy,
     send_session_save_email,
 )
+
+
+_BUYING_SUMMARY = {
+    "transaction_type": "buying",
+    "user_postcode": "B1 1AA",
+    "buying": {"tenure": "freehold", "value": 350000, "details": ["mortgage_required"]},
+    "selling": None,
+}
+
+_COMBINED_SUMMARY = {
+    "transaction_type": "selling_and_buying",
+    "user_postcode": "B2 4QA",
+    "buying": {"tenure": "leasehold", "value": 450000, "details": ["new_lease"]},
+    "selling": {"tenure": "freehold", "value": 300000, "details": []},
+}
 
 
 # ── send_email (core) ─────────────────────────────────────────────────────────
@@ -66,14 +81,23 @@ async def test_send_email_passes_reply_to_and_bcc():
     assert "Jane Smith" in kwargs["from_email"]
 
 
-# ── Proceed firm email — sent in user's name ─────────────────────────────────
+# ── Select firm email — sent in user's name ──────────────────────────────────
 
 
-async def test_proceed_to_firm_uses_user_name_and_reply_to():
+async def test_select_to_firm_uses_user_name_and_reply_to():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
-        await send_proceed_to_firm(
-            "firm@law.com", "Bridge Street Solicitors", "Jane Smith", "jane@example.com", 2073.0
+        await send_select_to_firm(
+            "firm@law.com",
+            "Bridge Street Solicitors",
+            "Jane Smith",
+            "jane@example.com",
+            "07700900123",
+            _BUYING_SUMMARY,
+            "B1 1AA",
+            None,
+            2073.0,
+            "estimated",
         )
     kwargs = mock_send.call_args.kwargs
     assert kwargs["from_name"] == "Jane Smith"
@@ -81,20 +105,50 @@ async def test_proceed_to_firm_uses_user_name_and_reply_to():
     assert kwargs["bcc"]  # CML BCC must be set
 
 
-async def test_proceed_to_firm_includes_quoted_price():
+async def test_select_to_firm_includes_summary_postcode_and_price_status():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
-        await send_proceed_to_firm("firm@law.com", "Firm", "Jane", "j@e.com", 2073.0)
+        await send_select_to_firm(
+            "firm@law.com",
+            "Firm",
+            "Jane",
+            "j@e.com",
+            "07700900000",
+            _BUYING_SUMMARY,
+            "B1 1AA",
+            None,
+            2073.0,
+            "estimated",
+        )
     _, _, html = mock_send.call_args.args
+    assert "07700900000" in html
+    assert "B1 1AA" in html
+    assert "Mortgage" in html  # detail token rendered as label
     assert "2,073.00" in html
+    assert "estimated" in html.lower()
 
 
-async def test_proceed_to_firm_omits_price_when_none():
+async def test_select_to_firm_combined_renders_both_sides():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
-        await send_proceed_to_firm("firm@law.com", "Firm", "Jane", "j@e.com", None)
+        await send_select_to_firm(
+            "firm@law.com",
+            "Firm",
+            "Jane",
+            "j@e.com",
+            "07700900000",
+            _COMBINED_SUMMARY,
+            "B1 1AA",
+            "B2 4QA",
+            1500.0,
+            "verified",
+        )
     _, _, html = mock_send.call_args.args
-    assert "quoted price" not in html.lower()
+    assert "Buying" in html
+    assert "Selling" in html
+    assert "B1 1AA" in html
+    assert "B2 4QA" in html
+    assert "verified" in html.lower()
 
 
 # ── Callback firm email ──────────────────────────────────────────────────────
@@ -132,20 +186,24 @@ async def test_callback_to_firm_omits_optional_fields():
 # ── Consumer copies ──────────────────────────────────────────────────────────
 
 
-async def test_proceed_user_copy_mentions_excluded_disbursements():
+async def test_select_user_copy_includes_summary_and_price():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
-        await send_proceed_user_copy(
+        await send_select_user_copy(
             "jane@example.com",
             "Jane",
             "Bridge Street Solicitors",
+            _BUYING_SUMMARY,
+            "B1 1AA",
+            None,
             2073.0,
-            "https://example.com/disbursements",
+            "estimated",
         )
     _, _, html = mock_send.call_args.args
-    assert "excluded" in html.lower()
-    assert "https://example.com/disbursements" in html
+    assert "Bridge Street Solicitors" in html
+    assert "B1 1AA" in html
     assert "2,073.00" in html
+    assert "next working day" in html.lower()
 
 
 async def test_callback_user_copy_confirms_availability():
@@ -176,18 +234,18 @@ async def test_callback_followup_includes_yes_no_links():
     assert "https://api/no-link" in html
 
 
-async def test_proceed_followup_warns_about_price_drift():
+async def test_select_followup_warns_about_price_drift():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
-        await send_proceed_followup("jane@example.com", "Jane", "Firm", "https://yes", "https://no")
+        await send_select_followup("jane@example.com", "Jane", "Firm", "https://yes", "https://no")
     _, _, html = mock_send.call_args.args
     assert "price" in html.lower()
 
 
-async def test_proceed_feedback_request_links_review_url():
+async def test_select_feedback_request_links_review_url():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
-        await send_proceed_feedback_request(
+        await send_select_feedback_request(
             "jane@example.com", "Firm", "https://example.com/review/abc"
         )
     _, _, html = mock_send.call_args.args

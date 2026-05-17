@@ -3,8 +3,8 @@
 Three jobs replace the prior 90-day review-invitation cron:
 
 * End-of-day Callback follow-up — same working day as the request.
-* 5-working-day Proceed follow-up — quote-drift reminder + binary check-in.
-* 2-month Proceed feedback request — issues a ReviewInvitation token.
+* 5-working-day Select follow-up — quote-drift reminder + binary check-in.
+* 2-month Select feedback request — issues a ReviewInvitation token.
 
 All three are dedupe'd by a date window: each appointment falls in exactly
 one daily cron run, so we don't need a per-job ``sent_at`` column. The
@@ -26,8 +26,8 @@ from app.models.organisation import Organisation
 from app.models.review import ReviewInvitation
 from app.services.email import (
     send_callback_followup,
-    send_proceed_feedback_request,
-    send_proceed_followup,
+    send_select_feedback_request,
+    send_select_followup,
 )
 from app.services.followup_tokens import followup_url
 
@@ -98,11 +98,11 @@ async def _callback_followup_job(today: date | None = None) -> int:
     return sent
 
 
-# ── 5-working-day Proceed follow-up ──────────────────────────────────────────
+# ── 5-working-day Select follow-up ───────────────────────────────────────────
 
 
-async def _proceed_followup_job(today: date | None = None) -> int:
-    """Send "is your matter progressing?" emails for Proceeds N working days old."""
+async def _select_followup_job(today: date | None = None) -> int:
+    """Send "is your matter progressing?" emails for Selects N working days old."""
     n = settings.proceed_followup_working_days
     target = working_days_ago(n, today)
     start, end = _utc_day_window(target)
@@ -111,7 +111,7 @@ async def _proceed_followup_job(today: date | None = None) -> int:
     async with async_session_factory() as db:
         try:
             stmt = select(Appointment).where(
-                Appointment.type == AppointmentType.appoint,
+                Appointment.type == AppointmentType.select,
                 Appointment.created_at >= start,
                 Appointment.created_at < end,
                 Appointment.firm_contact_made.is_(None),
@@ -121,7 +121,7 @@ async def _proceed_followup_job(today: date | None = None) -> int:
 
             for appt in appointments:
                 firm_name = await _load_firm_name(db, appt.org_id)
-                await send_proceed_followup(
+                await send_select_followup(
                     appt.client_email,
                     appt.client_name,
                     firm_name,
@@ -130,21 +130,21 @@ async def _proceed_followup_job(today: date | None = None) -> int:
                 )
                 sent += 1
             await db.commit()
-            logger.info(f"Proceed follow-up: {sent} email(s) sent")
+            logger.info(f"Select follow-up: {sent} email(s) sent")
         except Exception as e:
             await db.rollback()
-            logger.error(f"Proceed follow-up job failed: {e}")
+            logger.error(f"Select follow-up job failed: {e}")
     return sent
 
 
-# ── 2-month Proceed feedback request ─────────────────────────────────────────
+# ── 2-month Select feedback request ──────────────────────────────────────────
 
 
-async def _proceed_feedback_request_job(today: date | None = None) -> int:
-    """Issue a review token + email for Proceeds whose delay window matures today.
+async def _select_feedback_request_job(today: date | None = None) -> int:
+    """Issue a review token + email for Selects whose delay window matures today.
 
     Replaces the prior ``review_invitation_job`` (90-day, status=completed
-    based). Now keyed off Proceed appointments at
+    based). Now keyed off Select appointments at
     ``settings.review_invitation_delay_days`` old, dedupe'd by the existence
     of a ``review_invitations`` row.
     """
@@ -160,7 +160,7 @@ async def _proceed_feedback_request_job(today: date | None = None) -> int:
                 select(Appointment)
                 .outerjoin(ReviewInvitation, ReviewInvitation.appointment_id == Appointment.id)
                 .where(
-                    Appointment.type == AppointmentType.appoint,
+                    Appointment.type == AppointmentType.select,
                     Appointment.created_at >= start,
                     Appointment.created_at < end,
                     ReviewInvitation.id.is_(None),
@@ -185,14 +185,14 @@ async def _proceed_feedback_request_job(today: date | None = None) -> int:
 
                 firm_name = await _load_firm_name(db, appt.org_id)
                 review_url = f"{settings.app_url}/review/{token}"
-                await send_proceed_feedback_request(appt.client_email, firm_name, review_url)
+                await send_select_feedback_request(appt.client_email, firm_name, review_url)
                 sent += 1
 
             await db.commit()
-            logger.info(f"Proceed feedback request: {sent} email(s) sent")
+            logger.info(f"Select feedback request: {sent} email(s) sent")
         except Exception as e:
             await db.rollback()
-            logger.error(f"Proceed feedback request job failed: {e}")
+            logger.error(f"Select feedback request job failed: {e}")
     return sent
 
 
@@ -207,18 +207,18 @@ def register_followup_jobs(scheduler) -> None:
         replace_existing=True,
     )
     scheduler.add_job(
-        _proceed_followup_job,
+        _select_followup_job,
         trigger="cron",
         hour=9,
         minute=0,
-        id="proceed_followup_job",
+        id="select_followup_job",
         replace_existing=True,
     )
     scheduler.add_job(
-        _proceed_feedback_request_job,
+        _select_feedback_request_job,
         trigger="cron",
         hour=9,
         minute=30,
-        id="proceed_feedback_request_job",
+        id="select_feedback_request_job",
         replace_existing=True,
     )

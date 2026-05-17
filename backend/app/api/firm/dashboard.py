@@ -28,7 +28,7 @@ async def get_dashboard_stats(
     new_appointments = await db.scalar(
         select(func.count(Appointment.id)).where(
             Appointment.org_id == org_id,
-            Appointment.type == AppointmentType.appoint,
+            Appointment.type == AppointmentType.select,
             Appointment.created_at >= since,
         )
     )
