@@ -72,7 +72,7 @@ export function AppointModal({ firm, sessionId, onClose }: Props) {
             {firm.quote && (
               <div className="bg-brand-50 rounded-lg p-3 text-center">
                 <p className="text-sm text-gray-600">Estimated total</p>
-                <p className="text-2xl font-bold text-brand-700">{formatCurrency(firm.quote.total)}</p>
+                <p className="text-2xl font-bold text-brand-700">{formatCurrency(Math.ceil(firm.quote.total))}</p>
               </div>
             )}
 

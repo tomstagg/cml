@@ -1,10 +1,10 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-import { Loader2, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Star } from "lucide-react";
+import { Fragment, useEffect, useMemo, useState } from "react";
+import { Loader2, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Star, ChevronDown } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { searchApi, type FirmResult, type SearchResponse } from "@/lib/api";
+import { searchApi, type FirmResult, type QuoteBreakdown, type SearchResponse } from "@/lib/api";
 import { trackResultsViewed } from "@/lib/analytics";
 import { ComplaintsCell } from "./ComplaintsCell";
 import { RegulatoryCell } from "./RegulatoryCell";
@@ -256,6 +256,18 @@ function ResultsTable({
   onAppoint,
   onCallback,
 }: TableProps) {
+  const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
+  const colSpan = includeDistance ? 9 : 8;
+
+  const toggleExpanded = (id: string) => {
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
   return (
     <div className="card overflow-x-auto">
       <table className="w-full text-sm">
@@ -289,81 +301,153 @@ function ResultsTable({
         <tbody>
           {rows.map((firm) => {
             const isTopFive = topFiveIds.has(firm.org_id);
+            const isExpanded = expandedIds.has(firm.org_id);
+            const rowBg = tinted ? "bg-[#EAF8FB]" : "bg-white";
             return (
-              <tr
-                key={firm.org_id}
-                className={cn(
-                  "border-t border-gray-100 align-top",
-                  tinted ? "bg-[#EAF8FB]" : "bg-white",
-                  !firm.enrolled && "opacity-60",
-                )}
-              >
-                <td className="py-3 px-3 font-semibold text-navy">{firm.rank}</td>
-                <td className="py-3 px-3">
-                  <div className="font-medium text-navy">{firm.trading_name}</div>
-                  <div className="text-xs text-gray-500 mt-0.5">
-                    {firm.city || firm.postcode || "—"}
-                  </div>
-                </td>
-                <td className="py-3 px-3">
-                  <ReputationCell firm={firm} />
-                </td>
-                <td className="py-3 px-3">
-                  <ComplaintsCell
-                    score={firm.factor_scores?.complaints ?? 100}
-                    sourceUrl={firm.complaints_url}
-                    compact
-                  />
-                </td>
-                <td className="py-3 px-3">
-                  <RegulatoryCell
-                    score={firm.factor_scores?.regulatory ?? 100}
-                    sourceUrl={firm.regulatory_url}
-                    compact
-                  />
-                </td>
-                <td className="py-3 px-3 text-right">
-                  {firm.quote ? (
-                    <span className="font-semibold text-navy">
-                      {formatCurrency(firm.quote.total)}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400">—</span>
-                  )}
-                </td>
-                {includeDistance && (
-                  <td className="py-3 px-3 text-right text-navy">
-                    {firm.distance_km !== null ? `${firm.distance_km} km` : "—"}
-                  </td>
-                )}
-                <td className="py-3 px-3 text-right text-navy">{firm.office_count}</td>
-                <td className="py-3 px-3 text-right">
-                  {firm.enrolled && isTopFive ? (
-                    <div className="flex flex-col gap-1.5 items-end">
-                      <button
-                        onClick={() => onAppoint(firm)}
-                        className="bg-gradient-to-br from-purple to-teal text-white text-xs font-medium px-3 py-1.5 rounded-full hover:opacity-90"
-                      >
-                        Proceed
-                      </button>
-                      <button
-                        onClick={() => onCallback(firm)}
-                        className="text-xs text-navy border border-navy/30 px-3 py-1 rounded-full hover:bg-navy/5"
-                      >
-                        Request callback
-                      </button>
+              <Fragment key={firm.org_id}>
+                <tr className={cn("border-t border-gray-100 align-top", rowBg)}>
+                  <td className="py-3 px-3 font-semibold text-navy">{firm.rank}</td>
+                  <td className="py-3 px-3">
+                    <div className="font-medium text-navy">{firm.trading_name}</div>
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      {firm.city || firm.postcode || "—"}
                     </div>
-                  ) : (
-                    <span className="text-xs text-gray-400 italic">
-                      {firm.enrolled ? "Not in top 5" : "Not enrolled"}
-                    </span>
+                  </td>
+                  <td className="py-3 px-3">
+                    <ReputationCell firm={firm} />
+                  </td>
+                  <td className="py-3 px-3">
+                    <ComplaintsCell
+                      score={firm.factor_scores?.complaints ?? 100}
+                      sourceUrl={firm.complaints_url}
+                      compact
+                    />
+                  </td>
+                  <td className="py-3 px-3">
+                    <RegulatoryCell
+                      score={firm.factor_scores?.regulatory ?? 100}
+                      sourceUrl={firm.regulatory_url}
+                      compact
+                    />
+                  </td>
+                  <td className="py-3 px-3 text-right">
+                    {firm.quote ? (
+                      <button
+                        type="button"
+                        onClick={() => toggleExpanded(firm.org_id)}
+                        aria-expanded={isExpanded}
+                        aria-label={isExpanded ? "Hide price breakdown" : "Show price breakdown"}
+                        className="inline-flex items-center gap-1 font-semibold text-navy hover:text-teal"
+                      >
+                        {formatCurrency(Math.ceil(firm.quote.total))}
+                        <ChevronDown
+                          className={cn(
+                            "w-3.5 h-3.5 transition-transform",
+                            isExpanded && "rotate-180",
+                          )}
+                        />
+                      </button>
+                    ) : (
+                      <span className="text-gray-400">—</span>
+                    )}
+                  </td>
+                  {includeDistance && (
+                    <td className="py-3 px-3 text-right text-navy">
+                      {firm.distance_km !== null ? `${firm.distance_km} km` : "—"}
+                    </td>
                   )}
-                </td>
-              </tr>
+                  <td className="py-3 px-3 text-right text-navy">{firm.office_count}</td>
+                  <td className="py-3 px-3 text-right">
+                    {firm.enrolled && isTopFive ? (
+                      <div className="flex flex-col gap-1.5 items-end">
+                        <button
+                          onClick={() => onAppoint(firm)}
+                          className="bg-gradient-to-br from-purple to-teal text-white text-xs font-medium px-3 py-1.5 rounded-full hover:opacity-90"
+                        >
+                          Proceed
+                        </button>
+                        <button
+                          onClick={() => onCallback(firm)}
+                          className="text-xs text-navy border border-navy/30 px-3 py-1 rounded-full hover:bg-navy/5"
+                        >
+                          Request callback
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-gray-400 italic">
+                        {firm.enrolled ? "Not in top 5" : "Not enrolled"}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+                {isExpanded && firm.quote && (
+                  <tr className={rowBg}>
+                    <td colSpan={colSpan} className="px-3 pb-4">
+                      <PriceBreakdownPanel quote={firm.quote} />
+                    </td>
+                  </tr>
+                )}
+              </Fragment>
             );
           })}
         </tbody>
       </table>
+    </div>
+  );
+}
+
+function PriceBreakdownPanel({ quote }: { quote: QuoteBreakdown }) {
+  const Row = ({
+    label,
+    amount,
+    indent,
+    muted,
+    bold,
+    sign,
+  }: {
+    label: string;
+    amount: number;
+    indent?: boolean;
+    muted?: boolean;
+    bold?: boolean;
+    sign?: "+" | "";
+  }) => (
+    <div
+      className={cn(
+        "flex justify-between text-sm",
+        indent && "pl-3 text-xs",
+        muted && "text-gray-500",
+        bold && "font-semibold text-navy",
+      )}
+    >
+      <span>{label}</span>
+      <span className={cn(!bold && !muted && "text-navy")}>
+        {sign === "+" ? "+ " : ""}
+        {formatCurrency(amount)}
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="ml-auto max-w-sm rounded-lg border border-gray-200 bg-white p-3 space-y-1.5">
+      <div className="text-xs uppercase tracking-wide text-gray-500 mb-1">
+        Price breakdown
+      </div>
+      <Row label="Base legal fee" amount={quote.base_fee} />
+      {quote.adjustments.map((adj, i) => (
+        <Row key={i} label={adj.name} amount={adj.amount} indent muted sign="+" />
+      ))}
+      <Row label="Legal fees subtotal" amount={quote.fees_subtotal} />
+      <Row label="VAT (20%)" amount={quote.vat} />
+      <div className="text-xs uppercase tracking-wide text-gray-500 pt-1">
+        Disbursements
+      </div>
+      {quote.disbursements.map((d, i) => (
+        <Row key={i} label={d.name} amount={d.amount} indent muted />
+      ))}
+      <div className="border-t border-gray-200 pt-1.5">
+        <Row label="Total (rounded up)" amount={Math.ceil(quote.total)} bold />
+      </div>
     </div>
   );
 }
