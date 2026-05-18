@@ -161,10 +161,10 @@ All 86 tests must pass before committing. If a test fails, fix the root cause �
 
 ## Git workflow
 
-- **Active branch**: `dev`
-- **Do not** commit to or merge into `main` — main is for production releases only
+- **Default branch**: `main` — this is the integration branch that all work merges into
+- Feature work happens on short-lived branches (e.g. `select-firm`, `tweaks`, `result-fix`) cut from `main` and merged back via PR
+- There is no long-lived `dev` branch — do not assume one exists or create one without being asked
 - Commit message format: concise imperative summary, e.g. `fix: backend Dockerfile editable install` or `feat: add cookie consent banner`
-- Always commit to `dev`
 
 ---
 
