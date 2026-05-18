@@ -146,6 +146,7 @@ export type SearchResponse = {
   scorecard_preference: string;
   include_distance: boolean;
   intake_summary: IntakeSummary;
+  callbacks_locked: boolean;
 };
 
 export const searchApi = {
@@ -164,26 +165,52 @@ export const searchApi = {
   },
 };
 
-// --- Public: Appointments ---
+// --- Public: Appointments (Select-only) ---
 export const appointmentsApi = {
   create: (data: {
     session_id: string;
     org_id: string;
-    type: "select" | "callback";
+    type: "select";
     client_name: string;
     client_email: string;
-    client_phone?: string;
-    preferred_time?: string;
+    client_phone: string;
     quoted_price?: number;
-    // Legacy callback consents.
-    consent_contacted?: boolean;
-    consent_terms?: boolean;
-    // Select-only fields.
-    data_sharing_consent?: boolean;
+    data_sharing_consent: boolean;
     purchase_property_postcode?: string;
     sale_property_postcode?: string;
     price_type?: "estimated" | "verified";
   }) => request("/api/public/appointments", { method: "POST", body: data }),
+};
+
+// --- Public: Bulk callbacks ---
+export type CallbackWindow =
+  | "09:00-11:00"
+  | "11:00-13:00"
+  | "13:00-15:00"
+  | "15:00-17:00";
+
+export type BulkCallbackFirm = {
+  org_id: string;
+  quoted_price?: number;
+  price_type?: "estimated" | "verified";
+};
+
+export type BulkCallbackCreate = {
+  session_id: string;
+  client_name: string;
+  client_email: string;
+  client_phone: string;
+  preferred_callback_window: CallbackWindow;
+  data_sharing_consent: boolean;
+  firms: BulkCallbackFirm[];
+};
+
+export const callbacksApi = {
+  createBulk: (data: BulkCallbackCreate) =>
+    request<{ created: number; appointment_ids: string[] }>(
+      "/api/public/callbacks/bulk",
+      { method: "POST", body: data },
+    ),
 };
 
 // --- Public: Reviews ---

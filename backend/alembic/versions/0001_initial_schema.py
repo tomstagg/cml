@@ -213,6 +213,7 @@ def upgrade() -> None:
         sa.Column("client_email", sa.String(255), nullable=False),
         sa.Column("client_phone", sa.String(30), nullable=True),
         sa.Column("preferred_time", sa.String(255), nullable=True),
+        sa.Column("preferred_callback_window", sa.String(16), nullable=True),
         sa.Column("quoted_price", sa.Numeric(10, 2), nullable=True),
         sa.Column("quote_breakdown", sa.Text(), nullable=True),
         sa.Column("consent_contacted", sa.Boolean(), nullable=False, server_default="false"),

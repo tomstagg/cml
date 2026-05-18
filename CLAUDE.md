@@ -161,10 +161,10 @@ All 86 tests must pass before committing. If a test fails, fix the root cause �
 
 ## Git workflow
 
-- **Active branch**: `dev`
-- **Do not** commit to or merge into `main` — main is for production releases only
+- **Default branch**: `main` — this is the integration branch that all work merges into
+- Feature work happens on short-lived branches (e.g. `select-firm`, `tweaks`, `result-fix`) cut from `main` and merged back via PR
+- There is no long-lived `dev` branch — do not assume one exists or create one without being asked
 - Commit message format: concise imperative summary, e.g. `fix: backend Dockerfile editable install` or `feat: add cookie consent banner`
-- Always commit to `dev`
 
 ---
 
@@ -261,7 +261,7 @@ Where:
 
 ### Consumer actions on results
 - **Proceed** — instructs a single firm. Confirmatory form captures name + email. Auto-email sent to the firm **in the user's name** (not in CML's name), copy to user. Lead recorded with timestamp.
-- **Request a callback** — up to **5 firms**. Confirmatory form captures name, email, phone, and availability over next two working days. Same email-in-user's-name rule.
+- **Request a callback** — up to **3 firms** in one submission. Confirmatory form captures name, email, phone, and a structured preferred-window radio (9–11, 11–1, 1–3, 3–5). Single data-sharing consent. Same email-in-user's-name rule. Submit endpoint: `POST /api/public/callbacks/bulk`. Search response carries `callbacks_locked` once a session has any callback Appointment; further callbacks require a new search.
 
 ### Email notification cycle
 - Lead emails on Proceed / Callback (firm + user copy).

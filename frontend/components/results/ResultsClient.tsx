@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Loader2, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Star, ChevronDown } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Star, ChevronDown, Check, Phone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { searchApi, type FirmResult, type QuoteBreakdown, type SearchResponse } from "@/lib/api";
@@ -10,6 +10,7 @@ import { ComplaintsCell } from "./ComplaintsCell";
 import { RegulatoryCell } from "./RegulatoryCell";
 import { SelectModal } from "./SelectModal";
 import { CallbackModal } from "./CallbackModal";
+import { CallbackStickyBar } from "./CallbackStickyBar";
 import { ReorderControl } from "./ReorderControl";
 import { cn, formatCityName, formatCurrency } from "@/lib/utils";
 
@@ -17,6 +18,7 @@ type SortKey = "rank" | "price" | "reputation" | "complaints" | "regulatory" | "
 type SortDir = "asc" | "desc";
 
 const PAGE_SIZE = 10;
+const MAX_CALLBACK_FIRMS = 3;
 
 const SCORECARD_LABEL: Record<string, string> = {
   balanced: "Balanced",
@@ -37,7 +39,19 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
   const [sortDir, setSortDir] = useState<SortDir>("asc");
   const [page, setPage] = useState(1);
   const [selectFirm, setSelectFirm] = useState<FirmResult | null>(null);
-  const [callbackFirm, setCallbackFirm] = useState<FirmResult | null>(null);
+  const [selectedCallbackIds, setSelectedCallbackIds] = useState<Set<string>>(
+    new Set(),
+  );
+  const [callbackModalOpen, setCallbackModalOpen] = useState(false);
+
+  function toggleCallback(orgId: string) {
+    setSelectedCallbackIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(orgId)) next.delete(orgId);
+      else if (next.size < MAX_CALLBACK_FIRMS) next.add(orgId);
+      return next;
+    });
+  }
 
   useEffect(() => {
     loadResults();
@@ -157,13 +171,21 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
               <h2 className="text-h4 text-navy mb-3">
                 Top {topFive.length} contactable firm{topFive.length === 1 ? "" : "s"}
               </h2>
+              {data.callbacks_locked && (
+                <div className="mb-3 rounded-lg border border-gray-200 bg-gray-50 p-3 text-sm text-gray-600">
+                  You&apos;ve already requested callbacks for this search. Start a
+                  new search to request more.
+                </div>
+              )}
               <ResultsTable
                 rows={topFive}
                 topFiveIds={topFiveIds}
                 includeDistance={includeDistance}
                 tinted
                 onSelect={setSelectFirm}
-                onCallback={setCallbackFirm}
+                selectedCallbackIds={selectedCallbackIds}
+                onToggleCallback={toggleCallback}
+                callbacksLocked={data.callbacks_locked}
               />
             </section>
           )}
@@ -179,7 +201,9 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
               sortDir={sortDir}
               onSort={onHeaderClick}
               onSelect={setSelectFirm}
-              onCallback={setCallbackFirm}
+              selectedCallbackIds={selectedCallbackIds}
+              onToggleCallback={toggleCallback}
+              callbacksLocked={data.callbacks_locked}
             />
             {pageCount > 1 && (
               <Pagination page={page} pageCount={pageCount} onChange={setPage} />
@@ -202,11 +226,28 @@ export function ResultsClient({ sessionId }: { sessionId: string }) {
           onClose={() => setSelectFirm(null)}
         />
       )}
-      {callbackFirm && (
+      {!data.callbacks_locked && (
+        <CallbackStickyBar
+          count={selectedCallbackIds.size}
+          max={MAX_CALLBACK_FIRMS}
+          onOpen={() => setCallbackModalOpen(true)}
+        />
+      )}
+      {callbackModalOpen && (
         <CallbackModal
-          firm={callbackFirm}
+          firms={
+            [...selectedCallbackIds]
+              .map((id) => data.results.find((f) => f.org_id === id))
+              .filter((f): f is FirmResult => Boolean(f))
+          }
           sessionId={sessionId}
-          onClose={() => setCallbackFirm(null)}
+          intakeSummary={data.intake_summary}
+          onClose={() => setCallbackModalOpen(false)}
+          onSuccess={() => {
+            setCallbackModalOpen(false);
+            setSelectedCallbackIds(new Set());
+            setData((d) => (d ? { ...d, callbacks_locked: true } : d));
+          }}
         />
       )}
     </div>
@@ -242,7 +283,9 @@ type TableProps = {
   sortDir?: SortDir;
   onSort?: (key: SortKey) => void;
   onSelect: (firm: FirmResult) => void;
-  onCallback: (firm: FirmResult) => void;
+  selectedCallbackIds: Set<string>;
+  onToggleCallback: (orgId: string) => void;
+  callbacksLocked: boolean;
 };
 
 function ResultsTable({
@@ -255,7 +298,9 @@ function ResultsTable({
   sortDir,
   onSort,
   onSelect,
-  onCallback,
+  selectedCallbackIds,
+  onToggleCallback,
+  callbacksLocked,
 }: TableProps) {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const colSpan = includeDistance ? 9 : 8;
@@ -367,12 +412,16 @@ function ResultsTable({
                         >
                           Select
                         </button>
-                        <button
-                          onClick={() => onCallback(firm)}
-                          className="text-xs text-navy border border-navy/30 px-3 py-1 rounded-full hover:bg-navy/5"
-                        >
-                          Request callback
-                        </button>
+                        {!callbacksLocked && (
+                          <CallbackToggle
+                            checked={selectedCallbackIds.has(firm.org_id)}
+                            disabled={
+                              !selectedCallbackIds.has(firm.org_id) &&
+                              selectedCallbackIds.size >= MAX_CALLBACK_FIRMS
+                            }
+                            onToggle={() => onToggleCallback(firm.org_id)}
+                          />
+                        )}
                       </div>
                     ) : (
                       <span className="text-xs text-gray-400 italic">
@@ -497,6 +546,46 @@ function Th({
         <Icon className="w-3 h-3" />
       </button>
     </th>
+  );
+}
+
+function CallbackToggle({
+  checked,
+  disabled,
+  onToggle,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={checked}
+      disabled={disabled}
+      onClick={onToggle}
+      title={
+        disabled
+          ? "Already 3 firms selected — uncheck one to add another"
+          : checked
+            ? "Remove from callback request"
+            : "Add to callback request"
+      }
+      className={cn(
+        "inline-flex items-center gap-1.5 text-[11px] font-medium px-3.5 py-1 rounded-full border transition-colors",
+        checked
+          ? "bg-[#0AE5F6]/10 text-navy border-teal/60"
+          : "bg-transparent text-gray-500 border-gray-200 hover:text-teal hover:border-teal/50",
+        disabled && "opacity-40 cursor-not-allowed hover:text-gray-500 hover:border-gray-200",
+      )}
+    >
+      {checked ? (
+        <Check className="w-3 h-3 text-teal" />
+      ) : (
+        <Phone className="w-3 h-3" />
+      )}
+      {checked ? "Added to callback" : "Request a callback"}
+    </button>
   );
 }
 

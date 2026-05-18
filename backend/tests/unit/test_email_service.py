@@ -3,9 +3,9 @@
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from app.services.email import (
+    send_bulk_callbacks_user_copy,
     send_callback_followup,
     send_callback_to_firm,
-    send_callback_user_copy,
     send_conflict_check_failed,
     send_email,
     send_enrollment_invitation,
@@ -151,10 +151,10 @@ async def test_select_to_firm_combined_renders_both_sides():
     assert "verified" in html.lower()
 
 
-# ── Callback firm email ──────────────────────────────────────────────────────
+# ── Callback firm email (multi-firm bulk flow) ───────────────────────────────
 
 
-async def test_callback_to_firm_includes_phone_and_availability():
+async def test_callback_to_firm_includes_window_price_and_summary():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
         await send_callback_to_firm(
@@ -163,24 +163,43 @@ async def test_callback_to_firm_includes_phone_and_availability():
             "Jane",
             "j@e.com",
             "07700900000",
-            "Weekdays after 5pm",
+            _BUYING_SUMMARY,
             None,
+            None,
+            "11:00-13:00",
+            1850.0,
+            "verified",
         )
     kwargs = mock_send.call_args.kwargs
     _, _, html = mock_send.call_args.args
     assert kwargs["from_name"] == "Jane"
     assert kwargs["reply_to"] == "j@e.com"
     assert "07700900000" in html
-    assert "Weekdays after 5pm" in html
+    assert "11am – 1pm" in html
+    assert "1,850.00" in html
+    assert "verified by firm" in html
+    assert "Buying" in html
+    assert "next working day" in html.lower()
 
 
-async def test_callback_to_firm_omits_optional_fields():
+async def test_callback_to_firm_omits_price_when_none():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
-        await send_callback_to_firm("firm@law.com", "Firm", "Jane", "j@e.com", None, None, None)
+        await send_callback_to_firm(
+            "firm@law.com",
+            "Firm",
+            "Jane",
+            "j@e.com",
+            None,
+            _BUYING_SUMMARY,
+            None,
+            None,
+            None,
+            None,
+            None,
+        )
     _, _, html = mock_send.call_args.args
-    assert "Phone" not in html
-    assert "Availability" not in html
+    assert "Price shown" not in html
 
 
 # ── Consumer copies ──────────────────────────────────────────────────────────
@@ -206,14 +225,31 @@ async def test_select_user_copy_includes_summary_and_price():
     assert "next working day" in html.lower()
 
 
-async def test_callback_user_copy_confirms_availability():
+async def test_bulk_callbacks_user_copy_lists_all_firms_and_window():
     with patch("app.services.email.send_email", new_callable=AsyncMock) as mock_send:
         mock_send.return_value = True
-        await send_callback_user_copy(
-            "jane@example.com", "Jane", "Firm", "Weekdays after 5pm", None
+        await send_bulk_callbacks_user_copy(
+            "jane@example.com",
+            "Jane",
+            [
+                {"firm_name": "Acme", "quoted_price": 1850.0, "price_type": "estimated"},
+                {"firm_name": "Beta", "quoted_price": 1920.0, "price_type": "verified"},
+            ],
+            _BUYING_SUMMARY,
+            None,
+            None,
+            "15:00-17:00",
         )
-    _, _, html = mock_send.call_args.args
-    assert "Weekdays after 5pm" in html
+    _, subject, html = mock_send.call_args.args
+    assert "Acme" in html
+    assert "Beta" in html
+    assert "1,850.00" in html
+    assert "1,920.00" in html
+    assert "estimated" in html
+    assert "verified by firm" in html
+    assert "3pm – 5pm" in html
+    assert "conflict check" in html.lower()
+    assert "callback requests" in subject.lower()
 
 
 # ── Follow-ups ───────────────────────────────────────────────────────────────

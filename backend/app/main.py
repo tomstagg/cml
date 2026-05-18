@@ -15,7 +15,14 @@ from app.limiter import limiter
 from app.tasks.scheduler import start_scheduler, stop_scheduler
 
 # API routers
-from app.api.public import sessions, search, appointments, events, reviews as public_reviews
+from app.api.public import (
+    appointments,
+    callbacks,
+    events,
+    reviews as public_reviews,
+    search,
+    sessions,
+)
 from app.api.firm import auth, profile, pricing, dashboard, reviews as firm_reviews
 from app.api.admin import (
     analytics as admin_analytics,
@@ -82,6 +89,7 @@ async def health_check():
 app.include_router(sessions.router, prefix="/api/public")
 app.include_router(search.router, prefix="/api/public")
 app.include_router(appointments.router, prefix="/api/public")
+app.include_router(callbacks.router, prefix="/api/public")
 app.include_router(events.router, prefix="/api/public")
 app.include_router(public_reviews.router, prefix="/api/public")
 

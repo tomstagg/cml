@@ -84,3 +84,4 @@ class SearchResponse(BaseModel):
     scorecard_preference: str = "balanced"
     include_distance: bool = False
     intake_summary: IntakeSummary
+    callbacks_locked: bool = False

@@ -279,6 +279,47 @@ export default function HowItWorksPage() {
         </div>
       </section>
 
+      <section
+        id="questions-to-ask"
+        className="py-20 bg-surface-muted scroll-mt-24 border-t border-gray-100"
+      >
+        <div className="section-container max-w-3xl">
+          <h2 className="font-bold text-navy mb-3">
+            Questions to ask a conveyancing lawyer before instructing them
+          </h2>
+          <p className="text-ink-muted mb-8">
+            Before speaking to firms, it helps to plan a few questions so you
+            can compare them fairly. Here are four areas worth covering on
+            every call.
+          </p>
+          <ol className="space-y-4 list-decimal pl-6 text-ink-muted leading-relaxed">
+            <li>
+              <strong className="text-navy">Discuss pricing clearly.</strong>{" "}
+              Ask the firm to confirm the price you saw on Choose My Lawyer
+              and walk through what may legitimately change. Cover VAT,
+              disbursements, and any matter-specific costs that haven&apos;t
+              been included yet.
+            </li>
+            <li>
+              <strong className="text-navy">Ask sensible onboarding questions.</strong>{" "}
+              Anti-money-laundering checks, ID verification, who&apos;ll be
+              your day-to-day contact, and typical response times for emails
+              and calls.
+            </li>
+            <li>
+              <strong className="text-navy">Compare firms consistently.</strong>{" "}
+              Ask each firm the same questions so you can weigh up answers
+              fairly rather than relying on first impressions alone.
+            </li>
+            <li>
+              <strong className="text-navy">Understand likely next steps.</strong>{" "}
+              Typical timelines from instruction to exchange, what you&apos;ll
+              need to provide, and how they handle conflict checks.
+            </li>
+          </ol>
+        </div>
+      </section>
+
       <section id="faqs" className="py-20 bg-surface-muted scroll-mt-24">
         <div className="section-container max-w-3xl">
           <h2 className="font-bold text-navy mb-8">Frequently asked questions</h2>

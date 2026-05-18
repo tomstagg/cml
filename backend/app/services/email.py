@@ -245,37 +245,84 @@ async def send_select_to_firm(
     )
 
 
+_CALLBACK_WINDOW_LABELS: dict[str, str] = {
+    "09:00-11:00": "9am – 11am",
+    "11:00-13:00": "11am – 1pm",
+    "13:00-15:00": "1pm – 3pm",
+    "15:00-17:00": "3pm – 5pm",
+}
+
+
+def _callback_window_label(window: str | None) -> str:
+    if not window:
+        return ""
+    return _CALLBACK_WINDOW_LABELS.get(window, window)
+
+
 async def send_callback_to_firm(
     firm_email: str,
     firm_name: str,
     client_name: str,
     client_email: str,
     client_phone: str | None,
-    preferred_time: str | None,
+    intake_summary: dict,
+    purchase_property_postcode: str | None,
+    sale_property_postcode: str | None,
+    callback_window: str | None,
     quoted_price: float | None,
+    price_type: str | None,
 ) -> bool:
-    """Callback request — sent to the firm under the consumer's name + reply-to."""
+    """Callback request — sent to the firm under the consumer's name + reply-to.
+
+    Per the CML Request-a-callback workflow schema the firm receives: contact
+    details, transaction summary, preferred callback window, and the price the
+    user saw plus whether it was estimated or verified.
+    """
     subject = f"Callback request from {client_name} via Choose My Lawyer"
     price = _format_price(quoted_price)
+    status = _price_status_label(price_type)
+    window_label = _callback_window_label(callback_window)
+
+    price_html = ""
+    if price:
+        suffix = f" ({status})" if status else ""
+        price_html = f"<p><strong>Price shown to {client_name}:</strong> {price}{suffix}</p>"
+
+    window_html = ""
+    if window_label:
+        window_html = f"<p><strong>Preferred callback window:</strong> {window_label}</p>"
+
+    summary_html = _intake_summary_rows_html(
+        intake_summary,
+        purchase_postcode=purchase_property_postcode,
+        sale_postcode=sale_property_postcode,
+    )
+
     rows = [f"<li><strong>Email:</strong> {client_email}</li>"]
     if client_phone:
         rows.append(f"<li><strong>Phone:</strong> {client_phone}</li>")
-    if preferred_time:
-        rows.append(f"<li><strong>Availability:</strong> {preferred_time}</li>")
-    if price:
-        rows.append(f"<li><strong>Quoted price:</strong> {price}</li>")
+
     html = f"""
     <h2>Hello {firm_name},</h2>
     <p>Please could you call me about a residential conveyancing matter? I
     found you through Choose My Lawyer and would like to discuss before I
     instruct.</p>
+    <h3 style="margin-bottom:4px;">My contact details</h3>
     <ul>{"".join(rows)}</ul>
-    <p>You can reply to this email to confirm a time.</p>
+    {window_html}
+    <h3 style="margin-bottom:4px;">Transaction summary</h3>
+    {summary_html}
+    {price_html}
+    <p>Please try to call me during my preferred window above. If you can't
+    reach me, please make one further attempt during normal business hours on
+    the next working day. Please complete your conflict check before confirming
+    you can act.</p>
     <p>Many thanks,<br>{client_name}</p>
     <hr>
     <p style="color:#666;font-size:12px;">
         This message was generated on behalf of {client_name} via Choose My
-        Lawyer. Replies go directly to {client_email}.
+        Lawyer with their consent to share these details. Replies go directly
+        to {client_email}.
     </p>
     """
     return await send_email(
@@ -340,30 +387,82 @@ async def send_select_user_copy(
     return await send_email(client_email, subject, html)
 
 
-async def send_callback_user_copy(
+async def send_bulk_callbacks_user_copy(
     client_email: str,
     client_name: str,
-    firm_name: str,
-    preferred_time: str | None,
-    quoted_price: float | None,
+    firm_blocks: list[dict],
+    intake_summary: dict,
+    purchase_property_postcode: str | None,
+    sale_property_postcode: str | None,
+    callback_window: str | None,
 ) -> bool:
-    subject = f"Your callback request to {firm_name} — Choose My Lawyer"
-    price = _format_price(quoted_price)
-    quote_html = f"<p>Quoted price: <strong>{price}</strong></p>" if price else ""
-    availability_html = (
-        f"<p>Availability passed to the firm: <strong>{preferred_time}</strong>.</p>"
-        if preferred_time
+    """Consumer copy listing all firms asked to call back, plus a recap of the
+    transaction summary that was shared with each firm.
+
+    ``firm_blocks`` items: ``{"firm_name": str, "quoted_price": float|None,
+    "price_type": "estimated"|"verified"|None}``.
+    """
+    count = len(firm_blocks)
+    subject = (
+        f"Your callback request to {firm_blocks[0]['firm_name']} — Choose My Lawyer"
+        if count == 1
+        else "Your callback requests — Choose My Lawyer"
+    )
+
+    window_label = _callback_window_label(callback_window)
+    window_html = (
+        f"<p>Preferred callback window: <strong>{window_label}</strong>.</p>"
+        if window_label
         else ""
     )
+
+    firm_rows = []
+    for b in firm_blocks:
+        price = _format_price(b.get("quoted_price"))
+        status = _price_status_label(b.get("price_type"))
+        suffix = f' <span style="color:#555;">({status})</span>' if price and status else ""
+        price_cell = f"{price}{suffix}" if price else "—"
+        firm_rows.append(
+            "<tr>"
+            f'<td style="padding:6px 12px 6px 0;color:#080C64;font-weight:600;">{b["firm_name"]}</td>'
+            f'<td style="padding:6px 0;color:#080C64;">{price_cell}</td>'
+            "</tr>"
+        )
+    firms_html = (
+        '<table style="border-collapse:collapse;font-size:14px;margin:8px 0;">'
+        f"{''.join(firm_rows)}</table>"
+    )
+
+    summary_html = _intake_summary_rows_html(
+        intake_summary,
+        purchase_postcode=purchase_property_postcode,
+        sale_postcode=sale_property_postcode,
+    )
+
+    heading = (
+        "Your callback request is on its way"
+        if count == 1
+        else "Your callback requests are on their way"
+    )
+
     html = f"""
-    <h2>Your callback request is on its way</h2>
+    <h2>{heading}</h2>
     <p>Hi {client_name},</p>
-    <p>We've asked <strong>{firm_name}</strong> to call you back about your
-    residential conveyancing matter. They'll reply to you directly.</p>
-    {availability_html}
-    {quote_html}
-    <p>We'll check in with you at the end of the working day to make sure the
-    firm got in touch.</p>
+    <p>We've asked the following firms to call you back about your residential
+    conveyancing matter:</p>
+    {firms_html}
+    {window_html}
+    <h3 style="margin-bottom:4px;">Transaction summary shared with each firm</h3>
+    {summary_html}
+    <h3 style="margin-bottom:4px;">What happens next</h3>
+    <ul>
+      <li>Each firm will aim to contact you during your chosen window.</li>
+      <li>If they can't reach you, they'll try once more during normal business
+      hours on the next working day.</li>
+      <li>Firms will first complete a conflict check before confirming whether
+      they can act.</li>
+      <li>We may follow up to check whether contact was made.</li>
+    </ul>
     <p>Best regards,<br>The Choose My Lawyer Team</p>
     """
     return await send_email(client_email, subject, html)
