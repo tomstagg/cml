@@ -1,7 +1,7 @@
 "use client";
 
 import { Fragment, useEffect, useMemo, useState } from "react";
-import { Loader2, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Star, ChevronDown } from "lucide-react";
+import { Loader2, ArrowLeft, ArrowUpDown, ArrowUp, ArrowDown, Star, ChevronDown, Check, Phone } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { searchApi, type FirmResult, type QuoteBreakdown, type SearchResponse } from "@/lib/api";
@@ -413,19 +413,14 @@ function ResultsTable({
                           Select
                         </button>
                         {!callbacksLocked && (
-                          <label className="text-xs text-navy flex items-center gap-1 cursor-pointer">
-                            <input
-                              type="checkbox"
-                              className="rounded"
-                              checked={selectedCallbackIds.has(firm.org_id)}
-                              disabled={
-                                !selectedCallbackIds.has(firm.org_id) &&
-                                selectedCallbackIds.size >= MAX_CALLBACK_FIRMS
-                              }
-                              onChange={() => onToggleCallback(firm.org_id)}
-                            />
-                            Add to callback request
-                          </label>
+                          <CallbackToggle
+                            checked={selectedCallbackIds.has(firm.org_id)}
+                            disabled={
+                              !selectedCallbackIds.has(firm.org_id) &&
+                              selectedCallbackIds.size >= MAX_CALLBACK_FIRMS
+                            }
+                            onToggle={() => onToggleCallback(firm.org_id)}
+                          />
                         )}
                       </div>
                     ) : (
@@ -551,6 +546,46 @@ function Th({
         <Icon className="w-3 h-3" />
       </button>
     </th>
+  );
+}
+
+function CallbackToggle({
+  checked,
+  disabled,
+  onToggle,
+}: {
+  checked: boolean;
+  disabled: boolean;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={checked}
+      disabled={disabled}
+      onClick={onToggle}
+      title={
+        disabled
+          ? "Already 3 firms selected — uncheck one to add another"
+          : checked
+            ? "Remove from callback request"
+            : "Add to callback request"
+      }
+      className={cn(
+        "inline-flex items-center gap-1.5 text-[11px] font-medium px-3.5 py-1 rounded-full border transition-colors",
+        checked
+          ? "bg-[#0AE5F6]/10 text-navy border-teal/60"
+          : "bg-transparent text-gray-500 border-gray-200 hover:text-teal hover:border-teal/50",
+        disabled && "opacity-40 cursor-not-allowed hover:text-gray-500 hover:border-gray-200",
+      )}
+    >
+      {checked ? (
+        <Check className="w-3 h-3 text-teal" />
+      ) : (
+        <Phone className="w-3 h-3" />
+      )}
+      {checked ? "Added to callback" : "Request a callback"}
+    </button>
   );
 }
 
