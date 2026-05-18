@@ -1,4 +1,8 @@
-"""Public API: create Select / Callback requests."""
+"""Public API: create Select requests.
+
+Callback requests are handled by ``app/api/public/callbacks.py`` via the
+multi-firm bulk endpoint.
+"""
 
 import uuid
 
@@ -13,12 +17,7 @@ from app.models.chat_session import ChatSession
 from app.models.organisation import Organisation
 from app.schemas.appointment import AppointmentCreate, AppointmentResponse
 from app.services.chat import build_intake_summary
-from app.services.email import (
-    send_callback_to_firm,
-    send_callback_user_copy,
-    send_select_to_firm,
-    send_select_user_copy,
-)
+from app.services.email import send_select_to_firm, send_select_user_copy
 from app.services.followup_tokens import verify_followup_token
 
 router = APIRouter(prefix="/appointments", tags=["appointments"])
@@ -30,25 +29,27 @@ async def create_appointment(
     background_tasks: BackgroundTasks,
     db: AsyncSession = Depends(get_db),
 ):
-    """Create a Select or Callback request and dispatch emails.
+    """Create a Select request and dispatch emails.
 
     Per Annex One §12.2 the firm-side email is sent **in the user's name**
     (display name + ``reply_to``) with CML BCC'd. The user receives a neutral
     CML-branded copy.
     """
-    is_select = body.type == AppointmentType.select.value
-
-    if is_select:
-        if not body.data_sharing_consent:
-            raise HTTPException(
-                status_code=400,
-                detail="Data sharing consent is required to send your details to the firm.",
-            )
-        if not body.client_phone:
-            raise HTTPException(status_code=400, detail="Phone number is required for Select.")
-    else:
-        if not body.consent_contacted or not body.consent_terms:
-            raise HTTPException(status_code=400, detail="Both consent fields must be accepted")
+    if body.type != AppointmentType.select.value:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                "This endpoint accepts Select requests only. "
+                "Use /api/public/callbacks/bulk for callbacks."
+            ),
+        )
+    if not body.data_sharing_consent:
+        raise HTTPException(
+            status_code=400,
+            detail="Data sharing consent is required to send your details to the firm.",
+        )
+    if not body.client_phone:
+        raise HTTPException(status_code=400, detail="Phone number is required for Select.")
 
     org_result = await db.execute(
         select(Organisation).where(Organisation.id == body.org_id, Organisation.enrolled == True)
@@ -64,10 +65,7 @@ async def create_appointment(
         client_name=body.client_name,
         client_email=str(body.client_email),
         client_phone=body.client_phone,
-        preferred_time=body.preferred_time,
         quoted_price=body.quoted_price,
-        consent_contacted=body.consent_contacted,
-        consent_terms=body.consent_terms,
         data_sharing_consent=body.data_sharing_consent,
         purchase_property_postcode=body.purchase_property_postcode,
         sale_property_postcode=body.sale_property_postcode,
@@ -78,58 +76,35 @@ async def create_appointment(
     quoted_price = float(body.quoted_price) if body.quoted_price else None
     client_email = str(body.client_email)
 
-    if is_select:
-        session_result = await db.execute(
-            select(ChatSession).where(ChatSession.id == body.session_id)
-        )
-        session_obj = session_result.scalar_one_or_none()
-        intake_summary = build_intake_summary(session_obj.answers or {} if session_obj else {})
+    session_result = await db.execute(select(ChatSession).where(ChatSession.id == body.session_id))
+    session_obj = session_result.scalar_one_or_none()
+    intake_summary = build_intake_summary(session_obj.answers or {} if session_obj else {})
 
+    background_tasks.add_task(
+        send_select_user_copy,
+        client_email,
+        body.client_name,
+        org.trading_name,
+        intake_summary,
+        body.purchase_property_postcode,
+        body.sale_property_postcode,
+        quoted_price,
+        body.price_type,
+    )
+    if org.referral_email:
         background_tasks.add_task(
-            send_select_user_copy,
-            client_email,
-            body.client_name,
+            send_select_to_firm,
+            org.referral_email,
             org.trading_name,
+            body.client_name,
+            client_email,
+            body.client_phone,
             intake_summary,
             body.purchase_property_postcode,
             body.sale_property_postcode,
             quoted_price,
             body.price_type,
         )
-        if org.referral_email:
-            background_tasks.add_task(
-                send_select_to_firm,
-                org.referral_email,
-                org.trading_name,
-                body.client_name,
-                client_email,
-                body.client_phone,
-                intake_summary,
-                body.purchase_property_postcode,
-                body.sale_property_postcode,
-                quoted_price,
-                body.price_type,
-            )
-    else:
-        background_tasks.add_task(
-            send_callback_user_copy,
-            client_email,
-            body.client_name,
-            org.trading_name,
-            body.preferred_time,
-            quoted_price,
-        )
-        if org.referral_email:
-            background_tasks.add_task(
-                send_callback_to_firm,
-                org.referral_email,
-                org.trading_name,
-                body.client_name,
-                client_email,
-                body.client_phone,
-                body.preferred_time,
-                quoted_price,
-            )
 
     return appointment
 

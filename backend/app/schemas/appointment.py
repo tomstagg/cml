@@ -3,7 +3,10 @@ from datetime import datetime
 from decimal import Decimal
 from typing import Literal
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, EmailStr, Field, field_validator
+
+
+CallbackWindow = Literal["09:00-11:00", "11:00-13:00", "13:00-15:00", "15:00-17:00"]
 
 
 class AppointmentCreate(BaseModel):
@@ -44,3 +47,38 @@ class AppointmentResponse(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class BulkCallbackFirm(BaseModel):
+    org_id: uuid.UUID
+    quoted_price: Decimal | None = None
+    price_type: Literal["estimated", "verified"] | None = None
+
+
+class BulkCallbackCreate(BaseModel):
+    session_id: uuid.UUID
+    client_name: str = Field(..., min_length=2, max_length=255)
+    client_email: EmailStr
+    client_phone: str = Field(..., max_length=30)
+    preferred_callback_window: CallbackWindow
+    data_sharing_consent: bool
+    firms: list[BulkCallbackFirm] = Field(..., min_length=1, max_length=3)
+
+    @field_validator("firms")
+    @classmethod
+    def _no_duplicate_orgs(cls, v: list[BulkCallbackFirm]) -> list[BulkCallbackFirm]:
+        if len({f.org_id for f in v}) != len(v):
+            raise ValueError("firms must be distinct")
+        return v
+
+    @field_validator("data_sharing_consent")
+    @classmethod
+    def _consent_must_be_true(cls, v: bool) -> bool:
+        if not v:
+            raise ValueError("data_sharing_consent must be true")
+        return v
+
+
+class BulkCallbackResponse(BaseModel):
+    created: int
+    appointment_ids: list[uuid.UUID]

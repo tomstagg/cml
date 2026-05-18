@@ -8,6 +8,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models.appointment import Appointment, AppointmentType
 from app.models.chat_session import ChatSession
 from app.schemas.search import SearchResponse
 from app.services.chat import build_intake_summary, get_intake_flags, is_flow_complete
@@ -68,6 +69,17 @@ async def get_results(
             }
             db.add(session)
 
+    callbacks_locked = (
+        await db.execute(
+            select(Appointment.id)
+            .where(
+                Appointment.session_id == session_id,
+                Appointment.type == AppointmentType.callback,
+            )
+            .limit(1)
+        )
+    ).first() is not None
+
     return SearchResponse(
         session_id=session_id,
         results=results_data,
@@ -77,4 +89,5 @@ async def get_results(
         scorecard_preference=scorecard_preference,
         include_distance=effective_include_distance,
         intake_summary=build_intake_summary(session.answers or {}),
+        callbacks_locked=callbacks_locked,
     )

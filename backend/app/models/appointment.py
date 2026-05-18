@@ -53,6 +53,7 @@ class Appointment(Base):
     client_email: Mapped[str] = mapped_column(String(255), nullable=False)
     client_phone: Mapped[str | None] = mapped_column(String(30))
     preferred_time: Mapped[str | None] = mapped_column(String(255))
+    preferred_callback_window: Mapped[str | None] = mapped_column(String(16), nullable=True)
 
     # Quote snapshot at time of appointment
     quoted_price: Mapped[Decimal | None] = mapped_column(Numeric(10, 2))
